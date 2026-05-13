@@ -9,6 +9,34 @@ Operative Umsetzung der Vision aus [`VISION.md`](./VISION.md). Diese Datei besch
 
 ---
 
+## Architektur-Leitprinzipien
+
+Diese Prinzipien priorisieren konkrete Designentscheidungen in der gesamten Roadmap. Bei Konflikt zwischen "elegantem Generalismus" und einem Prinzip gewinnt das Prinzip.
+
+### Dev/Prod-Asymmetrie (Single-Compile-Strategie)
+
+Der Dev-Mode (Visual Builder) ist eine **Entwicklungsumgebung**, kein Hochlastsystem. Performance dort ist sekundaer. Das Endnutzer-Produkt entsteht via Codegen (Phase 4) als **eigene, fixierte Komponenten-Crate**, die jede User-Konfiguration ausgewalzt enthaelt — pro Konfigurations-Variante eine eigene generierte Komponente.
+
+Konsequenzen fuer die Roadmap:
+
+1. **Keine generische Laufzeit-Engine im Builder.** Der Builder-State darf eine simple Rust-Datenstruktur sein (`Vec<UiNode>`, `HashMap`, `RwSignal<...>`). ECS-Frameworks, Reflection-Apparate, generische Komposition zur Laufzeit sind nicht noetig, weil zur Laufzeit ohnehin keine Iteration ueber tausende dynamische Knoten stattfindet — in einer Designer-Session sind 5–50 Elemente sichtbar.
+
+2. **Austauschbarkeit existiert nur ueber User-Configs, nicht zur Laufzeit.** Sobald die Konfiguration steht, wird sie kompiliert. Die generierte App kennt keinen Modus, in dem sie zur Laufzeit Komponenten austauscht. Plugins (Phase 2) sind die einzige Ausnahme — sie laufen sandboxed, aber als zusaetzlicher Layer, nicht als Konfigurations-Engine.
+
+3. **Codegen ist nicht "ein optionales Feature in Phase 4", sondern das Produkt.** Der Builder ist das Werkzeug, der Codegen ist das Ergebnis. Daher haelt man im Builder alles in einer Form, die sich **trivial in Rust-Quellcode uebersetzen** laesst — Datenstrukturen, die nahe am Ziel-AST sind, schlagen abstrakte ECS-Modelle.
+
+4. **Performance-Vorgaben fuer den Builder**: "muss interaktiv reagieren" (Mensch-Skala, ~16 ms), nicht "muss tausende Knoten pro Frame iterieren". Optimierungen ueber das hinaus sind verfrueht.
+
+### Server als Authority
+
+Der Server ist die einzige Quelle der Wahrheit fuer Schema, Permissions, Implementations-IDs und Migrationen. Der Client zeigt projizierte Sichten an, darf aber nichts erzwingen. Siehe Phase 0.7 (Permissions) und Phase 1.5 (Implementations-Resolution).
+
+### Konzepte uebernehmen, Tech-Choices pragmatisch
+
+Der Blueprint nennt Bevy, SurrealDB, Loco, SurrealKit. Wir uebernehmen die **Konzepte** (Komposition statt Vererbung, Dual-Mode-Schema, Convention-over-Config, zweiphasige Migrationen) und implementieren sie mit dem Stack, der bereits laeuft (axum, SeaORM/SQLite, Leptos, plain Rust). Siehe `VISION.md` fuer das Mapping.
+
+---
+
 ## Phase 0 — IST (abgeschlossen)
 
 Beschreibt den vorhandenen Stand zur Kalibrierung der Folge-Phasen. Siehe `CLAUDE.md` und `README.md` fuer Details.
@@ -112,23 +140,23 @@ Effect   := Allow | Deny
 
 ---
 
-## Phase 1 — Builder-Foundation (ECS-Metadaten)
+## Phase 1 — Builder-Foundation (Reaktive UI-State)
 
 **Ziel**: Reaktiver In-Memory-State fuer den Visual Builder. Heute sind `columns.toml`/`editor.toml`/`settings.toml` statisch; nach dieser Phase laesst sich der Datentyp `product`/etc. live im Editor komponieren.
 
-**Schluesseltechnologie**: `bevy_ecs` (ohne Render/App-Loop, nur die ECS-Crate).
+**Schluesseltechnologie**: **Plain Rust + Leptos-Signals**. Der Builder-State ist eine `RwSignal<UiTree>` mit einer simplen, codegen-naheliegenden Datenstruktur (siehe Spezifikation unten). Kein ECS-Framework — begruendet im Architektur-Leitprinzip "Dev/Prod-Asymmetrie": die Designer-Session arbeitet mit kleinen Knoten-Mengen (5–50 sichtbar), und Performance-Wunder wie kolumnarer Memory zahlen sich erst bei vier- bis fuenfstelligen Knoten aus. Das Endprodukt entsteht via Codegen als fixierte Komponenten-Crate.
 
 ### Arbeitspakete
 
 | # | Paket | Groesse | Bezug |
 |---|---|---|---|
-| 1.1 | `bevy_ecs` als Workspace-Dependency, neuer Crate `builder/` oder Modul `client/src/builder/` | S | `Cargo.toml`, `client/Cargo.toml` |
-| 1.2 | Komponenten definieren: `Transform`, `Style`, `Interactable`, `EventTrigger`, `BoundField`, `Draggable` | M | neu: `client/src/builder/components.rs` |
-| 1.3 | Bruecke ECS ↔ `shared::ColumnMeta`/`FieldType`: Reader-System exportiert ECS-State als `Vec<ColumnMeta>` | M | neu: `client/src/builder/serialize.rs` |
-| 1.4 | Drag&Drop-Canvas in Leptos: Mounted ECS-World, Mouse-Events mutieren Components | L | neu: `client/src/builder/canvas.rs`, neue Route `/builder/:entity_type` |
-| 1.5 | Live-Preview: gleiche `EntityTable` wie heute, gespeist aus ECS-projizierten `ColumnMeta` | M | `client/src/components/table/` (DataSource bekommt ECS-Variante) |
+| 1.1 | `UiTree`/`UiNode`-Datenstruktur in `client/src/builder/` (Rust-Struct, `RwSignal<UiTree>`) | S | neu: `client/src/builder/mod.rs`, `client/src/builder/tree.rs` |
+| 1.2 | `UiNode`-Felder definieren: `transform`, `style`, `bound_field`, `event_trigger: Option<EventTrigger>`, `draggable: bool`, `children: Vec<UiNode>` | M | neu: `client/src/builder/node.rs` |
+| 1.3 | Bruecke `UiTree` ↔ `shared::ColumnMeta`/`FieldType`: Projektions-Funktion exportiert UI-State als `Vec<ColumnMeta>` | M | neu: `client/src/builder/project.rs` |
+| 1.4 | Drag&Drop-Canvas in Leptos: Mouse-Events mutieren `UiTree`-Signal, Leptos rendert reaktiv | L | neu: `client/src/builder/canvas.rs`, neue Route `/builder/:entity_type` |
+| 1.5 | Live-Preview: gleiche `EntityTable` wie heute, gespeist aus den per Projektion erzeugten `ColumnMeta` | M | `client/src/components/table/` (neue `DataSource`-Variante `BuilderPreviewSource`) |
 | 1.6 | Persistenz des Builder-State: Speichern via GraphQL-Mutation `saveEntityDesign` (analog `saveDbSchema`) | M | `server/src/schema.rs`, neue Tabelle `entity_designs` |
-| 1.7 | Undo/Redo via ECS-Snapshot-Stack | S | `client/src/builder/history.rs` |
+| 1.7 | Undo/Redo via `Vec<UiTree>`-Snapshot-Stack | S | `client/src/builder/history.rs` |
 
 ### Dependencies / Vorbedingungen
 
@@ -142,8 +170,8 @@ Effect   := Allow | Deny
 
 ### Risiken
 
-- **Bevy-ECS in WASM**: laeuft, ist aber im Web-Kontext noch ungewohnt. POC-Spike (~3 Tage) vor 1.4 empfehlen.
-- **DSL fuer EventTrigger**: was darf ein `EventTrigger`-Component referenzieren? Klare Trennung "Builder beschreibt Intent, Plugin (Phase 2) implementiert Logik" einhalten — siehe [Architektur-Vertraege: Builder ↔ Plugin](#architektur-vertraege-builder--plugin).
+- **Skalierung jenseits 1000 Knoten**: bei naiver `Vec<UiNode>`-Iteration ist O(n) pro Mutation; bei kleinen Designer-Sessions vernachlaessigbar. Wenn der Builder spaeter doch hunderte Tabellen mit hunderten Spalten parallel halten muss, kann eine indexierte `HashMap<NodeId, UiNode>` nachgezogen werden. Datenmodell so halten, dass dieser Schritt ein lokaler Refactor bleibt.
+- **DSL fuer EventTrigger**: was darf ein `EventTrigger`-Feld referenzieren? Klare Trennung "Builder beschreibt Intent, Plugin (Phase 2) implementiert Logik" einhalten — siehe [Architektur-Vertraege: Builder ↔ Plugin](#architektur-vertraege-builder--plugin).
 
 ### Spezifikation: Builder-Persistenz (zu 1.6)
 
@@ -172,28 +200,31 @@ CREATE TABLE entity_designs (
 ```json
 {
   "schemaVersion": 1,
-  "ecs": {
-    "entities": [
-      { "id": 42, "components": {
-          "Transform":    { "x": 0, "y": 0, "w": 200, "h": 32 },
-          "Style":        { "tokenRef": "table_cell" },
-          "BoundField":   { "key": "price" },
-          "EventTrigger": { "event": {"kind":"click"},
-                            "target": {"kind":"plugin","id":"...","function":"...","args":{}} }
-      }}
+  "tree": {
+    "nodes": [
+      { "id": 42,
+        "transform":    { "x": 0, "y": 0, "w": 200, "h": 32 },
+        "style":        { "tokenRef": "table_cell" },
+        "boundField":   { "key": "price" },
+        "eventTrigger": { "event": {"kind":"click"},
+                          "target": {"kind":"plugin","id":"...","function":"...","args":{}} },
+        "draggable":    false,
+        "children":     []
+      }
     ]
   },
   "projection": {
-    "columns":  [/* ColumnMeta[]  — projiziert aus ECS */],
+    "columns":  [/* ColumnMeta[]  — projiziert aus tree.nodes */],
     "settings": {/* EntitySettings — projiziert */},
     "editor":   {/* EntityEditor   — projiziert */}
   }
 }
 ```
 
-- **Wahrheit ist `ecs.entities`.** Die `projection`-Sektion ist redundant, wird beim Save aus dem ECS-Zustand neu generiert und mitgespeichert — damit der Server (der bewusst keine ECS-Runtime besitzt) sie ohne Bevy-Dependency lesen kann.
-- **Schema-Drift**: aendert sich das Component-Schema (z.B. `EventTrigger` wird erweitert), wird `schemaVersion` hochgezaehlt. `shared/src/builder/migrate.rs` haelt fuer jede Erhoehung eine `migrate_state(old, json) -> json`-Funktion. Loader bricht auf nicht-migrierbare States nicht — er nimmt die letzte erfolgreich migrierte Version.
-- **Performance**: bei kleinen Designs vernachlaessigbar; ab 10k Entities ist der `projection`-Block der dominierende Read-Pfad — Cache pro `(entity_type, version)` im Server.
+- **Wahrheit ist `tree.nodes`.** Die `projection`-Sektion ist redundant, wird beim Save aus dem Tree-Zustand neu generiert und mitgespeichert — damit der Server sie ohne Builder-Code lesen kann (`data::columns_for` etc. arbeiten weiter auf `ColumnMeta` und brauchen den Tree nicht zu kennen).
+- **Schema-Drift**: aendert sich die `UiNode`-Form (z.B. `EventTrigger` wird erweitert), wird `schemaVersion` hochgezaehlt. `shared/src/builder/migrate.rs` haelt fuer jede Erhoehung eine `migrate_state(old, json) -> json`-Funktion. Loader bricht auf nicht-migrierbare States nicht — er nimmt die letzte erfolgreich migrierte Version.
+- **Performance**: bei kleinen Designs vernachlaessigbar; der `projection`-Block ist der dominierende Read-Pfad — Cache pro `(entity_type, version)` im Server.
+- **Codegen-Nahe**: die `UiNode`-Struktur ist absichtlich so geschnitten, dass Phase 4 sie nahezu 1:1 in Rust-Quellcode uebersetzen kann (eine `UiNode` ⇒ ein generiertes Leptos-Component-View). Keine Indirektion ueber Components/Queries noetig.
 
 **Koexistenz mit dem `--data-dir`-Loader**:
 
@@ -317,7 +348,7 @@ Liefert der Server fuer ein Property mehrere erlaubte Varianten zurueck, darf de
 
 ### Dependencies
 
-- Profitieren von Phase 1 (ECS-State als Single Source of Truth), aber unabhaengig lauffaehig.
+- Profitieren von Phase 1 (`UiTree` als Single Source of Truth), aber unabhaengig lauffaehig.
 
 ### Deliverable
 
@@ -434,7 +465,7 @@ CREATE TABLE migrations (
 
 ## Phase 4 — Codegen & Optimierung
 
-**Ziel**: Aus finalisiertem ECS-State + locked Schema + Plugin-Bindings → eigenstaendige axum/Leptos-App ohne Builder-Overhead. Plus Polish und externe Audits.
+**Ziel**: Aus finalisiertem `UiTree` (Phase 1) + locked Schema + Plugin-Bindings → eigenstaendige axum/Leptos-App ohne Builder-Overhead. Plus Polish und externe Audits.
 
 ### Arbeitspakete
 
@@ -446,7 +477,7 @@ CREATE TABLE migrations (
 | 4.4 | CLI-Command `dblicious export --target ./generated-app` | M | `cli/` |
 | 4.5 | WASI-NN-Evaluation: Wechsel von `wasmtime` auf `wasmedge` fuer Plugins? Lokale Inference-POC | M | `server/src/plugins/` |
 | 4.6 | Externer Security-Audit der WASM-Sandbox + AI-Pfade | (extern) | n/a |
-| 4.7 | Performance-Benchmarks: Builder mit 10k UI-Knoten, CRUD mit aktiven Plugins, Migration auf 100k-Row-Tabelle | M | neu: `benches/` |
+| 4.7 | Performance-Benchmarks: Builder mit realistischen Knotenzahlen (Default 500, Stress-Probe 5000), CRUD mit aktiven Plugins, Migration auf 100k-Row-Tabelle | M | neu: `benches/` |
 | 4.8 | Dokumentation: User-Guide, Plugin-Dev-Guide, Codegen-Guide | M | `docs/` |
 
 ### Dependencies
@@ -458,7 +489,7 @@ CREATE TABLE migrations (
 - `dblicious export` erzeugt aus einer laufenden Designer-Session ein eigenstaendiges Rust-Workspace.
 - Generierte App startet ohne `dblicious`-Builder, nur mit den selektierten Plugins und finalem Schema.
 - Audit-Bericht liegt vor.
-- Benchmarks zeigen, dass Builder mit hoher Knotenzahl performant bleibt (Kolumnar-ECS zahlt sich aus).
+- Benchmarks zeigen, dass Builder im erwarteten Bereich (siehe 4.7) interaktiv bleibt; ueber dem Stress-Threshold ist Indexierung der Datenstruktur das nachgezogene Mittel (siehe Phase-1-Risiken).
 
 ### Risiken
 
@@ -469,11 +500,11 @@ CREATE TABLE migrations (
 
 ## Architektur-Vertraege: Builder ↔ Plugin
 
-Diese Spezifikation bindet Phase 1 (Builder/ECS), Phase 1.5 (Implementations-Resolution) und Phase 2 (WASM-Plugins) zusammen. Aenderungen erfordern Updates in mindestens zwei dieser Phasen — der Vertrag ist die Schnittstelle, an der sie sich treffen.
+Diese Spezifikation bindet Phase 1 (Builder/UI-State), Phase 1.5 (Implementations-Resolution) und Phase 2 (WASM-Plugins) zusammen. Aenderungen erfordern Updates in mindestens zwei dieser Phasen — der Vertrag ist die Schnittstelle, an der sie sich treffen.
 
 ### 1. `EventTrigger`-DSL
 
-Ein `EventTrigger` ist ein ECS-Component an einem UI- oder Entity-Knoten und sagt: *"Wenn Ereignis X geschieht, rufe Ziel Y mit Parametern Z auf."* Format (in `shared/src/builder.rs`):
+Ein `EventTrigger` ist ein optionales Feld auf einem `UiNode` (oder an einem Entity-Hook) und sagt: *"Wenn Ereignis X geschieht, rufe Ziel Y mit Parametern Z auf."* Format (in `shared/src/builder.rs`):
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -639,7 +670,7 @@ Strikt seriell waere langsam. Empfohlene Parallelisierung bei mehrkoepfigem Team
 0.5  ----+
          |
          v
-1.x      1.x      1.x   (Builder/ECS)
+1.x      1.x      1.x   (Builder/UI-State)
                   |
                   v
 2.x ----- 2.x      (Plugins, kann parallel zu 1.5–1.7 starten)

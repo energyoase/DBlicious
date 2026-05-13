@@ -1,6 +1,6 @@
 # VISION & ROADMAP
 
-Diese Datei skizziert die strategische Weiterentwicklung von **dblicious** von einer Admin-UI mit dynamischen Entitaeten zu einem vollwertigen **Rust-Meta-Framework** mit Dual-Mode-Execution, ECS-basierter Metadaten-Schicht, WASM-Plugin-Sandbox und AI-gestuetzter Schema-Evolution.
+Diese Datei skizziert die strategische Weiterentwicklung von **dblicious** von einer Admin-UI mit dynamischen Entitaeten zu einem vollwertigen **Rust-Meta-Framework** mit Dual-Mode-Execution, reaktivem UI-State-Modell, WASM-Plugin-Sandbox und AI-gestuetzter Schema-Evolution.
 
 Grundlage ist ein architektonischer Blueprint (interner Strategiereport, eingearbeitet 2026-05-13). Der Blueprint wurde **nicht 1:1 uebernommen**, sondern auf den existierenden `dblicious`-Stack gemappt. Zentrale Tech-Entscheidungen (axum, SeaORM, SQLite, Leptos) bleiben bestehen; abweichende Empfehlungen des Blueprints (Loco, SurrealDB, SurrealKit) werden weiter unten begruendet verworfen.
 
@@ -13,7 +13,7 @@ Das Marktumfeld bewegt sich zwischen zwei Extremen:
 - **Dynamic Low-Code-Plattformen** liefern hohe Iterationsgeschwindigkeit, leiden aber an Skalierungs-Limits, Vendor-Lock-in und Unmoeglichkeit komplexer CPU-Logik.
 - **High-Performance Rust-Apps** liefern Memory-Safety, Concurrency und minimalen Footprint, brauchen aber lange Entwicklungszyklen und spezialisiertes Personal.
 
-`dblicious` zielt darauf, beide Welten zu fusionieren: ein **Component-basiertes Metadata-Model** (heute: `examples/shop/` als statisches Set, kuenftig: ECS), eine **Multi-Mode-Execution** (heute: generische `entities`-Tabelle vs. typisierte Designer-Tabellen, kuenftig: vollwertiger Dev-Mode/Prod-Mode-Split), ein **WASM-Sandbox** fuer User-Logik und eine **AI-Schema-Resolution**.
+`dblicious` zielt darauf, beide Welten zu fusionieren: ein **kompositionsbasiertes UI-State-Modell** (heute: `examples/shop/` als statisches Set, kuenftig: reaktiver `UiTree`), eine **Multi-Mode-Execution** (heute: generische `entities`-Tabelle vs. typisierte Designer-Tabellen, kuenftig: vollwertiger Dev-Mode/Prod-Mode-Split), ein **WASM-Sandbox** fuer User-Logik und eine **AI-Schema-Resolution**.
 
 Architekturleitsatz: **maximale Wiederverwendung reifer Open-Source-Crates**, keine Foundational Systems from scratch.
 
@@ -48,13 +48,13 @@ Was **fehlt** gegenueber der Vision:
 |---|---|---|
 | **Loco** (Rails-artiges Full-Stack-MVC) | **axum + async-graphql** beibehalten | Loco zwingt MVC-Konventionen, die nicht zum GraphQL-zentrierten Modell passen. axum ist bereits produktiv, schlanker, und die `shared`-Typen sind direkt in async-graphql verdrahtet. Migrationsaufwand stuende in keinem Verhaeltnis zum Nutzen. |
 | **Leptos** fuer den Visual Builder | **uebernommen** | Bereits im Einsatz. Fine-grained Signals + direktes DOM-Manipulieren passen perfekt fuer den geplanten Drag&Drop-Editor. |
-| **Bevy ECS** als Metadaten-Engine | **uebernehmen** (Phase 2) | Components-over-Inheritance loest die heutige Statik von `columns.toml`/`editor.toml`/`settings.toml` auf. Kolumnar-Memory ist Performance-relevant fuer den Builder-Canvas. |
+| **Bevy ECS** als Metadaten-Engine | **verworfen, Konzept ohne Framework adaptiert** | Komposition-statt-Vererbung wird mit einer simplen `UiNode`-Struktur in Plain Rust + Leptos-Signals erreicht. Performance-Vorteile von ECS (kolumnarer Memory, tausende Knoten pro Frame) sind im Builder-Kontext irrelevant: eine Designer-Session zeigt 5–50 Elemente, und das Endprodukt entsteht via Codegen als fixierte Komponenten-Crate (Phase 4) — zur Laufzeit gibt es keine generische UI-Engine. Siehe Architektur-Leitprinzip "Dev/Prod-Asymmetrie" in `ROADMAP.md`. |
 | **SurrealDB** (SCHEMALESS↔SCHEMAFULL toggle) | **SeaORM + SQLite** beibehalten, Konzept adaptieren | Das Dual-Mode-Konzept existiert bei uns bereits: generische `entities`-Tabelle (schemaless) vs. Designer-erzeugte typisierte Tabellen (schemafull). DB-Wechsel ist unverhaeltnismaessig; Konzept wird durch Tooling/Workflow umgesetzt, nicht durch DB-Wechsel. |
 | **Extism** fuer WASM-Plugin-Sandbox | **uebernehmen** (Phase 3) | Extism abstrahiert wasmtime/Component-Model/WIT weg und liefert Manifest-basierte Security (`max_pages`, `allowed_hosts`, `allowed_paths`) sowie Host-Functions. Mehrsprachige Guest-PDKs (TS, Python, Go, Rust). |
 | **WASI-NN** via WasmEdge | **optional, spaeter** (Phase 4+) | Lokale ML-Inference im Plugin (PyTorch/TFLite/OpenVINO). Erst sinnvoll, wenn die Plugin-Schicht steht. |
 | **AI-Schema-Resolution** mit `rusty_schema_diff` | **uebernehmen** (Phase 3) | Schema-first Function Calling + deterministische Diff-Validierung. Loest das heutige manuelle Mapping bei JSON-Imports und ergaenzt den Designer-Pfad um einen AI-Assist. |
 | **SurrealKit Rollouts** (Expansion/Contract) | **Konzept uebernehmen, mit SeaORM-Migrationen implementieren** | Die zweiphasige Migration (additive vor destruktiver Aenderung, mit Rollback-Pfad) ist DB-agnostisch. Wir bauen das ueber SeaORM-Migrationen oder einen schmalen eigenen Layer. |
-| **AST-Codegen** zu standalone Rust-Binary | **uebernehmen** (Phase 4) | Endpunkt der Meta-Framework-Vision: ECS-State + locked Schema → eigenstaendige axum/Leptos-App ohne Builder-Overhead. |
+| **AST-Codegen** zu standalone Rust-Binary | **uebernehmen** (Phase 4) | Endpunkt der Meta-Framework-Vision: `UiTree` + locked Schema → eigenstaendige axum/Leptos-App ohne Builder-Overhead. Pro User-Konfiguration wird eine fixierte Komponente generiert; zur Laufzeit findet keine dynamische Auswahl statt. |
 | **Rebranding (`alloy` ist auf crates.io belegt)** | **n/a** | `dblicious` als Name etabliert, keine Kollision. |
 | **Berlin-Talent-Acquisition-Strategie** | **n/a** | Ausserhalb des Repo-Scopes. |
 
@@ -70,15 +70,15 @@ Was **fehlt** gegenueber der Vision:
 - **Dev-Mode** = laufender Server mit `--data-dir`, generischer `entities`-Tabelle, schemalose JSON-Felder, Hot-Reload des Datensets.
 - **Prod-Mode** = via Designer locked Schemas (`saveDbSchema`), strikt typisierte Tabellen, ggf. eine ueber Codegen erzeugte standalone Binary ohne Builder-UI (Phase 4).
 
-### 2. ECS-basiertes Metadaten-Modell (Phase 2)
+### 2. UI-State-Modell des Visual Builders (Phase 1)
 
-Heute sind `ColumnMeta`, `FieldType`, Editor- und Settings-Layouts statische TOML/JSON-Definitionen. Eine ECS-Schicht (`bevy_ecs`, ohne den Game-Loop) erlaubt:
+Heute sind `ColumnMeta`, `FieldType`, Editor- und Settings-Layouts statische TOML/JSON-Definitionen. Phase 1 ersetzt das durch eine **reaktive UI-State-Struktur** in Plain Rust + Leptos-Signals:
 
-- **Components statt Vererbung**: ein UI-Element = `Transform` + `Style` + `Interactable` + `EventTrigger`-Components. `Draggable` lasst sich zur Laufzeit anhaengen, ohne Klassen-Refactor.
-- **Kolumnare Memory-Layouts**: cache-friendly Iteration ueber tausende UI-Knoten ohne Pointer-Chasing.
-- **Enum-State-Components** (`Idle`/`Hover`/`Active`) statt sprawling State-Machines.
+- **Komposition statt Vererbung**: ein UI-Knoten ist eine `UiNode`-Struktur mit optionalen Feldern (`event_trigger: Option<EventTrigger>`, `bound_field: Option<BoundField>`, `draggable: bool`, …). Neue Verhaltensweisen werden durch zusaetzliche Felder oder Enum-Varianten erweitert — keine Klassen-Hierarchie noetig, weil Rust keine Vererbung kennt.
+- **Reaktivitaet ueber Leptos-Signals**: der gesamte Builder-State lebt in einem `RwSignal<UiTree>`; Komponenten subskribieren feingranular auf die Teile, die sie rendern.
+- **Codegen-Nahe**: die Datenstruktur ist absichtlich so geschnitten, dass Phase 4 sie nahezu 1:1 in Rust-Quellcode uebersetzen kann (ein `UiNode` ⇒ ein generiertes Leptos-Component-View).
 
-Der Codegen (Phase 4) uebersetzt finalen ECS-State in statische Leptos-Components.
+**Bewusst kein ECS-Framework**: Bevy/`hecs`/`legion` waeren fuer einen Web-Admin-Builder ueberdimensioniert. Performance-Vorteile zahlen sich erst bei vier- bis fuenfstelligen Knotenzahlen aus; der Builder zeigt 5–50 sichtbare Elemente gleichzeitig. Siehe Architektur-Leitprinzip "Dev/Prod-Asymmetrie" in `ROADMAP.md`. Falls spaeter doch hunderte Tabellen mit hunderten Spalten in *einer* Designer-Session noetig sind, kann eine indexierte `HashMap<NodeId, UiNode>` ohne grossen Umbau nachgezogen werden.
 
 ### 3. WASM-Plugin-Sandbox via Extism (Phase 3)
 
@@ -112,7 +112,7 @@ Lokale Tests profitieren von schnellen DB-Forks. Solange wir bei SQLite bleiben,
 
 ### 6. AST-Codegen zur Production-Binary (Phase 4)
 
-Single Source of Truth: finaler ECS-State + locked SeaORM-Schemas + OpenAPI/GraphQL-Schema. Daraus generiert die Framework-Engine:
+Single Source of Truth: finaler `UiTree` + locked SeaORM-Schemas + OpenAPI/GraphQL-Schema. Daraus generiert die Framework-Engine:
 
 - axum-Routes und async-graphql-Resolver
 - Leptos-Views ohne Builder-Overhead
@@ -129,10 +129,10 @@ Werkzeuge: Rust derive/attribute macros, optional `cargo-scaffold` fuer das Repo
 |---|---|---|
 | **Phase 0 — IST** | Grundgerueste | axum/async-graphql/Leptos-Workspace, SeaORM/SQLite-Persistenz, `--data-dir`-Loader, Designer (`saveDbSchema`), CLI |
 | **Phase 0.5 — Konsolidierung** | Lose Enden schliessen | Server-seitiges Sort/Filter, Spalten vom Server, Reference-/Collection-Formatter, `LocalSource` |
-| **Phase 1 — Builder-Foundation** | Reaktiver Visual Editor | `bevy_ecs` als In-Memory-State; Drag&Drop-Canvas in Leptos; ECS↔`shared`-Typen-Bruecke |
+| **Phase 1 — Builder-Foundation** | Reaktiver Visual Editor | `UiTree`/`UiNode` als Plain-Rust + Leptos-Signals; Drag&Drop-Canvas in Leptos; Projektion `UiTree → shared::ColumnMeta` |
 | **Phase 2 — WASM-Plugin-Sandbox** | Sichere User-Logik | Extism Host-SDK; Manifest-Security; Host-Functions fuer DB-Lesezugriff |
 | **Phase 3 — AI-Schema-Engine + sichere Migrationen** | Automatisiertes Schema-Mapping | LLM mit strict Function Calling; `rusty_schema_diff`-Validierung; zweiphasige Migrationen |
-| **Phase 4 — Codegen & Optimierung** | Standalone-Prod-Binaries | AST-Codegen aus ECS-State; optionale WASI-NN; Security-Audit |
+| **Phase 4 — Codegen & Optimierung** | Standalone-Prod-Binaries | AST-Codegen aus `UiTree`; optionale WASI-NN; Security-Audit |
 
 Jede Phase ist unabhaengig wertvoll. Detailliertes Arbeitspaket-Breakdown mit Bezuegen, Akzeptanzkriterien und Risiken in [`ROADMAP.md`](./ROADMAP.md).
 
@@ -150,7 +150,7 @@ Jede Phase ist unabhaengig wertvoll. Detailliertes Arbeitspaket-Breakdown mit Be
 
 ## Offene Fragen / zu klaeren
 
-- **ECS-Granularitaet**: ECS pro Builder-Session (clientseitig in WASM) oder serverseitig persistiert? Bevy-ECS laeuft in WASM, aber Persistenz der Builder-State ist eine Designentscheidung.
+- **Builder-State-Lokalitaet**: Halten wir den `UiTree` nur clientseitig (Signals + GraphQL-Save) oder spiegeln wir ihn auch serverseitig (z.B. fuer Multi-User-Live-Editing)? Heutige Antwort: clientseitig, serverseitig nur als JSON-Blob in `entity_designs`. Live-Editing waere ein eigener Schritt mit Subscriptions.
 - **AI-Provider**: Lokales LLM (via WASI-NN) vs. externe API (Anthropic/OpenAI)? Hat Implikationen fuer Latency, Kosten, Datenschutz.
 - **Migrations-Tooling**: native SeaORM-Migration-Crate ausreichend, oder eigener Layer fuer zweiphasige Rollouts?
 - **Plugin-Distribution**: Registry, Filesystem-Drop-in, oder DB-Tabelle?
@@ -162,7 +162,7 @@ Jede Phase ist unabhaengig wertvoll. Detailliertes Arbeitspaket-Breakdown mit Be
 Der zugrundeliegende Blueprint zitiert u.a.:
 
 - [Leptos](https://leptos.dev/), [Loco](https://loco.rs/), [Dioxus](https://dioxuslabs.com/) — Frontend/Full-Stack-Frameworks
-- [Bevy ECS](https://bevy.org/learn/quick-start/getting-started/ecs/) — Entity Component System
+- [Bevy ECS](https://bevy.org/learn/quick-start/getting-started/ecs/) — Entity Component System (referenziert, **nicht** uebernommen — siehe Architekturentscheidungs-Tabelle und Architektur-Leitprinzip "Dev/Prod-Asymmetrie" in `ROADMAP.md`)
 - [SurrealDB](https://surrealdb.com/), [surrealdb-migrations](https://github.com/Odonno/surrealdb-migrations) — Dual-Mode-DB-Konzept (referenziert, nicht uebernommen)
 - [Extism](https://extism.org/) — WASM-Plugin-Framework
 - [WasmEdge / WASI-NN](https://wasmedge.org/docs/category/ai-inference) — Edge-AI-Inference

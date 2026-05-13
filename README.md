@@ -3,7 +3,7 @@
 Erweiterbarer Rust-WebAssembly-Client auf Basis von **Leptos**, der über
 **GraphQL** mit einem in Rust implementierten **Mock-Server** kommuniziert.
 
-> **Strategische Weiterentwicklung:** Die mittelfristige Vision (ECS-basierter
+> **Strategische Weiterentwicklung:** Die mittelfristige Vision (reaktiver
 > Visual Builder, WASM-Plugin-Sandbox, AI-gestützte Schema-Evolution,
 > Dev-to-Prod-Codegen) ist in [`VISION.md`](./VISION.md) festgehalten,
 > der operative Phasenplan dazu in [`ROADMAP.md`](./ROADMAP.md).
