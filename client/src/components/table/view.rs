@@ -1,6 +1,6 @@
 //! Die eigentliche `<EntityTable>`-Komponente.
 //!
-//! Sie ist generisch: sie erhaelt nur eine `ColumnSet` und eine `DataSource`
+//! Sie ist generisch: sie erhaelt nur `Vec<ColumnMeta>` und eine `DataSource`
 //! und kennt weder einen konkreten Entity-Typ noch ein Datenbank-Schema.
 //! Das Verhalten der Sort-/Filter-/Pagination-UI ist bereits korrekt
 //! verdrahtet; die Wirkung haengt davon ab, was die `DataSource`
