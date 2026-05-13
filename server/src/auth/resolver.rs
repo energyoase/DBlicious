@@ -207,6 +207,72 @@ fn resource_specificity(perm: &Resource, query: &Resource) -> Option<u8> {
 }
 
 // =============================================================================
+// Projektion fuer den Client (Phase 0.7.4-Lueckenschluss)
+// =============================================================================
+
+/// Liefert die flache Liste der `(Resource, Op)`-Tupel, die fuer `user_id`
+/// allow-Regeln in der `permissions`-Tabelle haben.
+///
+/// Bewusst **keine** Deny-Resolver-Auswertung pro Tupel:
+/// - Performance: bei N Allow-Regeln waere das O(N^2) — bei aktiver
+///   Permission-Tabelle ist die Liste pro User in der Praxis klein, aber
+///   die Quadrierung ist trotzdem unnoetig fuer eine UI-Hint-Quelle.
+/// - Korrektheit: der Client darf nichts erzwingen (Server enforced
+///   sowieso bei jedem CRUD-Call). Wenn ein Allow durch einen Deny
+///   ueberschrieben wird, sieht der User ggf. einen Button, der beim
+///   Click einen `forbidden` produziert — akzeptabel als Erst-Naeherung.
+///
+/// Liefert `None`, wenn die Permission-Tabelle leer ist (Legacy-Mode
+/// aktiv, Client soll auf alte `currentPermissions` zurueckfallen).
+pub async fn project_effective(
+    user_id: &str,
+) -> Result<Option<Vec<shared::auth::EffectivePermission>>, ResolveError> {
+    use sea_orm::PaginatorTrait;
+    let db = conn();
+    if entity::permissions::Entity::find().count(&db).await? == 0 {
+        return Ok(None);
+    }
+    let subjects = subjects_for_user(&db, user_id).await?;
+    let perms = entity::permissions::Entity::find().all(&db).await?;
+
+    let mut out: Vec<shared::auth::EffectivePermission> = Vec::new();
+    for p in perms {
+        let Some(subject) = Subject::from_storage(&p.subject_kind, &p.subject_id) else {
+            continue;
+        };
+        if !subjects.contains(&subject) {
+            continue;
+        }
+        let Some(effect) = Effect::from_str(&p.effect) else { continue };
+        if effect != Effect::Allow {
+            continue;
+        }
+        let Some(resource) = Resource::from_storage(&p.resource_kind, &p.resource_id) else {
+            continue;
+        };
+        let Some(op) = Op::from_str(&p.op) else { continue };
+        out.push(shared::auth::EffectivePermission { resource, op });
+    }
+    // Duplikate eliminieren (mehrere Allows fuer dasselbe Tupel ueber
+    // verschiedene Subjects sind moeglich).
+    out.sort_by(|a, b| {
+        let ka = (
+            a.resource.kind_str(),
+            a.resource.storage_id(),
+            a.op.as_str(),
+        );
+        let kb = (
+            b.resource.kind_str(),
+            b.resource.storage_id(),
+            b.op.as_str(),
+        );
+        ka.cmp(&kb)
+    });
+    out.dedup();
+    Ok(Some(out))
+}
+
+// =============================================================================
 // Trace-Variante (Phase 0.7.7)
 // =============================================================================
 

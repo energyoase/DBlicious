@@ -7,6 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod auth;
+pub mod builder;
 pub mod editor;
 pub mod error;
 pub mod header;
@@ -19,6 +20,8 @@ pub mod tabs;
 pub mod translatable;
 pub mod validation;
 
+pub use auth::EffectivePermission;
+pub use builder::{EventKind, EventTrigger, GuardExpr, TriggerTarget};
 pub use editor::{ControlKind, EditorMeta, EditorPropertyMeta};
 // AuditRole / ColumnGenerated leben in dieser Datei, werden aber als
 // Top-Level-API mit-exportiert, damit Server/Client sie ohne Modul-Pfad
@@ -34,8 +37,8 @@ pub use security::{
     SecurityUser2Group,
 };
 pub use settings::{
-    Access, EntitySettings, LoadMethod, PropertyAccess, PropertySettings, SettingsBundle,
-    Visibility,
+    Access, EntitySettings, FieldTypeDefaults, LoadMethod, PropertyAccess, PropertySettings,
+    SettingsBundle, Visibility,
 };
 pub use tabs::TabInfo;
 pub use translatable::{
@@ -123,9 +126,36 @@ impl FieldType {
                 | FieldType::Enum { .. }
         )
     }
+
+    /// Diskriminator-String, identisch zur Tag-Form im JSON-Wire-Format
+    /// (`"text"`, `"integer"`, `"dateTime"`, …). Wird vom Implementations-
+    /// Resolver (Phase 1.5) als Map-Key in
+    /// [`settings::EntitySettings::field_type_defaults`] benutzt.
+    pub fn kind_str(&self) -> &'static str {
+        match self {
+            FieldType::Text => "text",
+            FieldType::Integer => "integer",
+            FieldType::Decimal { .. } => "decimal",
+            FieldType::Boolean => "boolean",
+            FieldType::Date => "date",
+            FieldType::DateTime => "dateTime",
+            FieldType::Money { .. } => "money",
+            FieldType::Reference { .. } => "reference",
+            FieldType::Collection { .. } => "collection",
+            FieldType::Enum { .. } => "enum",
+        }
+    }
 }
 
 /// Spalten-Metadaten fuer die generische Tabelle.
+///
+/// Implementations-IDs (`filter_id`, `editor_id`, `formatter_id`, `action_ids`)
+/// folgen der Resolution-Kette aus Phase 1.5:
+///   1. Server-Pflicht pro Property (dieses Feld)
+///   2. Server-Default pro Entity-Typ ([`EntitySettings::field_type_defaults`])
+///   3. Client-Fallback pro [`FieldType`] (hardcoded Standard)
+///
+/// `None`/leer = "kein Override" — die Resolution-Kette greift dann weiter.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnMeta {
@@ -138,12 +168,21 @@ pub struct ColumnMeta {
     pub filterable: bool,
     /// Optionaler Override fuer den Sortier-/Vergleichs-Operator. Wird von
     /// [`ops::ops_for_named`] aufgeloest. Siehe [`ops::comparators`].
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comparator_id: Option<String>,
-    /// Optionaler Override fuer den Filter-Operator. Reserviert fuer den
-    /// Fall, dass mehrere Filter-Pipelines pro Typ koexistieren sollen.
-    #[serde(default)]
+    /// Optionaler Override fuer den Filter-Operator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter_id: Option<String>,
+    /// Phase 1.5: erzwungene Editor-ID fuer diese Spalte (Resolution-Stufe 1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor_id: Option<String>,
+    /// Phase 1.5: erzwungene Formatter-ID fuer diese Spalte.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub formatter_id: Option<String>,
+    /// Phase 1.5: Liste der Row-Action-IDs, die fuer Zeilen dieser Spalte
+    /// angeboten werden. Leer = keine Per-Row-Aktionen aus dieser Spalte.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub action_ids: Vec<String>,
 }
 
 /// Generische Repraesentation einer Entitaet.

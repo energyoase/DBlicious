@@ -97,6 +97,8 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::audit_log::Entity),
         // Phase 1.6: Builder-Design-Persistenz.
         schema.create_table_from_entity(entity::entity_designs::Entity),
+        // Phase 1.5.3: Per-User-Wahl der Implementations-IDs.
+        schema.create_table_from_entity(entity::user_implementation_choices::Entity),
     ];
     for t in &mut tables {
         t.if_not_exists();

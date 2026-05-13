@@ -938,6 +938,417 @@ async fn entity_design_at_returns_specific_version() {
     assert_eq!(v["entityDesignAt"]["createdBy"], json!("system"));
 }
 
+// =============================================================================
+// Phase 1.5 — Implementations-Resolution
+// =============================================================================
+
+async fn install_field_type_default(
+    entity_type: &str,
+    field_type_kind: &str,
+    field: &str,
+    value: serde_json::Value,
+    allowed: serde_json::Value,
+) {
+    // Settings ueber den Server-internen Helper installieren, damit die
+    // Map persistent fuer die Test-Session ist. Da heute kein
+    // saveEntitySettings-Endpoint existiert, mutieren wir die installierte
+    // EntitySettings direkt im example::*-Slot ueber den Designer-Pfad.
+    let _ = setup_for_tests().await;
+    server::data::with_settings_mut(entity_type, |s: &mut shared::EntitySettings| {
+        let entry = s
+            .field_type_defaults
+            .entry(field_type_kind.to_string())
+            .or_insert_with(shared::FieldTypeDefaults::default);
+        // Ein einzelnes Feld setzen — generisch ueber serde_json::Value.
+        match field {
+            "filter_id" => entry.filter_id = value.as_str().map(String::from),
+            "editor_id" => entry.editor_id = value.as_str().map(String::from),
+            "formatter_id" => entry.formatter_id = value.as_str().map(String::from),
+            "allowed_filter_ids" => {
+                entry.allowed_filter_ids = allowed
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            }
+            _ => panic!("unbekanntes field: {field}"),
+        }
+    });
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn resolve_implementation_uses_column_override() {
+    boot().await;
+    server::data::with_columns_mut("product", |cols: &mut Vec<shared::ColumnMeta>| {
+        if let Some(price) = cols.iter_mut().find(|c| c.key == "price") {
+            price.filter_id = Some("custom-money-filter".into());
+        }
+    });
+
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"query($t:String!,$p:String!,$r:String!){
+            resolveImplementation(entityType:$t, property:$p, registry:$r)
+        }"#,
+        json!({"t":"product","p":"price","r":"filter"}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    assert_eq!(
+        res.data.into_json().unwrap()["resolveImplementation"],
+        json!("custom-money-filter")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn resolve_implementation_falls_back_to_field_type_default() {
+    boot().await;
+    // Boot-Snapshot enthaelt keine Column-Overrides. FieldType-Default fuer
+    // "money" setzen.
+    install_field_type_default(
+        "product",
+        "money",
+        "filter_id",
+        json!("money-range-filter"),
+        json!([]),
+    )
+    .await;
+
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"query($t:String!,$p:String!,$r:String!){
+            resolveImplementation(entityType:$t, property:$p, registry:$r)
+        }"#,
+        json!({"t":"product","p":"price","r":"filter"}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    assert_eq!(
+        res.data.into_json().unwrap()["resolveImplementation"],
+        json!("money-range-filter")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn resolve_implementation_returns_null_without_overrides() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"query($t:String!,$p:String!,$r:String!){
+            resolveImplementation(entityType:$t, property:$p, registry:$r)
+        }"#,
+        json!({"t":"product","p":"price","r":"editor"}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    assert!(res.data.into_json().unwrap()["resolveImplementation"].is_null());
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn allowed_implementations_includes_default_plus_allowed() {
+    boot().await;
+    install_field_type_default(
+        "product",
+        "money",
+        "filter_id",
+        json!("money-range-filter"),
+        json!([]),
+    )
+    .await;
+    install_field_type_default(
+        "product",
+        "money",
+        "allowed_filter_ids",
+        json!(""),
+        json!(["money-range-filter", "money-exact-filter"]),
+    )
+    .await;
+
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"query($t:String!,$p:String!,$r:String!){
+            allowedImplementations(entityType:$t, property:$p, registry:$r)
+        }"#,
+        json!({"t":"product","p":"price","r":"filter"}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let arr = res.data.into_json().unwrap()["allowedImplementations"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert!(arr.contains(&json!("money-range-filter")));
+    assert!(arr.contains(&json!("money-exact-filter")));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn set_implementation_choice_persists_and_resolves() {
+    boot().await;
+    install_field_type_default(
+        "product",
+        "money",
+        "filter_id",
+        json!("money-range-filter"),
+        json!([]),
+    )
+    .await;
+    install_field_type_default(
+        "product",
+        "money",
+        "allowed_filter_ids",
+        json!(""),
+        json!(["money-range-filter", "money-exact-filter"]),
+    )
+    .await;
+
+    let ctx = login_as("admin", "admin").await;
+    let set_res = exec(
+        r#"mutation($t:String!,$p:String!,$r:String!,$c:String!){
+            setImplementationChoice(entityType:$t, property:$p, registry:$r, chosenId:$c)
+        }"#,
+        json!({"t":"product","p":"price","r":"filter","c":"money-exact-filter"}),
+        ctx.clone(),
+    )
+    .await;
+    assert!(set_res.errors.is_empty(), "{:?}", set_res.errors);
+    assert_eq!(set_res.data.into_json().unwrap()["setImplementationChoice"], json!(true));
+
+    // Resolve fragt nach dem User → liefert die persistierte Wahl,
+    // nicht den FieldType-Default.
+    let resolve = exec(
+        r#"query($t:String!,$p:String!,$r:String!){
+            resolveImplementation(entityType:$t, property:$p, registry:$r)
+        }"#,
+        json!({"t":"product","p":"price","r":"filter"}),
+        ctx,
+    )
+    .await;
+    assert!(resolve.errors.is_empty(), "{:?}", resolve.errors);
+    assert_eq!(
+        resolve.data.into_json().unwrap()["resolveImplementation"],
+        json!("money-exact-filter")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn set_implementation_choice_rejects_unknown_id() {
+    boot().await;
+    install_field_type_default(
+        "product",
+        "money",
+        "filter_id",
+        json!("money-range-filter"),
+        json!([]),
+    )
+    .await;
+
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"mutation($t:String!,$p:String!,$r:String!,$c:String!){
+            setImplementationChoice(entityType:$t, property:$p, registry:$r, chosenId:$c)
+        }"#,
+        json!({"t":"product","p":"price","r":"filter","c":"some-bogus-id"}),
+        ctx,
+    )
+    .await;
+    assert!(!res.errors.is_empty());
+    assert!(
+        res.errors[0].message.contains("not_allowed_for_property"),
+        "got: {:?}", res.errors[0]
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn set_implementation_choice_enforces_choose_permission() {
+    boot().await;
+    install_field_type_default(
+        "product",
+        "money",
+        "filter_id",
+        json!("money-range-filter"),
+        json!([]),
+    )
+    .await;
+    install_field_type_default(
+        "product",
+        "money",
+        "allowed_filter_ids",
+        json!(""),
+        json!(["money-range-filter", "money-exact-filter"]),
+    )
+    .await;
+
+    // Permissions-Schicht aktivieren mit einem Allow-Eintrag, der NICHT
+    // Op::Choose auf filter/money-exact-filter enthaelt — d.h. der admin
+    // hat im neuen Modell *keine* Choose-Permission.
+    insert_permission_row(
+        "user",
+        "u-someone-else",
+        "entityType",
+        "product",
+        "read",
+        "allow",
+    )
+    .await;
+
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"mutation($t:String!,$p:String!,$r:String!,$c:String!){
+            setImplementationChoice(entityType:$t, property:$p, registry:$r, chosenId:$c)
+        }"#,
+        json!({"t":"product","p":"price","r":"filter","c":"money-exact-filter"}),
+        ctx,
+    )
+    .await;
+    assert!(!res.errors.is_empty());
+    assert!(res.errors[0].message.contains("forbidden"));
+}
+
+// =============================================================================
+// Phase 0.7.4-Lueckenschluss — AuthSession.effective + currentEffective
+// =============================================================================
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn login_returns_no_effective_when_permissions_table_empty() {
+    boot().await;
+    let res = exec(
+        r#"mutation($u:String!,$p:String!){
+            login(username:$u, password:$p) {
+                ok session { token effective { resourceKind } }
+            }
+        }"#,
+        json!({"u":"admin","p":"admin"}),
+        anon(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    assert_eq!(v["login"]["ok"], json!(true));
+    // Legacy-Mode: effective ist null (Client faellt auf permissions zurueck).
+    assert!(
+        v["login"]["session"]["effective"].is_null(),
+        "effective sollte null sein, war: {}",
+        v["login"]["session"]["effective"]
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn login_returns_projected_allows_when_permissions_table_populated() {
+    boot().await;
+    // Admin bekommt einen Allow auf product.read.
+    insert_permission_row(
+        "user",
+        "u-1", // u-1 ist der admin im examples/shop
+        "entityType",
+        "product",
+        "read",
+        "allow",
+    )
+    .await;
+    // Plus ein Deny, der NICHT projiziert werden soll.
+    insert_permission_row(
+        "user",
+        "u-1",
+        "entityType",
+        "product",
+        "delete",
+        "deny",
+    )
+    .await;
+
+    let res = exec(
+        r#"mutation($u:String!,$p:String!){
+            login(username:$u, password:$p) {
+                ok session { effective { resourceKind resourceId op } }
+            }
+        }"#,
+        json!({"u":"admin","p":"admin"}),
+        anon(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    let effective = v["login"]["session"]["effective"]
+        .as_array()
+        .expect("effective sollte Liste sein, kein null");
+    // Mind. der read-Eintrag muss da sein.
+    let has_read = effective.iter().any(|e| {
+        e["resourceKind"] == "entityType"
+            && e["resourceId"] == "product"
+            && e["op"] == "read"
+    });
+    assert!(has_read, "read-allow muss in effective stehen: {effective:?}");
+    // Kein Deny.
+    let has_delete = effective
+        .iter()
+        .any(|e| e["op"] == "delete");
+    assert!(!has_delete, "deny-Regel darf nicht in der projizierten Liste sein");
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn current_effective_query_returns_same_shape() {
+    boot().await;
+    insert_permission_row(
+        "user",
+        "u-1",
+        "entityType",
+        "product",
+        "read",
+        "allow",
+    )
+    .await;
+
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"query { currentEffective { resourceKind resourceId op } }"#,
+        json!({}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let arr = res
+        .data
+        .into_json()
+        .unwrap()["currentEffective"]
+        .as_array()
+        .cloned()
+        .unwrap();
+    assert!(arr.iter().any(|e| e["op"] == "read"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn current_effective_returns_null_in_legacy_mode() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"query { currentEffective { resourceKind } }"#,
+        json!({}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    assert!(v["currentEffective"].is_null());
+}
+
 #[tokio::test(flavor = "current_thread")]
 #[serial_test::serial]
 async fn logout_invalidates_only_this_token() {

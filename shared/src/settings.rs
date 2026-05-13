@@ -8,11 +8,42 @@
 //! Die `Info`-Enums spiegeln 1:1 die C#-Vorlage (`Info/Access`,
 //! `Info/Visibility`, `Info/LoadMethod`, `Info/PropertyAccess`).
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{FilterCriteria, Sort};
+
+/// Implementations-IDs als Default fuer einen `FieldType` (Phase 1.5.1).
+///
+/// Dient der Resolution-Kette: wenn `ColumnMeta.X_id` `None` ist, fragt
+/// der Resolver hier nach. Pro Feld kann es mehrere erlaubte Implementierungen
+/// geben — die `allowed_*`-Listen schraenken die Wahl ein, ohne eine zu
+/// erzwingen.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct FieldTypeDefaults {
+    /// Vorgewaehlte Filter-Implementation, falls die Spalte keine eigene
+    /// `filter_id` setzt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub formatter_id: Option<String>,
+    /// Empfohlene Row-Action-IDs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub action_ids: Vec<String>,
+    /// Falls > 1 erlaubt: weitere zulaessige Filter-Alternativen (zum
+    /// Beispiel `["text-contains", "text-starts-with"]`). User darf eine
+    /// davon waehlen, sofern die Choose-Permission greift.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_filter_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_editor_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_formatter_ids: Vec<String>,
+}
 
 /// Zugriffsstufe einer Entitaet oder Property.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -100,6 +131,13 @@ pub struct EntitySettings {
     /// Pro Property; nur diejenigen, deren Default-Verhalten ueberschrieben wird.
     #[serde(default)]
     pub properties: Vec<PropertySettings>,
+    /// Phase 1.5.1: Default-Implementations-IDs pro [`crate::FieldType`].
+    /// Map-Key ist die String-Diskriminante des FieldType — `"text"`,
+    /// `"integer"`, `"decimal"`, `"boolean"`, `"date"`, `"dateTime"`,
+    /// `"money"`, `"reference"`, `"collection"`, `"enum"`. Resolution-
+    /// Stufe 2 nach `ColumnMeta.X_id`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub field_type_defaults: BTreeMap<String, FieldTypeDefaults>,
 }
 
 impl EntitySettings {

@@ -34,4 +34,5 @@ pub mod translatable_entries;
 pub mod translatable_languages;
 pub mod translatable_values;
 pub mod user_groups;
+pub mod user_implementation_choices;
 pub mod users;

@@ -107,10 +107,22 @@ pub async fn login(username: &str, password: &str) -> Result<AuthSession, AuthFa
         .into_iter()
         .cloned()
         .collect();
+    // Phase 0.7.4-Lueckenschluss: projizierte Permission-Liste aus der neuen
+    // `permissions`-Tabelle, sobald sie befuellt ist. Leer/`None` solange
+    // Legacy-Modus aktiv ist — der Client faellt dann auf `permissions`
+    // zurueck (siehe shared::auth::EffectivePermission).
+    let effective = match resolver::project_effective(&user.id).await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(target: "server::auth", "project_effective failed: {e}");
+            None
+        }
+    };
     Ok(AuthSession {
         token,
         user: strip_secret(user),
         permissions,
+        effective,
         expires_at: None,
     })
 }

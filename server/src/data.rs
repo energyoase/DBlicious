@@ -77,6 +77,9 @@ fn convert_column(c: shared::ColumnMeta) -> ColumnMeta {
         filterable: c.filterable,
         comparator_id: c.comparator_id,
         filter_id: c.filter_id,
+        editor_id: c.editor_id,
+        formatter_id: c.formatter_id,
+        action_ids: c.action_ids,
     }
 }
 
@@ -1112,6 +1115,187 @@ pub async fn permissions_count() -> u64 {
         .count(&conn())
         .await
         .unwrap_or(0)
+}
+
+// =============================================================================
+// Phase 1.5.3 — Implementations-Resolution
+// =============================================================================
+//
+// Resolution-Kette (siehe ROADMAP Phase 1.5):
+//   1. Per-User-Choice (user_implementation_choices)
+//   2. ColumnMeta.X_id (erzwungene Spalten-Override)
+//   3. EntitySettings.field_type_defaults[<kind_str>].X_id
+//   4. None — Client benutzt seinen hartcodierten Fallback pro FieldType.
+
+/// Registry-Art als String (`"filter"`, `"editor"`, `"formatter"`, `"action"`).
+/// Wird genauso in `shared::auth::Resource::ImplementationId.registry` benutzt.
+pub type RegistryKind<'a> = &'a str;
+
+/// Pro Spalte+Registry die wirksame Implementations-ID. `None` bedeutet
+/// "kein Override" — der Client soll seinen eigenen Default pro FieldType
+/// anwenden.
+pub async fn resolve_implementation(
+    entity_type: &str,
+    property: &str,
+    registry: RegistryKind<'_>,
+    user_id: Option<&str>,
+) -> Option<String> {
+    // 1) Per-User-Choice
+    if let Some(uid) = user_id {
+        if let Some(choice) = user_implementation_choice(uid, entity_type, property, registry).await {
+            return Some(choice);
+        }
+    }
+
+    // 2) ColumnMeta-Override + 3) field_type_defaults
+    let columns = shared_columns_for(entity_type);
+    let Some(col) = columns.iter().find(|c| c.key == property) else {
+        return None;
+    };
+    let column_override = match registry {
+        "filter" => col.filter_id.clone(),
+        "editor" => col.editor_id.clone(),
+        "formatter" => col.formatter_id.clone(),
+        _ => None,
+    };
+    if column_override.is_some() {
+        return column_override;
+    }
+
+    // 3) FieldType-Defaults aus den Settings
+    let Some(settings) = settings_for_async(entity_type).await else {
+        return None;
+    };
+    let kind = col.field_type.kind_str();
+    let defaults = settings.field_type_defaults.get(kind)?;
+    match registry {
+        "filter" => defaults.filter_id.clone(),
+        "editor" => defaults.editor_id.clone(),
+        "formatter" => defaults.formatter_id.clone(),
+        _ => None,
+    }
+}
+
+/// Liste aller IDs, die ein User fuer eine Spalte+Registry waehlen darf.
+///
+/// Quelle: `field_type_defaults.allowed_X_ids` plus die Default-ID selbst.
+/// Filtert nicht nach `Choose`-Permission — der Aufrufer (z.B.
+/// `setImplementationChoice`) prueft das separat.
+pub async fn allowed_implementations(
+    entity_type: &str,
+    property: &str,
+    registry: RegistryKind<'_>,
+) -> Vec<String> {
+    let columns = shared_columns_for(entity_type);
+    let Some(col) = columns.iter().find(|c| c.key == property) else {
+        return Vec::new();
+    };
+    let Some(settings) = settings_for_async(entity_type).await else {
+        return Vec::new();
+    };
+    let kind = col.field_type.kind_str();
+    let Some(defaults) = settings.field_type_defaults.get(kind) else {
+        return Vec::new();
+    };
+    let (default, allowed) = match registry {
+        "filter" => (defaults.filter_id.clone(), defaults.allowed_filter_ids.clone()),
+        "editor" => (defaults.editor_id.clone(), defaults.allowed_editor_ids.clone()),
+        "formatter" => (
+            defaults.formatter_id.clone(),
+            defaults.allowed_formatter_ids.clone(),
+        ),
+        _ => (None, Vec::new()),
+    };
+    let mut out: Vec<String> = allowed;
+    if let Some(d) = default {
+        if !out.iter().any(|x| x == &d) {
+            out.insert(0, d);
+        }
+    }
+    out
+}
+
+async fn user_implementation_choice(
+    user_id: &str,
+    entity_type: &str,
+    property: &str,
+    registry: &str,
+) -> Option<String> {
+    entity::user_implementation_choices::Entity::find()
+        .filter(entity::user_implementation_choices::Column::UserId.eq(user_id))
+        .filter(entity::user_implementation_choices::Column::EntityType.eq(entity_type))
+        .filter(entity::user_implementation_choices::Column::Property.eq(property))
+        .filter(entity::user_implementation_choices::Column::Registry.eq(registry))
+        .one(&conn())
+        .await
+        .ok()
+        .flatten()
+        .map(|m| m.chosen_id)
+}
+
+/// Test-Helper: mutiert die EntitySettings des installierten Beispiels
+/// fuer einen entity_type in-place.
+pub fn with_settings_mut<F>(entity_type: &str, f: F)
+where
+    F: FnOnce(&mut shared::EntitySettings),
+{
+    crate::example::mutate(|set| {
+        if let Some(ets) = set.entities.get_mut(entity_type) {
+            let s = ets.settings.get_or_insert_with(|| shared::EntitySettings {
+                entity_type: entity_type.to_string(),
+                ..Default::default()
+            });
+            f(s);
+        }
+    });
+}
+
+/// Test-Helper: mutiert die ColumnMeta-Liste eines entity_type.
+pub fn with_columns_mut<F>(entity_type: &str, f: F)
+where
+    F: FnOnce(&mut Vec<shared::ColumnMeta>),
+{
+    crate::example::mutate(|set| {
+        if let Some(ets) = set.entities.get_mut(entity_type) {
+            f(&mut ets.columns);
+        }
+    });
+}
+
+/// Setzt eine Per-User-Wahl. Falls bereits ein Eintrag fuer
+/// `(user_id, entity_type, property, registry)` existiert, wird er
+/// ueberschrieben.
+pub async fn set_user_implementation_choice(
+    user_id: &str,
+    entity_type: &str,
+    property: &str,
+    registry: &str,
+    chosen_id: &str,
+) -> Result<(), sea_orm::DbErr> {
+    let existing = entity::user_implementation_choices::Entity::find()
+        .filter(entity::user_implementation_choices::Column::UserId.eq(user_id))
+        .filter(entity::user_implementation_choices::Column::EntityType.eq(entity_type))
+        .filter(entity::user_implementation_choices::Column::Property.eq(property))
+        .filter(entity::user_implementation_choices::Column::Registry.eq(registry))
+        .one(&conn())
+        .await?;
+    if let Some(model) = existing {
+        let mut am: entity::user_implementation_choices::ActiveModel = model.into();
+        am.chosen_id = ActiveValue::Set(chosen_id.to_string());
+        am.update(&conn()).await?;
+    } else {
+        entity::user_implementation_choices::ActiveModel {
+            id: ActiveValue::NotSet,
+            user_id: ActiveValue::Set(user_id.to_string()),
+            entity_type: ActiveValue::Set(entity_type.to_string()),
+            property: ActiveValue::Set(property.to_string()),
+            registry: ActiveValue::Set(registry.to_string()),
+            chosen_id: ActiveValue::Set(chosen_id.to_string()),
+        }
+        .insert(&conn())
+        .await?;
+    }
+    Ok(())
 }
 
 // =============================================================================

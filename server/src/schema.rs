@@ -33,6 +33,11 @@ pub struct ColumnMeta {
     pub filterable: bool,
     pub comparator_id: Option<String>,
     pub filter_id: Option<String>,
+    /// Phase 1.5: erzwungene Editor-/Formatter-IDs + Per-Row-Aktionen
+    /// (Resolution-Stufe 1).
+    pub editor_id: Option<String>,
+    pub formatter_id: Option<String>,
+    pub action_ids: Vec<String>,
 }
 
 #[derive(Clone, SimpleObject)]
@@ -126,6 +131,23 @@ pub struct WhyAllowedRule {
     pub effect: String,
     pub specificity: i32,
     pub priority: i32,
+}
+
+/// Projizierter Allow-Eintrag fuer den Client (Phase 0.7.4-Lueckenschluss).
+/// Resource in kanonischer String-Form (siehe shared::auth::Resource::storage_id).
+#[derive(Clone, SimpleObject)]
+pub struct EffectivePermissionView {
+    pub resource_kind: String,
+    pub resource_id: String,
+    pub op: String,
+}
+
+fn map_effective(p: shared::auth::EffectivePermission) -> EffectivePermissionView {
+    EffectivePermissionView {
+        resource_kind: p.resource.kind_str().to_string(),
+        resource_id: p.resource.storage_id(),
+        op: p.op.as_str().to_string(),
+    }
 }
 
 #[derive(Clone, SimpleObject)]
@@ -283,6 +305,9 @@ pub struct AuthSessionView {
     pub token: String,
     pub user: SecurityUser,
     pub permissions: Vec<Permission>,
+    /// Projizierte Allows aus Phase 0.7.4. `None` = Legacy-Modus (Client
+    /// soll `permissions` benutzen); `Some([...])` = strikte Membership.
+    pub effective: Option<Vec<EffectivePermissionView>>,
     pub expires_at: Option<String>,
 }
 
@@ -465,6 +490,9 @@ fn map_session(s: shared::AuthSession) -> AuthSessionView {
         token: s.token,
         user: map_user(s.user),
         permissions: s.permissions.into_iter().map(map_perm).collect(),
+        effective: s
+            .effective
+            .map(|list| list.into_iter().map(map_effective).collect()),
         expires_at: s.expires_at,
     }
 }
@@ -671,6 +699,29 @@ impl QueryRoot {
         })
     }
 
+    /// Projizierte Allow-Liste des eingeloggten Users (Phase 0.7.4-Lueckenschluss).
+    ///
+    /// Liefert `None`, solange die `permissions`-Tabelle leer ist
+    /// (Legacy-Modus aktiv — Client faellt auf `currentPermissions` zurueck).
+    /// Liefert `Some([])`, wenn die Tabelle befuellt ist, aber der User
+    /// keinen einzigen Allow hat. Liefert `Some([...])` mit allen Allows.
+    ///
+    /// Verwendung: der Client cached `AuthSession.effective` aus dem Login.
+    /// Nach einer Permission-Aenderung (z.B. via Admin-UI) kann er diese
+    /// Query rufen und den Cache aktualisieren, ohne sich neu einzuloggen.
+    async fn current_effective(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<Vec<EffectivePermissionView>>> {
+        let Some(auth_ctx) = ctx.data::<AuthContext>().ok() else { return Ok(None) };
+        let Some(user) = &auth_ctx.user else { return Ok(None) };
+        match crate::auth::resolver::project_effective(&user.id).await {
+            Ok(Some(list)) => Ok(Some(list.into_iter().map(map_effective).collect())),
+            Ok(None) => Ok(None),
+            Err(e) => Err(async_graphql::Error::new(format!("{e}"))),
+        }
+    }
+
     /// Anonyme Anfragen liefern eine leere Liste.
     async fn my_permissions(&self, ctx: &Context<'_>) -> Vec<MyPermissionView> {
         let Some(auth_ctx) = ctx.data::<AuthContext>().ok() else { return vec![] };
@@ -849,6 +900,50 @@ impl QueryRoot {
             .map(map_entity_design))
     }
 
+    /// Liefert die fuer `(entityType, property, registry)` aufgeloeste
+    /// Implementations-ID (Phase 1.5.3). `userId` defaultet auf den
+    /// eingeloggten User; Admins koennen einen fremden `userId` angeben.
+    async fn resolve_implementation(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+        property: String,
+        registry: String,
+        user_id: Option<String>,
+    ) -> async_graphql::Result<Option<String>> {
+        let auth_ctx = ctx.data::<AuthContext>()?.clone();
+        let me = auth_ctx
+            .user
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+        let effective_user_id = match user_id {
+            Some(other) if other != me.id => {
+                require_permission(ctx, "*", shared::PermissionOp::Update).await?;
+                other
+            }
+            other => other.unwrap_or(me.id.clone()),
+        };
+        Ok(data::resolve_implementation(
+            &entity_type,
+            &property,
+            &registry,
+            Some(&effective_user_id),
+        )
+        .await)
+    }
+
+    /// Liste der IDs, die fuer `(entityType, property, registry)` zur
+    /// Verfuegung stehen — vor dem Choose-Permission-Filter.
+    async fn allowed_implementations(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+        property: String,
+        registry: String,
+    ) -> async_graphql::Result<Vec<String>> {
+        require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
+        Ok(data::allowed_implementations(&entity_type, &property, &registry).await)
+    }
+
     /// Bestimmte historische Version (fuer Revert-UI / Audit).
     async fn entity_design_at(
         &self,
@@ -939,6 +1034,72 @@ impl MutationRoot {
             table_count,
             relation_count,
         })
+    }
+
+    // -- Implementations-Choice (Phase 1.5.3) --
+
+    /// Setzt die Per-User-Wahl einer Implementations-ID. Permission-Gate:
+    /// Op::Choose auf Resource::ImplementationId { registry, chosenId }
+    /// (mit Fallback auf wildcard id="*" pro registry).
+    async fn set_implementation_choice(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+        property: String,
+        registry: String,
+        chosen_id: String,
+    ) -> async_graphql::Result<bool> {
+        let auth_ctx = ctx.data::<AuthContext>()?.clone();
+        let me = auth_ctx
+            .user
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+
+        // Choose-Permission-Check: greift nur, wenn die neue Permission-Schicht
+        // aktiv ist. In Legacy-Modus (permissions-Tabelle leer) erlauben wir
+        // das Choose — der User kann zwischen IDs waehlen, die der Loader
+        // ihm sowieso anbietet.
+        if data::permissions_count().await > 0 {
+            use shared::auth::{Effect, Resource};
+            let exact = Resource::ImplementationId {
+                registry: registry.clone(),
+                id: chosen_id.clone(),
+            };
+            let wildcard = Resource::ImplementationId {
+                registry: registry.clone(),
+                id: "*".to_string(),
+            };
+            let allow_exact = matches!(
+                crate::auth::resolver::effective(&me.id, &exact, shared::auth::Op::Choose).await,
+                Ok(Effect::Allow)
+            );
+            let allow_wild = matches!(
+                crate::auth::resolver::effective(&me.id, &wildcard, shared::auth::Op::Choose).await,
+                Ok(Effect::Allow)
+            );
+            if !allow_exact && !allow_wild {
+                crate::audit::record_deny(&me.id, &registry, "choose").await;
+                return Err(async_graphql::Error::new("forbidden"));
+            }
+        }
+
+        // Validierung: chosen_id muss in der `allowed_implementations`-Liste
+        // sein. Sonst koennte ein Aufrufer eine willkuerliche ID persistieren.
+        let allowed =
+            data::allowed_implementations(&entity_type, &property, &registry).await;
+        if !allowed.iter().any(|id| id == &chosen_id) {
+            return Err(async_graphql::Error::new("not_allowed_for_property"));
+        }
+
+        data::set_user_implementation_choice(
+            &me.id,
+            &entity_type,
+            &property,
+            &registry,
+            &chosen_id,
+        )
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+        Ok(true)
     }
 
     // -- Builder-Designs (Phase 1.6) --

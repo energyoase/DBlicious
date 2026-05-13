@@ -145,3 +145,15 @@ pub fn current() -> Option<ExampleSet> {
 pub fn reset() {
     *slot().write() = None;
 }
+
+/// In-Place-Mutation des installierten Sets (nur Tests / Designer-Updates).
+/// Liefert `false`, wenn kein Set installiert ist.
+pub fn mutate<F>(f: F) -> bool
+where
+    F: FnOnce(&mut ExampleSet),
+{
+    let mut guard = slot().write();
+    let Some(set) = guard.as_mut() else { return false };
+    f(set);
+    true
+}

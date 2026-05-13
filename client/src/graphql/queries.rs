@@ -62,6 +62,10 @@ const COLUMNS_QUERY: &str = r#"
             fieldType
             sortable
             filterable
+            filterId
+            editorId
+            formatterId
+            actionIds
         }
     }
 "#;
@@ -76,6 +80,14 @@ struct RawColumnMeta {
     field_type: serde_json::Value,
     sortable: bool,
     filterable: bool,
+    #[serde(default)]
+    filter_id: Option<String>,
+    #[serde(default)]
+    editor_id: Option<String>,
+    #[serde(default)]
+    formatter_id: Option<String>,
+    #[serde(default)]
+    action_ids: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -105,7 +117,10 @@ pub async fn fetch_columns(entity_type: &str) -> Result<Vec<ColumnMeta>, GqlErro
                 sortable: c.sortable,
                 filterable: c.filterable,
                 comparator_id: None,
-                filter_id: None,
+                filter_id: c.filter_id,
+                editor_id: c.editor_id,
+                formatter_id: c.formatter_id,
+                action_ids: c.action_ids.unwrap_or_default(),
             }
         })
         .collect();
@@ -436,6 +451,11 @@ pub async fn fetch_settings(entity_type: &str) -> Result<Option<EntitySettings>,
                 min_width: p.min_width.and_then(|w| if w < 0 { None } else { Some(w as u32) }),
             })
             .collect(),
+        // Phase 1.5: field_type_defaults werden ueber das GraphQL-Schema
+        // serverseitig erst spaeter exponiert; bis dahin liefert der Client
+        // eine leere Map. Der Server-Resolver konsultiert seine eigene
+        // Settings-Schicht (`data::settings_for*`), unabhaengig vom Client.
+        field_type_defaults: std::collections::BTreeMap::new(),
     }))
 }
 
@@ -829,6 +849,10 @@ pub async fn login(username: &str, password: &str) -> Result<LoginOutcome, GqlEr
                 token: raw.token,
                 user: raw.user,
                 permissions: raw.permissions.into_iter().map(map_permission).collect(),
+                // Phase 0.7.5: solange der Server die Projektion nicht ausliefert
+                // (geplant fuer Phase 0.7.4), bleibt `effective` hier `None` und
+                // `AuthContext` faellt auf das Legacy-`permissions`-Feld zurueck.
+                effective: None,
                 expires_at: raw.expires_at,
             }));
         }
