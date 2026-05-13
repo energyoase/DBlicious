@@ -88,6 +88,11 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::metadata_editor::Entity),
         schema.create_table_from_entity(entity::metadata_settings::Entity),
         schema.create_table_from_entity(entity::db_schemas::Entity),
+        // Phase 0.7: neues Permission-Modell — koexistiert mit groups.permissions_json
+        // bis 0.7.4/0.7.5 die alte Schicht abloest.
+        schema.create_table_from_entity(entity::permissions::Entity),
+        schema.create_table_from_entity(entity::roles::Entity),
+        schema.create_table_from_entity(entity::role_assignments::Entity),
     ];
     for t in &mut tables {
         t.if_not_exists();
@@ -115,6 +120,17 @@ async fn seed_if_empty(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     }
     if entity::entities::Entity::find().count(db).await? == 0 {
         crate::data::seed_entities_from_example(db).await?;
+    }
+    // Phase 0.7: neues Permission-Modell. role_assignments referenziert roles
+    // (FK) — Reihenfolge: roles vor role_assignments. permissions hat keine FK.
+    if entity::roles::Entity::find().count(db).await? == 0 {
+        crate::data::seed_roles(db).await?;
+    }
+    if entity::role_assignments::Entity::find().count(db).await? == 0 {
+        crate::data::seed_role_assignments(db).await?;
+    }
+    if entity::permissions::Entity::find().count(db).await? == 0 {
+        crate::data::seed_permissions(db).await?;
     }
     Ok(())
 }

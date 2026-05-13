@@ -103,6 +103,14 @@ pub struct ExampleSet {
     pub groups: Vec<shared::SecurityGroup>,
     pub translatables: shared::TranslatableBundle,
     pub entities: BTreeMap<String, EntityTypeSet>,
+    /// Phase 0.7: neues Permission-Modell. Wird parallel zum alten
+    /// `groups.permissions`-Pfad geladen; Enforcement-Schicht ist
+    /// 0.7.4. Leer, wenn keine Loader-Dateien vorhanden sind — kein
+    /// Bruch fuer bestehende Beispiele.
+    #[doc(hidden)]
+    pub permissions: Vec<shared::auth::Permission>,
+    pub roles: Vec<shared::auth::Role>,
+    pub role_assignments: Vec<shared::auth::RoleAssignment>,
 }
 
 impl ExampleSet {

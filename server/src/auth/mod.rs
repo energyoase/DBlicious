@@ -1,12 +1,15 @@
-//! Server-seitige Authentifizierung (SeaORM-Sessions).
+//! Server-seitige Authentifizierung (SeaORM-Sessions) + Phase-0.7-Resolver.
 //!
-//! Drei Bausteine, unveraendert in der Semantik gegenueber der vorherigen
-//! In-Memory-Version, aber:
+//! Bausteine in diesem Modul:
 //!   - Sessions liegen in der `sessions`-Tabelle.
 //!   - `login` / `user_for_bearer` / `close_session` / `invalidate_sessions_for`
 //!     sind `async fn`.
 //!   - Password-Hashing (Argon2id) bleibt sync — der CPU-Cost ist niedrig
 //!     genug und blockt den Tokio-Reaktor nicht.
+//!   - Sub-Modul [`resolver`]: das neue Permission-Modell aus Phase 0.7,
+//!     mit Group- und Role-Vererbung, Deny-vor-Allow und Spezifitaets-Regel.
+
+pub mod resolver;
 
 use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;

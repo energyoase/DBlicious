@@ -190,3 +190,187 @@ pub struct Permission {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
 }
+
+// =============================================================================
+// Role + RoleAssignment (Loader-/Wire-Typen)
+// =============================================================================
+
+/// Eine benannte Rolle. Rollen sind Permission-Buendel: einer Role koennen
+/// beliebige `Permission`s zugewiesen sein (`subject = Subject::Role { id }`),
+/// und einer User oder Group wird eine Role ueber [`RoleAssignment`] zugewiesen.
+///
+/// Im Gegensatz zur `SecurityGroup` (Bestand) haelt die `Role` selbst **keine**
+/// Permission-Liste — Permissions referenzieren die Role per `Subject::Role`.
+/// Das entkoppelt Persistenz (eine flache `permissions`-Tabelle) von
+/// Mitgliedschaft (`role_assignments`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Role {
+    pub id: String,
+    /// Fluent-Schluessel oder Klartext-Name.
+    pub name_key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description_key: Option<String>,
+}
+
+/// Zuweisung einer Role an einen User oder eine Group.
+///
+/// `subject` darf nur [`Subject::User`] oder [`Subject::Group`] sein —
+/// `Subject::Role` waere eine Role-Hierarchie und ist hier bewusst
+/// **nicht** modelliert. Der Loader validiert das und lehnt Verstoesse ab.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RoleAssignment {
+    pub subject: Subject,
+    pub role_id: String,
+}
+
+// =============================================================================
+// Storage-Form fuer Resource
+// =============================================================================
+//
+// Die `permissions`-Tabelle haelt `resource_kind` + `resource_id` als zwei
+// flache TEXT-Spalten. Die `Resource`-Varianten haben aber unterschiedliche
+// Felder; sie werden hier in eine kanonische String-Form serialisiert und
+// zurueck.
+//
+// Trennzeichen `:`. Ein Doppelpunkt im `name`/`id` einer Resource ist nicht
+// erlaubt — der Loader meldet das als Konfigurationsfehler.
+
+impl Resource {
+    /// Diskriminator-String fuer die `resource_kind`-Spalte.
+    pub fn kind_str(&self) -> &'static str {
+        match self {
+            Resource::EntityType { .. } => "entityType",
+            Resource::EntityProperty { .. } => "entityProperty",
+            Resource::EntityInstance { .. } => "entityInstance",
+            Resource::Action { .. } => "action",
+            Resource::ImplementationId { .. } => "implementationId",
+            Resource::Migration { .. } => "migration",
+        }
+    }
+
+    /// Kanonische String-Form fuer die `resource_id`-Spalte.
+    ///
+    /// Format pro Variante:
+    /// - `EntityType { name }`              → `name`            (z.B. `"product"`)
+    /// - `EntityProperty { e, p }`          → `e.p`             (z.B. `"product.price"`)
+    /// - `EntityInstance { e, id }`         → `e:id`            (z.B. `"product:p-42"`)
+    /// - `Action { name }`                  → `name`            (z.B. `"exportCsv"`)
+    /// - `ImplementationId { registry, id }`→ `registry:id`     (z.B. `"filter:number-range"`)
+    /// - `Migration { id }`                 → `id`
+    pub fn storage_id(&self) -> String {
+        match self {
+            Resource::EntityType { name } => name.clone(),
+            Resource::EntityProperty { entity_type, property } => {
+                format!("{entity_type}.{property}")
+            }
+            Resource::EntityInstance { entity_type, id } => format!("{entity_type}:{id}"),
+            Resource::Action { name } => name.clone(),
+            Resource::ImplementationId { registry, id } => format!("{registry}:{id}"),
+            Resource::Migration { id } => id.clone(),
+        }
+    }
+
+    /// Inverse zu [`Resource::storage_id`]. Liefert `None`, wenn der
+    /// Diskriminator unbekannt oder die String-Form nicht zur Variante passt
+    /// (z.B. fehlender Punkt bei `entityProperty`).
+    pub fn from_storage(kind: &str, id: &str) -> Option<Resource> {
+        match kind {
+            "entityType" => Some(Resource::EntityType { name: id.to_string() }),
+            "entityProperty" => {
+                let (e, p) = id.split_once('.')?;
+                Some(Resource::EntityProperty {
+                    entity_type: e.to_string(),
+                    property: p.to_string(),
+                })
+            }
+            "entityInstance" => {
+                let (e, i) = id.split_once(':')?;
+                Some(Resource::EntityInstance {
+                    entity_type: e.to_string(),
+                    id: i.to_string(),
+                })
+            }
+            "action" => Some(Resource::Action { name: id.to_string() }),
+            "implementationId" => {
+                let (registry, i) = id.split_once(':')?;
+                Some(Resource::ImplementationId {
+                    registry: registry.to_string(),
+                    id: i.to_string(),
+                })
+            }
+            "migration" => Some(Resource::Migration { id: id.to_string() }),
+            _ => None,
+        }
+    }
+}
+
+impl Subject {
+    pub fn kind_str(&self) -> &'static str {
+        match self {
+            Subject::User { .. } => "user",
+            Subject::Group { .. } => "group",
+            Subject::Role { .. } => "role",
+        }
+    }
+
+    pub fn from_storage(kind: &str, id: &str) -> Option<Subject> {
+        match kind {
+            "user" => Some(Subject::User { id: id.to_string() }),
+            "group" => Some(Subject::Group { id: id.to_string() }),
+            "role" => Some(Subject::Role { id: id.to_string() }),
+            _ => None,
+        }
+    }
+}
+
+impl Op {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Op::Create => "create",
+            Op::Read => "read",
+            Op::Update => "update",
+            Op::Delete => "delete",
+            Op::Execute => "execute",
+            Op::Choose => "choose",
+            Op::Approve => "approve",
+            Op::Cutover => "cutover",
+            Op::Contract => "contract",
+            Op::Rollback => "rollback",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Op> {
+        Some(match s {
+            "create" => Op::Create,
+            "read" => Op::Read,
+            "update" => Op::Update,
+            "delete" => Op::Delete,
+            "execute" => Op::Execute,
+            "choose" => Op::Choose,
+            "approve" => Op::Approve,
+            "cutover" => Op::Cutover,
+            "contract" => Op::Contract,
+            "rollback" => Op::Rollback,
+            _ => return None,
+        })
+    }
+}
+
+impl Effect {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Effect::Allow => "allow",
+            Effect::Deny => "deny",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Effect> {
+        match s {
+            "allow" => Some(Effect::Allow),
+            "deny" => Some(Effect::Deny),
+            _ => None,
+        }
+    }
+}

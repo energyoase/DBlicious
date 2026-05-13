@@ -1097,6 +1097,65 @@ pub async fn seed_groups(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> 
     Ok(())
 }
 
+// =============================================================================
+// Phase 0.7 — Permissions / Roles / Role-Assignments
+// =============================================================================
+
+pub async fn seed_permissions(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
+    for p in set.permissions {
+        entity::permissions::ActiveModel {
+            id: ActiveValue::NotSet,
+            subject_kind: ActiveValue::Set(p.subject.kind_str().to_string()),
+            subject_id: ActiveValue::Set(p.subject.id().to_string()),
+            resource_kind: ActiveValue::Set(p.resource.kind_str().to_string()),
+            resource_id: ActiveValue::Set(p.resource.storage_id()),
+            op: ActiveValue::Set(p.op.as_str().to_string()),
+            effect: ActiveValue::Set(p.effect.as_str().to_string()),
+            priority: ActiveValue::Set(p.priority),
+            tenant_id: ActiveValue::Set(p.tenant_id),
+        }
+        .insert(db)
+        .await?;
+    }
+    Ok(())
+}
+
+pub async fn seed_roles(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
+    for r in set.roles {
+        entity::roles::ActiveModel {
+            id: ActiveValue::Set(r.id),
+            name_key: ActiveValue::Set(r.name_key),
+            description_key: ActiveValue::Set(r.description_key),
+        }
+        .insert(db)
+        .await?;
+    }
+    Ok(())
+}
+
+pub async fn seed_role_assignments(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
+    for ra in set.role_assignments {
+        entity::role_assignments::ActiveModel {
+            id: ActiveValue::NotSet,
+            subject_kind: ActiveValue::Set(ra.subject.kind_str().to_string()),
+            subject_id: ActiveValue::Set(ra.subject.id().to_string()),
+            role_id: ActiveValue::Set(ra.role_id),
+        }
+        .insert(db)
+        .await?;
+    }
+    Ok(())
+}
+
 pub async fn seed_translatables(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     let Some(set) = crate::example::current() else {
         return Ok(());

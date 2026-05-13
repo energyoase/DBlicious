@@ -75,6 +75,33 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
     } else {
         Vec::new()
     };
+    // Phase 0.7: neues Permission-Modell. Drei optionale Dateien neben
+    // users/groups. Fehlende Dateien sind kein Fehler — bestehende
+    // Beispiele ohne diese Dateien fahren unveraendert hoch.
+    let permissions: Vec<shared::auth::Permission> = if security_dir.is_dir() {
+        read_typed_opt(find_file(&security_dir, "permissions"))?.unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let roles: Vec<shared::auth::Role> = if security_dir.is_dir() {
+        read_typed_opt(find_file(&security_dir, "roles"))?.unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    let role_assignments: Vec<shared::auth::RoleAssignment> = if security_dir.is_dir() {
+        read_typed_opt(find_file(&security_dir, "role_assignments"))?.unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    // Validierung: RoleAssignment.subject darf nicht Subject::Role sein —
+    // wir modellieren keine Role-Hierarchie.
+    for ra in &role_assignments {
+        if matches!(ra.subject, shared::auth::Subject::Role { .. }) {
+            return Err(anyhow!(
+                "RoleAssignment.subject darf nicht 'role' sein (keine Role-Hierarchien): {ra:?}"
+            ));
+        }
+    }
 
     // ---- Translatables ----
     let translatables_dir = dir.join("translatables");
@@ -122,6 +149,9 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
         groups,
         translatables,
         entities,
+        permissions,
+        roles,
+        role_assignments,
     })
 }
 
