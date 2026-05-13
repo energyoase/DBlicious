@@ -26,24 +26,89 @@ Beschreibt den vorhandenen Stand zur Kalibrierung der Folge-Phasen. Siehe `CLAUD
 
 ---
 
-## Phase 0.5 — Konsolidierung (Pre-Vision)
+## Phase 0.5 — Konsolidierung (Pre-Vision) ✅ abgeschlossen (2026-05-13)
 
 **Ziel**: Lose Enden aus den README-"Erweiterungspunkten" schliessen, **bevor** die grossen Vision-Phasen starten. Diese Arbeit ist klein, hochgradig wertstiftend und entkoppelt von der Vision.
 
-| # | Paket | Groesse | Bezug | Akzeptanz |
-|---|---|---|---|---|
-| 0.5.1 | Server-seitiges Sort/Filter im `entities`-Query auswerten | M | `server/src/schema.rs::QueryRoot::entities`, `server/src/data.rs` | `sort_by`/`sort_dir`/`filter`-Args werden nicht mehr ignoriert; bestehende UI funktioniert ohne Aenderung |
-| 0.5.2 | Spalten-Metadaten ausschliesslich vom Server | S | `client/src/routes/mod.rs::EntityListPage` (von `column_set_for` auf `fetch_columns` umstellen) | Kein Hardcoding von Spalten im Client mehr |
-| 0.5.3 | Reference- und Collection-Formatter | M | `client/src/components/table/formatters.rs` | Felder mit `FieldType::Reference`/`Collection` rendern korrekt statt Rohwert |
-| 0.5.4 | `LocalSource` als alternative `DataSource` | S | `client/src/components/table/data_source.rs` | Client-seitiges Sort/Filter ohne Server-Roundtrip moeglich (fuer kleine Datasets) |
-| 0.5.5 | Weitere Sprachen vorbereiten | S | `client/locales/`, `client/src/i18n/mod.rs::Locale` | Mind. eine dritte Sprache (z.B. `fr`) als Skelett, dokumentiertes Add-Verfahren |
-| 0.5.6 | Tests fuer den Daten-Loader und CRUD-Pfade | M | `server/src/` (neue `tests/`-Module) | `cargo test` deckt Loader-Roundtrip + Entity-CRUD ab |
-| 0.5.7 | Table-Dekomposition: voll-komponiert via Shell + Bausteine | M | `client/src/components/table/` (neue Module: `shell.rs`, `top_menu.rs`/`bottom_menu.rs`, `table_view.rs`, `selection.rs`, `selection_column.rs`, `row_actions.rs`, `entity_menu.rs`, `global_filter.rs`, `pager.rs`, `page_size.rs`) | `<EntityTableShell>` legt Context an (`TableState`, `SelectionState` neu, `DataResource`, `Rc<dyn DataSource>`, `Rc<Vec<ColumnMeta>>`, `entity_type`, Auth-Caps, `FilterRegistry`); Aufruf-Code komponiert den Baum selbst (`<TopMenu><GlobalFilter/><EntityMenu>…</EntityMenu></TopMenu><Table/><BottomMenu><Pager/></BottomMenu>`); Selektion (`<SelectionColumn mode=Single\|Multi/>`), Per-Row-Aktionen (`<RowActions>{…}</RowActions>` mit `RowContext`), Bulk-Aktionen (`<EntityAction enabled_when=…/>`, `<DeleteAction/>`, `<EditAction/>`) sind alle opt-in als eigene Komponenten, nicht als Props; bestehende `view.rs::EntityTable` mit `#[deprecated(note = "use EntityTableShell + composable blocks")]` markiert; einziger Consumer `routes/mod.rs::EntityListPage` auf neue Komposition migriert. |
-| 0.5.8 | Property-Filter-Pipeline: Filter-Registry + Standard-Komponenten | M | `client/src/components/table/filters/` (neu: `registry.rs`, `text_contains.rs`, `number_range.rs`, `enum_in.rs`, `bool_equals.rs`, `date_range.rs`); Konsument: `<Table>` aus 0.5.7 | Jeder Filter ist eine eigene Leptos-Komponente mit Prop `column: ColumnMeta`; Registrierung per String-ID (`"text-contains"`, `"number-range"`, …) in der `FilterRegistry`; Resolution pro Spalte: `ColumnMeta.filter_id` → Client-Default pro `FieldType` → kein Filter-UI; Filter schreiben in `FilterCriteria.predicates`, bestehende `LocalSource`/`RemoteSource`-Auswertung greift unveraendert; Custom-Filter erweitern die Registry ohne Aenderung an `<Table>`. |
+**Status**: alle 8 Arbeitspakete erledigt. Commits: `543fc05` (0.5.2), `556adf4` (0.5.6), `b5cbc61` (0.5.1/0.5.3/0.5.5), `9ae8367` (0.5.7), `087116d` (0.5.8). 0.5.4 war bereits vor dieser Phase im Code (LocalSource).
+
+| # | Paket | Groesse | Bezug | Akzeptanz | Status |
+|---|---|---|---|---|---|
+| 0.5.1 | Server-seitiges Sort/Filter im `entities`-Query auswerten | M | `server/src/schema.rs::QueryRoot::entities`, `server/src/data.rs` | `sort_by`/`sort_dir`/`filter`-Args werden nicht mehr ignoriert; bestehende UI funktioniert ohne Aenderung | ✅ |
+| 0.5.2 | Spalten-Metadaten ausschliesslich vom Server | S | `client/src/routes/mod.rs::EntityListPage` (von `column_set_for` auf `fetch_columns` umstellen) | Kein Hardcoding von Spalten im Client mehr | ✅ |
+| 0.5.3 | Reference- und Collection-Formatter | M | `client/src/components/field/mod.rs::DefaultFieldRegistry` (statt heute hartkodierte `formatters.rs`) | Felder mit `FieldType::Reference`/`Collection` rendern korrekt statt Rohwert | ✅ |
+| 0.5.4 | `LocalSource` als alternative `DataSource` | S | `client/src/components/table/data_source.rs` | Client-seitiges Sort/Filter ohne Server-Roundtrip moeglich (fuer kleine Datasets) | ✅ (vor 0.5) |
+| 0.5.5 | Weitere Sprachen vorbereiten | S | `client/locales/`, `client/src/i18n/mod.rs::Locale` | Mind. eine dritte Sprache (z.B. `fr`) als Skelett, dokumentiertes Add-Verfahren | ✅ |
+| 0.5.6 | Tests fuer den Daten-Loader und CRUD-Pfade | M | `server/src/` (neue `tests/`-Module) | `cargo test` deckt Loader-Roundtrip + Entity-CRUD ab | ✅ |
+| 0.5.7 | Table-Dekomposition: voll-komponiert via Shell + Bausteine | M | `client/src/components/table/` (neue Module: `shell.rs`, `top_menu.rs`/`bottom_menu.rs`, `table_view.rs`, `selection.rs`, `selection_column.rs`, `row_actions.rs`, `entity_menu.rs`, `global_filter.rs`, `pager.rs`, `page_size.rs`) | `<EntityTableShell>` legt Context an (`TableState`, `SelectionState` neu, `DataResource`, `Rc<dyn DataSource>`, `Rc<Vec<ColumnMeta>>`, `entity_type`, Auth-Caps, `FilterRegistry`); Aufruf-Code komponiert den Baum selbst (`<TopMenu><GlobalFilter/><EntityMenu>…</EntityMenu></TopMenu><Table/><BottomMenu><Pager/></BottomMenu>`); Selektion (`<SelectionColumn mode=Single\|Multi/>`), Per-Row-Aktionen (`<RowActions>{…}</RowActions>` mit `RowContext`), Bulk-Aktionen (`<EntityAction enabled_when=…/>`, `<DeleteAction/>`, `<EditAction/>`) sind alle opt-in als eigene Komponenten, nicht als Props; bestehende `view.rs::EntityTable` mit `#[deprecated(note = "use EntityTableShell + composable blocks")]` markiert; einziger Consumer `routes/mod.rs::EntityListPage` auf neue Komposition migriert. | ✅ |
+| 0.5.8 | Property-Filter-Pipeline: Filter-Registry + Standard-Komponenten | M | `client/src/components/table/filters/` (neu: `registry.rs`, `text_contains.rs`, `number_range.rs`, `enum_in.rs`, `bool_equals.rs`, `date_range.rs`); Konsument: `<Table>` aus 0.5.7 | Jeder Filter ist eine eigene Leptos-Komponente mit Prop `column: ColumnMeta`; Registrierung per String-ID (`"text-contains"`, `"number-range"`, …) in der `FilterRegistry`; Resolution pro Spalte: `ColumnMeta.filter_id` → Client-Default pro `FieldType` → kein Filter-UI; Filter schreiben in `FilterCriteria.predicates`, bestehende `LocalSource`/`RemoteSource`-Auswertung greift unveraendert; Custom-Filter erweitern die Registry ohne Aenderung an `<Table>`. | ✅ |
 
 **Deliverable**: README-Erweiterungstabelle ist auf "erledigt" bei den genannten Punkten. Codebase ist sauber genug, um auf ihr die Vision aufzubauen.
 
 **Risiko**: gering. Reines Konsolidieren bekannter Arbeit.
+
+**Abweichungen / Lessons learned**:
+- 0.5.3 setzt nicht in `formatters.rs` (heute reine Fassade) sondern in `field::DefaultFieldRegistry` an. Pfad in der Tabelle entsprechend korrigiert.
+- 0.5.4 war bereits vollstaendig im Code (`LocalSource` mit Filter/Sort/Pagination ueber `shared::ops_for_named`). Status-Snapshot in der ROADMAP war zu pessimistisch.
+- CLAUDE.md hatte zwei falsche Aussagen, die im Zuge von 0.5.6 korrigiert wurden: "no tests in the workspace" (es gab 60+) und das Wire-Format-Beispiel fuer `FieldType` (`rename_all = "camelCase"` greift nicht auf innere Felder einer Struct-Variante).
+
+---
+
+## Phase 0.7 — Auth- & Permission-Modell
+
+**Ziel**: Konsolidiertes, in `shared` definiertes Permission-Modell mit dem Server als Single Source of Truth. Client-seitige Auswertung ist projiziertes Spiegelbild, niemals Autoritaet.
+
+**Status quo (Mai 2026)**: `client/src/auth/` haelt `AuthContext` + `PermissionOp` (CRUD-Ops); Server hat SeaORM-Modelle fuer `users`/`groups`/`user_groups`/`sessions`; Loader liest `security/{users,groups}` aus `--data-dir`. Permission-Pruefung passiert heute primaer im Client — serverseitiges Enforcement ist rudimentaer und keine konsistente Schicht.
+
+**Target-Modell**:
+
+```
+Subject  := User | Group
+Resource := EntityType
+          | EntityProperty   (z.B. "product.price")
+          | EntityInstance   (z.B. ("product", "p-42"))
+          | Action           (z.B. "exportCsv")
+          | ImplementationId (z.B. filter:"number-range")
+          | Migration        (id)
+Op       := Create | Read | Update | Delete | Execute | Choose
+          | Approve | Cutover | Contract | Rollback           // Migration-Ops
+Effect   := Allow | Deny
+```
+
+- **Rollen** = benannte Group-Sets; Group-Membership ist die Persistenz-Einheit.
+- **Vererbung**: Permissions auf `EntityType` vererben auf alle `EntityProperty` desselben Typs, sofern nicht explizit ueberschrieben. Property-Permissions auf `EntityInstance` analog. Spezifischere Ebene gewinnt; bei gleicher Spezifitaet gewinnt **Deny vor Allow**.
+- **Choose-Permission**: aus Phase 1.5; gibt dem User das Recht, eine bestimmte `ImplementationId` (oder Wildcard `filter.*`) zu waehlen.
+- **Persistenz**: flache Tabelle `permissions(subject_id, subject_kind, resource_kind, resource_id, op, effect, priority)`. Indizierbar, auditierbar, ohne tiefe Hierarchien.
+- **Evaluation**: Server-Resolver berechnet `effective(user, resource, op) -> Effect` pro Anfrage; Ergebnis pro Session gecached. Client bekommt eine **projizierte Liste** seiner erlaubten Operationen, darf aber nichts erzwingen.
+
+### Arbeitspakete
+
+| # | Paket | Groesse | Bezug | Akzeptanz |
+|---|---|---|---|---|
+| 0.7.1 | `Permission`, `Subject`, `Resource`, `Op`, `Effect` als `shared`-Typen | S | neu: `shared/src/auth.rs` | Wire-Format gepinnt durch `shared/tests/auth_wire_format.rs` |
+| 0.7.2 | `permissions`-Tabelle (SeaORM) + Loader-Format `security/permissions.{toml,json}` | M | `server/src/entity/permission.rs`, `server/src/example/loader.rs` | Loader-Roundtrip-Test gruen |
+| 0.7.3 | Server-Resolver `effective(user, resource, op)` mit Vererbung + Deny-Priority + Session-Cache | M | neu: `server/src/auth/resolver.rs` | Unit-Tests pro Praedikat, Integration ueber gemockte Sessions |
+| 0.7.4 | Enforcement in CRUD-Resolvern + GraphQL-Mutation-Schicht | M | `server/src/schema.rs` | Negative Tests: nicht autorisierter Aufruf → Error-Code `forbidden` |
+| 0.7.5 | Client-`AuthContext` aus projizierter Liste speisen | S | `client/src/auth/` | UI versteckt Aktionen, fuer die der Server keine Erlaubnis liefert |
+| 0.7.6 | Audit-Log: alle Permission-Aenderungen + alle verweigerten Zugriffe | S | neu: `server/src/audit.rs` | Tabelle `audit_log` enthaelt Eintraege bei jedem Deny |
+| 0.7.7 | Debug-Endpoint `whyAllowed(user, resource, op) -> Trace` | S | `server/src/schema.rs` | Liefert geordnete Liste aller passenden Regeln + Effekte |
+| 0.7.8 | Migrations-Skript: heutiges `security/{users,groups}` → neues `permissions`-Format | S | neu: `cli/src/cmd/migrate_security.rs` | Idempotent, dry-run-faehig |
+
+### Dependencies
+
+- Keine harten. Vorbedingung fuer Phase 1.5 (Choose-Permissions) und impliziter Unterbau von Phase 2 (Plugin-Aufruf-Permissions) sowie Phase 3 (Migration-Approval-Permissions).
+
+### Deliverable
+
+- Server-Enforcement ist die Wahrheit; Client zeigt nur projizierte Sicht.
+- `permissions`-Tabelle + Loader-Format ist in `examples/shop/` benutzt und dokumentiert.
+- Audit-Log + `whyAllowed`-Debug-Endpoint sind nutzbar.
+
+### Risiken
+
+- **Performance des Resolvers**: pro CRUD-Aufruf darf nicht erneut die ganze Permission-Tabelle gescannt werden. Session-Cache mit Invalidierung bei Permission-Aenderung ist Pflicht.
+- **Komplexitaet von Deny-vor-Allow + Wildcards**: kann zu schwer debuggbaren Effekten fuehren. Der `whyAllowed`-Endpoint ist die Notbremse und wird vom Audit-UI sichtbar gemacht.
+- **Migrations-Pfad** des bestehenden security-Formats: Bestandsdaten unter `examples/shop/security/` muessen automatisch konvertiert werden, sonst bricht der Loader nach 0.7.2.
 
 ---
 
@@ -78,7 +143,77 @@ Beschreibt den vorhandenen Stand zur Kalibrierung der Folge-Phasen. Siehe `CLAUD
 ### Risiken
 
 - **Bevy-ECS in WASM**: laeuft, ist aber im Web-Kontext noch ungewohnt. POC-Spike (~3 Tage) vor 1.4 empfehlen.
-- **DSL fuer EventTrigger**: was darf ein `EventTrigger`-Component referenzieren? Klare Trennung "Builder beschreibt Intent, Plugin (Phase 2) implementiert Logik" einhalten.
+- **DSL fuer EventTrigger**: was darf ein `EventTrigger`-Component referenzieren? Klare Trennung "Builder beschreibt Intent, Plugin (Phase 2) implementiert Logik" einhalten — siehe [Architektur-Vertraege: Builder ↔ Plugin](#architektur-vertraege-builder--plugin).
+
+### Spezifikation: Builder-Persistenz (zu 1.6)
+
+Detaillierung der 1.6-Zeile aus der Arbeitspaket-Tabelle.
+
+**Storage-Schema** (`entity_designs`-Tabelle):
+
+```sql
+CREATE TABLE entity_designs (
+    entity_type     TEXT    NOT NULL,
+    version         INTEGER NOT NULL,         -- monoton, jeder Save = +1
+    state           TEXT    NOT NULL,         -- JSON, siehe unten
+    schema_version  INTEGER NOT NULL,         -- shape des state-Blobs
+    created_at      TEXT    NOT NULL,
+    created_by      TEXT    NOT NULL,         -- user_id
+    locked          INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (entity_type, version)
+);
+```
+
+- **Append-only**: alte Versionen bleiben.
+- `locked = 1` ⇒ Codegen-Snapshot (Phase 4), keine weiteren Mutationen erlaubt.
+
+**Serialisierungs-Format** der `state`-Spalte:
+
+```json
+{
+  "schemaVersion": 1,
+  "ecs": {
+    "entities": [
+      { "id": 42, "components": {
+          "Transform":    { "x": 0, "y": 0, "w": 200, "h": 32 },
+          "Style":        { "tokenRef": "table_cell" },
+          "BoundField":   { "key": "price" },
+          "EventTrigger": { "event": {"kind":"click"},
+                            "target": {"kind":"plugin","id":"...","function":"...","args":{}} }
+      }}
+    ]
+  },
+  "projection": {
+    "columns":  [/* ColumnMeta[]  — projiziert aus ECS */],
+    "settings": {/* EntitySettings — projiziert */},
+    "editor":   {/* EntityEditor   — projiziert */}
+  }
+}
+```
+
+- **Wahrheit ist `ecs.entities`.** Die `projection`-Sektion ist redundant, wird beim Save aus dem ECS-Zustand neu generiert und mitgespeichert — damit der Server (der bewusst keine ECS-Runtime besitzt) sie ohne Bevy-Dependency lesen kann.
+- **Schema-Drift**: aendert sich das Component-Schema (z.B. `EventTrigger` wird erweitert), wird `schemaVersion` hochgezaehlt. `shared/src/builder/migrate.rs` haelt fuer jede Erhoehung eine `migrate_state(old, json) -> json`-Funktion. Loader bricht auf nicht-migrierbare States nicht — er nimmt die letzte erfolgreich migrierte Version.
+- **Performance**: bei kleinen Designs vernachlaessigbar; ab 10k Entities ist der `projection`-Block der dominierende Read-Pfad — Cache pro `(entity_type, version)` im Server.
+
+**Koexistenz mit dem `--data-dir`-Loader**:
+
+```
+Server-Start:
+  1. Loader liest --data-dir → schreibt in example::install (RwLock-Slot).
+  2. DB-Init: pro entity_type im Loader-Set, das in entity_designs noch nicht
+     existiert, wird Loader-Snapshot als version=0 (created_by="system")
+     geschrieben. Idempotent.
+  3. Aktive Version pro entity_type = MAX(version).
+  4. data::* liest aus aktiver Version (DB); fallt auf RwLock-Slot nur zurueck,
+     wenn fuer den entity_type keine version existiert (defensiv).
+```
+
+- **Single Source of Truth nach Boot**: die `entity_designs`-Tabelle.
+- **`--data-dir` ist Seed, kein Laufzeit-Override.** Aenderungen an Loader-Dateien greifen nur, wenn die DB fuer den entity_type *leer* ist oder explizit per CLI `dblicious design reset <entity_type>` zurueckgesetzt wird.
+- **Builder-Save** bumpt die `version`; Live-Clients erfahren das per GraphQL-Subscription `entityDesignUpdated(entity_type)` (neu in 1.6).
+- **Revert**: `revertEntityDesign(entity_type, target_version)` schreibt den alten State als *neue* Version. Keine Loeschung.
+
+**Konfliktbehandlung bei paralleler Bearbeitung**: Optimistic Locking via `expected_version` in der Save-Mutation. Konflikt ⇒ Fehlercode `concurrent_design_modification` mit serverseitiger Diff-Sicht.
 
 ---
 
@@ -196,6 +331,105 @@ Liefert der Server fuer ein Property mehrere erlaubte Varianten zurueck, darf de
 - **Migration-Komplexitaet**: Drop-Column-mit-Backfill-Pfad ist heikel. Erste Version darf destruktive Operationen nur als "Contract"-Schritt anbieten und nur, wenn User explizit zustimmt.
 - **Cost-Control**: LLM-Calls deckeln (max. N pro Stunde pro User).
 
+### Spezifikation: `MigrationProposal` + zweiphasige State-Machine (zu 3.2 und 3.7)
+
+Detaillierung der 3.2- und 3.7-Zeilen aus der Arbeitspaket-Tabelle.
+
+**`MigrationProposal`-Schema** (in `shared/src/migration.rs`):
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationProposal {
+    pub id: String,
+    pub generated_at: String,              // ISO-8601
+    pub source: ProposalSource,
+    pub steps: Vec<MigrationStep>,
+    pub rationale: String,                 // LLM-Begruendung, max 2000 Zeichen
+    pub impact: Impact,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum ProposalSource {
+    JsonImport   { sample_hash: String, row_count: u64 },
+    DesignerEdit { user_id: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "op", rename_all = "camelCase")]
+pub enum MigrationStep {
+    AddTable    { entity_type: String, columns: Vec<ColumnMeta> },
+    AddColumn   { entity_type: String, column: ColumnMeta,
+                  default: Option<serde_json::Value> },         // Pflicht wenn nullable=false
+    MapColumn   { entity_type: String, from: String, to: String,
+                  transform: TransformExpr,                      // typisiertes Mini-DSL
+                  keep_source: bool },                           // Expansion: true; Contract: false
+    DropColumn  { entity_type: String, column: String,
+                  backup_to: Option<String> },                   // optionale Archive-Tabelle
+    AddIndex    { entity_type: String, columns: Vec<String>, unique: bool },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Impact {
+    pub destructive: bool,
+    pub estimated_rows_affected: u64,
+    pub plugin_compatibility:  Vec<PluginCompatNote>,
+    pub builder_compatibility: Vec<BuilderCompatNote>,
+}
+```
+
+**Validierungs-Pflichten** (deterministisch, *vor* User-Approval, kein LLM):
+
+- `AddColumn` mit `nullable=false` ohne `default` ⇒ Vorschlag REJECTED.
+- `DropColumn` ohne `backup_to` ⇒ MARKED `destructive=true`; erfordert explizite User-Approval mit Confirm-Wort.
+- `MapColumn.transform` muss durch den Mini-DSL-Parser kompilieren.
+- Plugin-Manifeste mit Capability `db_read: <entity_type>` werden gegen die *finale* Spaltenliste nach allen Steps validiert ⇒ `plugin_compatibility[]`.
+- Builder-Designs mit `BoundField.key == dropped_column` ⇒ `builder_compatibility[]`.
+- `AddIndex` mit `unique=true` auf existierende Daten ⇒ deterministischer Pre-Check, ob Werte unique sind; sonst REJECTED.
+
+**Zweiphasige State-Machine**:
+
+```
+Proposed → Approved → Expanding → Expanded → CuttingOver → Cutover → Contracting → Contracted
+                                                  │
+                                                  └─ RollingBack → RolledBack (terminal)
+                                                  │
+                                                  └─ Failed (terminal)
+```
+
+| Transition                | Trigger                    | Was passiert                                                                          | Rollback moeglich?               |
+|---------------------------|----------------------------|---------------------------------------------------------------------------------------|----------------------------------|
+| Proposed → Approved       | User-Approval              | Permission-Check (`Approve` auf `Migration(id)`), Lock auf entity_type                | n/a                              |
+| Approved → Expanding      | System (automatisch)       | DB-Snapshot (3.8); fuehrt `AddTable`/`AddColumn`/`MapColumn(keep_source=true)` aus    | ja (Snapshot-Restore)            |
+| Expanding → Expanded      | Steps fertig               | App laeuft mit beiden Spalten parallel; **Dual-Write** aktiv                          | ja                               |
+| Expanded → CuttingOver    | User-Bestaetigung          | Code/Builder/Plugins lesen ab jetzt aus neuen Spalten (**Dual-Read** mit Fallback)    | ja                               |
+| CuttingOver → Cutover     | Verifikations-Run gruen    | Alte Spalten existieren noch im Schema, werden nicht mehr gelesen                     | eingeschraenkt (24h-Fenster)     |
+| Cutover → Contracting     | User-Bestaetigung          | `DropColumn`-Steps + `MapColumn(keep_source=false)` ausgefuehrt                       | **nein** (destruktiv)            |
+| Contracting → Contracted  | Steps fertig               | Lock aufgehoben; Snapshot kann archiviert oder geloescht werden                       | nein                             |
+| beliebig → RollingBack    | Manuell oder Step-Fehler   | Snapshot-Restore (vor Contract: voll; nach Contract: best effort aus `backup_to`)     | terminal                         |
+
+- **Dual-Write/Dual-Read**: in `Expanded`/`CuttingOver` schreibt der Server in alte *und* neue Spalte (Dual-Write) und liest aus der neuen mit Fallback auf die alte (Dual-Read). Implementiert im CRUD-Resolver, gesteuert durch die `migrations`-Tabelle.
+- **24h-Fenster** nach Cutover: Snapshot wird aufgehoben, Rollback ueber `restoreSnapshot(migration_id)` moeglich. Danach ist nur noch eine neue inverse Migration der Weg.
+- **Verifikations-Run**: System-Job vergleicht stichprobenartig fuer N Rows, ob `transform(old) == new`. Default N=100, konfigurierbar.
+
+**Persistenz**:
+
+```sql
+CREATE TABLE migrations (
+    id            TEXT PRIMARY KEY,
+    proposal      TEXT NOT NULL,            -- MigrationProposal JSON
+    state         TEXT NOT NULL,            -- enum-Variante
+    snapshot_ref  TEXT NOT NULL,            -- Pfad/ID des DB-Backups (3.8)
+    approved_by   TEXT,
+    started_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    error         TEXT
+);
+```
+
+**Permission-Modell** (Bezug zu 0.7): Operationen `Approve`/`Cutover`/`Contract`/`Rollback` sind eigenstaendige `Op`-Werte auf der Resource `Migration(id)`. Wer `Approve` darf, darf nicht automatisch `Contract` — das schuetzt vor versehentlich destruktiven Aktionen.
+
 ---
 
 ## Phase 4 — Codegen & Optimierung
@@ -230,6 +464,158 @@ Liefert der Server fuer ein Property mehrere erlaubte Varianten zurueck, darf de
 
 - **Codegen-Drift**: Templates muessen mit den Laufzeit-Crates synchron bleiben. CI-Test, der Codegen-Output baut + minimalen Smoke-Test laufen laesst, ist Pflicht.
 - **WASI-NN-Switch**: WasmEdge ist weniger ergonomisch als wasmtime/Extism. Nur wenn die Inference-Anforderung real auftritt.
+
+---
+
+## Architektur-Vertraege: Builder ↔ Plugin
+
+Diese Spezifikation bindet Phase 1 (Builder/ECS), Phase 1.5 (Implementations-Resolution) und Phase 2 (WASM-Plugins) zusammen. Aenderungen erfordern Updates in mindestens zwei dieser Phasen — der Vertrag ist die Schnittstelle, an der sie sich treffen.
+
+### 1. `EventTrigger`-DSL
+
+Ein `EventTrigger` ist ein ECS-Component an einem UI- oder Entity-Knoten und sagt: *"Wenn Ereignis X geschieht, rufe Ziel Y mit Parametern Z auf."* Format (in `shared/src/builder.rs`):
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct EventTrigger {
+    pub event:       EventKind,
+    pub target:      TriggerTarget,
+    pub guard:       Option<GuardExpr>,    // boolesche Mini-Expression
+    pub debounce_ms: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum EventKind {
+    Click,                                 // UI
+    Change       { field: String },        // UI
+    Submit,                                // UI
+    BeforeSave,                            // Server-CRUD
+    AfterSave,                             // Server-CRUD
+    BeforeDelete,                          // Server-CRUD
+    Custom       { name: String },         // benutzerdefiniert
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum TriggerTarget {
+    Plugin         { id: String, function: String, args: serde_json::Value },
+    BuiltinAction  { name: String, args: serde_json::Value },
+    Navigate       { route: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GuardExpr(pub String);          // Mini-DSL ueber `fields.*`
+```
+
+- `event` greift **client- oder serverseitig**, je nach Variante. `BeforeSave`/`AfterSave`/`BeforeDelete` laufen im Server-Resolver; `Click`/`Change`/`Submit` im Client. `Custom` ist explizit aus Code oder anderem Plugin getriggert.
+- `guard` ist eine Mini-Expression-Sprache ueber Entity-Felder (`fields.status == "draft" && fields.price > 0`); Parser liegt unter `shared/src/builder/guard.rs` und ist Teil von Paket 1.2.
+- `args` werden zum Plugin-Aufruf serialisiert (das Plugin sieht sie als JSON).
+- `debounce_ms` ist UI-only und ignoriert serverseitig.
+
+### 2. Plugin-Manifest-Schema
+
+Manifest liegt **im** WASM-Bundle (Extism-Konvention) als `plugin.toml`:
+
+```toml
+id          = "com.example.slug-generator"
+version     = "1.2.0"                         # SemVer, Pflicht
+api_version = 1                                # Host-API-Version (dieser Vertrag)
+
+[compatibility]
+dblicious = ">=0.2, <0.3"                     # Server-Versionsbereich
+plugins   = ["com.example.locale-utils ^1"]   # Plugin-Dependencies
+
+[capabilities]
+triggers       = ["beforeSave", "deriveField", "validate"]
+db_read        = ["product", "category"]      # Entity-Typen mit Read-Capability
+db_write       = ["product"]                  # Entity-Typen mit Write-Capability
+http_fetch     = ["https://api.example.com/*"]
+fs_paths       = []
+max_pages      = 16                           # Extism Memory (à 64 KiB)
+max_runtime_ms = 200                          # pro Trigger-Aufruf
+
+[functions]
+slugify  = { trigger = "deriveField", target_field = "slug", from_field = "name" }
+validate = { trigger = "validate" }
+
+[signing]                                     # optional in Phase 2, Pflicht ab 4
+public_key = "ed25519:..."
+signature  = "base64:..."
+```
+
+- **Versionierung**: SemVer fuer `version`. Server lehnt Inkompatible mit `compatibility.dblicious`-Range ab.
+- **Capabilities sind Whitelist**: nicht im Manifest gelistete Calls werden vom Host abgewiesen — auch wenn der Plugin-Code sie versucht.
+- **Dependencies**: topologisch geladen; Zyklen oder unaufloesbare Versionen ⇒ Plugin disabled mit klarer Fehlermeldung.
+- **Signing**: Phase 2 optional. Ab Phase 4 (Marketplace) Pflicht — Server prueft Signatur gegen registrierte Public Keys.
+
+### 3. Trigger-Point-Vertraege
+
+Jeder Trigger hat einen festen Input/Output-JSON-Vertrag. **Plugin liest stdin als JSON, schreibt stdout als JSON** (Extism-Pattern).
+
+| Trigger        | Input                                                          | Output                                                | Sync? | Fehler-Effekt                  |
+|----------------|----------------------------------------------------------------|-------------------------------------------------------|-------|--------------------------------|
+| `beforeSave`   | `{ entity_type, fields_before?, fields_after, user }`          | `{ fields_after?, validation? }`                      | sync  | Save abgebrochen               |
+| `afterSave`    | `{ entity_type, entity, op: "create"\|"update", user }`        | `void`                                                | async | nur Audit-Log                  |
+| `beforeDelete` | `{ entity_type, entity, user }`                                | `{ validation? }`                                     | sync  | Delete abgebrochen             |
+| `deriveField`  | `{ entity_type, fields, target_field }`                        | `{ value: <json> }`                                   | sync  | Feld bleibt unveraendert       |
+| `validate`     | `{ entity_type, fields, user }`                                | `{ errors: [{field, code, message}] }`                | sync  | Save abgebrochen, Errors im UI |
+| `customAction` | `{ name, args, user, context }`                                | `{ result: <json> }`                                  | sync  | UI zeigt Fehlermeldung         |
+
+**Fehler-Semantik**: jedes Plugin kann strukturiert
+```json
+{ "error": { "code": "...", "message": "...", "details": {} } }
+```
+zurueckgeben. Der Host wandelt das in einen GraphQL-Error mit `extensions.code` um.
+
+**Timeout**: hart `manifest.capabilities.max_runtime_ms`; Default 200 ms fuer sync, 5000 ms fuer async. Ueberschreiten ⇒ Trigger-Fehler `timeout`.
+
+**Reentrancy-Schutz**: ein Plugin im `beforeSave`-Trigger fuer entity_type X darf nicht `host.db.update(X, …)` aufrufen — sonst Endlosrekursion. Der Host blockiert das mit `forbidden_reentrancy`.
+
+### 4. Host-Function-Katalog
+
+Funktionen, die der Host dem Plugin ueber `extism::Function` exponiert. Alle sind capability-gegated und auditiert.
+
+```text
+host.db.query(query: { entity_type, filter, sort, page }) -> EntityPage
+    capability: db_read enthaelt entity_type
+    quota:      max 100 Calls pro Trigger-Aufruf
+
+host.db.insert(entity_type, fields) -> EntityChangeResult
+    capability: db_write enthaelt entity_type
+    Reentrancy-blockiert in *Save-Triggern desselben entity_type
+
+host.db.update(entity_type, id, fields, expected_hash?) -> EntityChangeResult
+    capability: db_write enthaelt entity_type
+    expected_hash analog shared::EntityHeader::hash
+
+host.db.delete(entity_type, id, expected_hash?) -> EntityChangeResult
+    capability: db_write enthaelt entity_type
+
+host.http.fetch(method, url, headers?, body?) -> { status, headers, body }
+    capability-check gegen manifest.http_fetch (Glob-Pattern)
+    timeout: 5000 ms hart, nicht via Manifest weiter erhoehbar
+
+host.log(level: "info"|"warn"|"error", message, fields?) -> void
+    immer erlaubt; landet in plugin_invocations-Audit
+
+host.now() -> ISO-8601-String
+    immer erlaubt
+
+host.crypto.random(n: u32) -> bytes
+    immer erlaubt; nicht fuer Crypto-Keys gedacht
+
+host.i18n.t(key, locale?, args?) -> String
+    nur fuer customAction mit UI-Rueckmeldung
+
+host.entity.hash(entity_type, fields) -> u64
+    fuer Concurrency-Checks; gleicher Algorithmus wie shared::EntityHeader::hash
+```
+
+**Capability-Format**: `db_read`/`db_write` sind Listen von Entity-Type-Namen. `"*"` als Wildcard im Manifest erlaubt (z.B. `db_read = ["*"]`). `http_fetch` ist eine Liste von URL-Glob-Pattern.
+
+**Audit**: jeder Host-Function-Call wird mit `(plugin_id, trigger_event, host_fn, duration_ms, outcome)` in `plugin_invocations` geloggt (siehe 2.8). Quota- oder Capability-Verletzungen sind eigene Outcome-Werte.
 
 ---
 
@@ -272,7 +658,9 @@ Solo-Entwicklung: Reihenfolge wie aufgelistet, ohne Parallelisierung. Phasen sin
 ## Erfolgskriterien (Definition of Done je Phase)
 
 - **Phase 0.5**: Alle README-"Erweiterungspunkte" abgehakt oder bewusst deferred.
+- **Phase 0.7**: Permissions werden serverseitig erzwungen; Client zeigt nur projizierte Sicht. `whyAllowed`-Debug-Endpoint und Audit-Log sind nutzbar.
 - **Phase 1**: Ein Entity-Type laesst sich vollstaendig im UI zusammenklicken; resultierende Tabelle ist identisch zur Hand-konfigurierten Variante.
+- **Phase 1.5**: Ein Property kann eine Implementations-ID vorgeben oder mehrere erlauben; nicht erlaubte Wahl wird serverseitig geblockt.
 - **Phase 2**: Ein nicht-triviales Plugin (z.B. Slug-Generator + Validator) laeuft sandboxed in einem CRUD-Pfad.
 - **Phase 3**: Eine `messy_orders.json` mit ~5 fremden Feldern wird per Agent in eine non-destruktive Migration uebersetzt und akzeptiert.
 - **Phase 4**: `dblicious export` produziert ein Workspace, das `cargo build --release` ohne Aenderungen besteht und im Browser laeuft.
