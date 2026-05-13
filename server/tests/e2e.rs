@@ -248,6 +248,196 @@ async fn bulk_create_handles_mixed_validation_results() {
     assert_eq!(arr[1]["ok"], json!(false));
 }
 
+// =============================================================================
+// Sort / Filter (0.5.1)
+// =============================================================================
+//
+// Diese Tests verifizieren, dass `entities`-Query die `sort_by`/`sort_dir`/
+// `filter`-Argumente tatsaechlich auswertet. Sie laufen gegen den seed-state
+// aus `examples/shop/entities/customer/seed.*`.
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn entities_sort_by_display_name_asc_then_desc() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    let q = r#"query($t:String!,$by:String!,$dir:String!){
+        entities(entityType:$t, page:1, pageSize:100, sortBy:$by, sortDir:$dir) {
+            items { id fields }
+            totalCount
+        }
+    }"#;
+
+    let asc = exec(
+        q,
+        json!({"t":"customer","by":"displayName","dir":"asc"}),
+        ctx.clone(),
+    )
+    .await;
+    assert!(asc.errors.is_empty(), "{:?}", asc.errors);
+    let asc_items = asc.data.into_json().unwrap()["entities"]["items"]
+        .as_array()
+        .cloned()
+        .unwrap();
+    assert!(asc_items.len() >= 2, "Seed sollte mehrere Customer haben");
+    let asc_names: Vec<String> = asc_items
+        .iter()
+        .map(|e| e["fields"]["displayName"].as_str().unwrap_or("").to_string())
+        .collect();
+    let mut sorted = asc_names.clone();
+    sorted.sort();
+    assert_eq!(asc_names, sorted, "asc-Sort liefert nicht aufsteigend");
+
+    let desc = exec(
+        q,
+        json!({"t":"customer","by":"displayName","dir":"desc"}),
+        ctx,
+    )
+    .await;
+    assert!(desc.errors.is_empty(), "{:?}", desc.errors);
+    let desc_items = desc.data.into_json().unwrap()["entities"]["items"]
+        .as_array()
+        .cloned()
+        .unwrap();
+    let desc_names: Vec<String> = desc_items
+        .iter()
+        .map(|e| e["fields"]["displayName"].as_str().unwrap_or("").to_string())
+        .collect();
+    let mut expected_desc = asc_names.clone();
+    expected_desc.reverse();
+    assert_eq!(desc_names, expected_desc, "desc-Sort ist nicht die Umkehrung");
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn entities_filter_text_contains_narrows_result_set() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    // Erst alle Customers holen, um eine echte Substring-Probe zu finden.
+    let q_all = r#"query($t:String!){
+        entities(entityType:$t, page:1, pageSize:100) {
+            items { fields }
+            totalCount
+        }
+    }"#;
+    let all = exec(q_all, json!({"t":"customer"}), ctx.clone()).await;
+    let total_unfiltered = all.data.into_json().unwrap()["entities"]["totalCount"]
+        .as_i64()
+        .unwrap();
+    assert!(total_unfiltered >= 1, "Seed muss Customers haben");
+
+    // Filter mit globalSearch auf ein konstantes Sub-String aus dem Beispiel:
+    // examples/shop/entities/customer/seed.* enthaelt mind. einen Customer
+    // mit "@". Wir filtern auf "@" und erwarten >0 Treffer und <= Gesamtzahl.
+    let q_filtered = r#"query($t:String!, $f:JSON!){
+        entities(entityType:$t, page:1, pageSize:100, filter:$f) {
+            totalCount
+        }
+    }"#;
+    let res = exec(
+        q_filtered,
+        json!({
+            "t":"customer",
+            "f": {"globalSearch": "@", "predicates": []}
+        }),
+        ctx.clone(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let total_filtered = res.data.into_json().unwrap()["entities"]["totalCount"]
+        .as_i64()
+        .unwrap();
+    assert!(total_filtered > 0, "globalSearch '@' muss mindestens einen Treffer haben");
+    assert!(
+        total_filtered <= total_unfiltered,
+        "gefilterte Anzahl darf die Gesamtzahl nicht uebersteigen"
+    );
+
+    // Filter, der niemals matchen sollte → 0 Treffer.
+    let res = exec(
+        q_filtered,
+        json!({
+            "t":"customer",
+            "f": {"globalSearch": "zzz_unmoeglicher_suchbegriff_xyz", "predicates": []}
+        }),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let total = res.data.into_json().unwrap()["entities"]["totalCount"]
+        .as_i64()
+        .unwrap();
+    assert_eq!(total, 0, "unbekannter Suchbegriff darf nichts liefern");
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn entities_filter_predicate_text_equals_matches_exact_record() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    // Erst irgendeinen displayName aus dem Seed holen.
+    let q_all = r#"query($t:String!){
+        entities(entityType:$t, page:1, pageSize:100) { items { fields } }
+    }"#;
+    let all = exec(q_all, json!({"t":"customer"}), ctx.clone()).await;
+    let items = all.data.into_json().unwrap()["entities"]["items"]
+        .as_array()
+        .cloned()
+        .unwrap();
+    let probe = items[0]["fields"]["displayName"].as_str().unwrap().to_string();
+
+    // Praedikats-Filter `textEquals` auf displayName == probe.
+    let q = r#"query($t:String!, $f:JSON!){
+        entities(entityType:$t, page:1, pageSize:100, filter:$f) {
+            items { fields }
+            totalCount
+        }
+    }"#;
+    let res = exec(
+        q,
+        json!({
+            "t":"customer",
+            "f": {
+                "globalSearch": null,
+                "predicates": [{
+                    "key": "displayName",
+                    "predicate": { "op": "textEquals", "value": probe, "case_insensitive": false }
+                }]
+            }
+        }),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    let total = v["entities"]["totalCount"].as_i64().unwrap();
+    assert!(total >= 1, "exakter Match muss mindestens 1 liefern");
+    let found = v["entities"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|i| i["fields"]["displayName"].as_str() == Some(probe.as_str()));
+    assert!(found, "alle Treffer muessen displayName='{probe}' haben");
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn entities_unknown_sort_field_does_not_crash() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    let q = r#"query($t:String!){
+        entities(entityType:$t, page:1, pageSize:100, sortBy:"frobnicated", sortDir:"asc") {
+            totalCount
+        }
+    }"#;
+    let res = exec(q, json!({"t":"customer"}), ctx).await;
+    assert!(res.errors.is_empty(), "unbekanntes Sort-Feld darf nicht failen");
+    assert!(res.data.into_json().unwrap()["entities"]["totalCount"].as_i64().unwrap() >= 0);
+}
+
 #[tokio::test(flavor = "current_thread")]
 #[serial_test::serial]
 async fn logout_invalidates_only_this_token() {

@@ -108,26 +108,156 @@ fn hash_for_entity(id: &str, fields: &serde_json::Map<String, serde_json::Value>
     shared::compute_hash(&s).to_string()
 }
 
-pub async fn entities_page(entity_type: &str, page: i32, page_size: i32) -> EntityPage {
-    use sea_orm::PaginatorTrait;
-    let db = &conn();
-    let base = entity::entities::Entity::find()
-        .filter(entity::entities::Column::EntityType.eq(entity_type));
-    let total = base
-        .clone()
-        .count(db)
-        .await
-        .unwrap_or(0) as i64;
-    let page_idx = (page.max(1) - 1) as u64;
-    let take = page_size.max(1) as u64;
-    let items = base
-        .paginate(db, take)
-        .fetch_page(page_idx)
-        .await
+/// Holt die `shared::ColumnMeta`-Liste fuer einen Entity-Typ. Pendant zu
+/// [`columns_for`], aber ohne die Konvertierung in den GraphQL-Wrapper —
+/// fuer Sort/Filter-Auswertung brauchen wir die typisierten `FieldType`s.
+fn shared_columns_for(entity_type: &str) -> Vec<shared::ColumnMeta> {
+    crate::example::current()
+        .and_then(|set| set.entities.get(entity_type).cloned())
+        .map(|et| et.columns)
         .unwrap_or_default()
+}
+
+/// Wertet eine [`shared::FilterCriteria`] gegen eine Entitaet aus. Logik
+/// gespiegelt zu `client/src/components/table/data_source.rs::LocalSource`,
+/// damit Server- und Clientseite identisches Verhalten zeigen. Wenn die
+/// `LocalSource`-Logik kuenftig nach `shared` gezogen wird, faellt diese
+/// Funktion ersatzlos weg.
+fn passes_filter(
+    entity: &shared::Entity,
+    filter: &shared::FilterCriteria,
+    columns: &std::collections::HashMap<String, &shared::ColumnMeta>,
+) -> bool {
+    for cf in &filter.predicates {
+        let Some(col) = columns.get(&cf.key) else { return false };
+        let value = entity
+            .fields
+            .get(&cf.key)
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
+        let ops = shared::ops_for_named(
+            &col.field_type,
+            col.comparator_id.as_deref(),
+            col.filter_id.as_deref(),
+        );
+        if !ops.matches(&value, &cf.predicate) {
+            return false;
+        }
+    }
+    if let Some(needle) = filter.global_search.as_deref().filter(|s| !s.is_empty()) {
+        let hit = columns.iter().any(|(key, col)| {
+            let value = entity
+                .fields
+                .get(key)
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            let ops = shared::ops_for_named(
+                &col.field_type,
+                col.comparator_id.as_deref(),
+                col.filter_id.as_deref(),
+            );
+            ops.matches_search(&value, needle)
+        });
+        if !hit {
+            return false;
+        }
+    }
+    true
+}
+
+fn sort_entities(
+    items: &mut [shared::Entity],
+    sort: &shared::Sort,
+    columns: &std::collections::HashMap<String, &shared::ColumnMeta>,
+) {
+    use std::cmp::Ordering;
+    let Some(col) = columns.get(&sort.field) else { return };
+    let ops = shared::ops_for_named(
+        &col.field_type,
+        col.comparator_id.as_deref(),
+        col.filter_id.as_deref(),
+    );
+    let direction = sort.direction;
+    let key = sort.field.clone();
+    items.sort_by(|a, b| {
+        let va = a.fields.get(&key).cloned().unwrap_or(serde_json::Value::Null);
+        let vb = b.fields.get(&key).cloned().unwrap_or(serde_json::Value::Null);
+        let ord = ops.compare(&va, &vb);
+        match direction {
+            shared::SortDirection::Asc => ord,
+            shared::SortDirection::Desc => match ord {
+                Ordering::Less => Ordering::Greater,
+                Ordering::Greater => Ordering::Less,
+                Ordering::Equal => Ordering::Equal,
+            },
+        }
+    });
+}
+
+fn shared_entity_from_model(model: entity::entities::Model) -> shared::Entity {
+    let parsed: serde_json::Value =
+        serde_json::from_str(&model.fields_json).unwrap_or(serde_json::Value::Null);
+    let fields = match parsed {
+        serde_json::Value::Object(o) => o,
+        _ => serde_json::Map::new(),
+    };
+    shared::Entity { id: model.id, fields }
+}
+
+pub async fn entities_page(
+    entity_type: &str,
+    page: i32,
+    page_size: i32,
+    sort: Option<shared::Sort>,
+    filter: shared::FilterCriteria,
+) -> EntityPage {
+    let db = &conn();
+
+    // 1) Alle Rows fuer entity_type laden. Filter/Sort laufen heute komplett
+    //    in Rust — bei wachsendem Datenvolumen muessen die Praedikate via
+    //    `json_extract`/Indices nach SQLite gepusht werden.
+    let rows = entity::entities::Entity::find()
+        .filter(entity::entities::Column::EntityType.eq(entity_type))
+        .all(db)
+        .await
+        .unwrap_or_default();
+
+    let mut entities: Vec<shared::Entity> = rows.into_iter().map(shared_entity_from_model).collect();
+
+    let columns = shared_columns_for(entity_type);
+    let columns_map: std::collections::HashMap<String, &shared::ColumnMeta> =
+        columns.iter().map(|c| (c.key.clone(), c)).collect();
+
+    // 2) Filter
+    if !filter.is_empty() {
+        entities.retain(|e| passes_filter(e, &filter, &columns_map));
+    }
+
+    // 3) Sort
+    if let Some(s) = sort.as_ref() {
+        sort_entities(&mut entities, s, &columns_map);
+    }
+
+    // 4) Pagination ueber das gefilterte/sortierte Ergebnis
+    let total = entities.len() as i64;
+    let page_idx = (page.max(1) - 1) as usize;
+    let take = page_size.max(1) as usize;
+    let start = page_idx.saturating_mul(take);
+    let end = start.saturating_add(take).min(entities.len());
+    let slice = if start < entities.len() {
+        entities[start..end].to_vec()
+    } else {
+        Vec::new()
+    };
+
+    let items = slice
         .into_iter()
-        .map(fields_from_model)
+        .map(|e| Entity {
+            id: e.id,
+            fields: Json(serde_json::Value::Object(e.fields)),
+        })
         .collect();
+
     EntityPage {
         items,
         total_count: total,

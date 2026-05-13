@@ -58,6 +58,7 @@ value-bool-false = Nein
 ## Sprachumschalter
 locale-de = Deutsch
 locale-en = English
+locale-fr = Français
 
 ## Validation
 validation-required = Dieses Feld darf nicht leer sein.

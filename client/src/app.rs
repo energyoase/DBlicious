@@ -153,6 +153,7 @@ fn Topbar() -> impl IntoView {
                         let label_key = match loc {
                             Locale::De => "locale.de",
                             Locale::En => "locale.en",
+                            Locale::Fr => "locale.fr",
                         };
                         let btn_style = style.clone();
                         view! {

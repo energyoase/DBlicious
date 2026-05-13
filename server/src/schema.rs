@@ -493,9 +493,28 @@ impl QueryRoot {
         filter: Option<Json<serde_json::Value>>,
     ) -> async_graphql::Result<EntityPage> {
         let user = require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
-        let _ = (sort_by, sort_dir, filter);
+
+        // Sort-Args zu typisiertem `shared::Sort` zusammenfuehren. `sort_by`
+        // ohne `sort_dir` defaultet auf `asc`; ungueltige Richtung -> ignoriert
+        // (Sortierung entfaellt komplett, keine Fehlermeldung).
+        let sort = sort_by.and_then(|field| {
+            let direction = match sort_dir.as_deref().unwrap_or("asc") {
+                "asc" => shared::SortDirection::Asc,
+                "desc" => shared::SortDirection::Desc,
+                _ => return None,
+            };
+            Some(shared::Sort { field, direction })
+        });
+
+        // Filter-Args als `shared::FilterCriteria` deserialisieren. Ungueltige
+        // JSON-Form bedeutet "kein Filter", ebenfalls ohne Fehler.
+        let filter_criteria: shared::FilterCriteria = filter
+            .and_then(|j| serde_json::from_value(j.0).ok())
+            .unwrap_or_default();
+
         let groups = data::groups().await;
-        let mut page = data::entities_page(&entity_type, page, page_size).await;
+        let mut page =
+            data::entities_page(&entity_type, page, page_size, sort, filter_criteria).await;
         for ent in &mut page.items {
             if let serde_json::Value::Object(map) = &mut ent.fields.0 {
                 data::filter_properties_for_user(&entity_type, map, &user, &groups).await;

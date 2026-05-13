@@ -58,6 +58,7 @@ value-bool-false = No
 ## Locale switcher
 locale-de = Deutsch
 locale-en = English
+locale-fr = Français
 
 ## Validation
 validation-required = This field is required.

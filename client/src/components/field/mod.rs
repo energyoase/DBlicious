@@ -118,12 +118,21 @@ impl FieldRegistry for DefaultFieldRegistry {
 
             (FieldType::Enum { .. }, Value::String(s)) => render_text(s),
 
-            // -------- Komplexe Typen: Platzhalter --------
-            (FieldType::Reference { .. }, _) => placeholder("table.placeholder.reference"),
-            (FieldType::Collection { .. }, Value::Array(arr)) => {
-                let count = arr.len() as i64;
-                placeholder_count("table.placeholder.collection", count)
+            // -------- Reference: zeigt die ID des verknuepften Datensatzes.
+            // Echtes Display-Label-Lookup (`category-1` → "Werkzeug") braucht
+            // entweder einen Batch-Resolver auf dem Server oder einen Cache-
+            // Pfad in `DataSource`; bis dahin ist die ID lesbar und kopierbar,
+            // was eine Verbesserung gegenueber dem reinen `⟨Verweis⟩` ist.
+            (FieldType::Reference { .. }, Value::String(s)) if !s.is_empty() => {
+                render_reference(s)
             }
+            (FieldType::Reference { .. }, Value::Number(n)) => render_reference(&n.to_string()),
+            (FieldType::Reference { .. }, Value::Null) => render_empty(),
+            (FieldType::Reference { .. }, _) => placeholder("table.placeholder.reference"),
+
+            // -------- Collection: bei kleinen, rein skalaren Arrays inline
+            // joinen ("a, b, c"); sonst Count-Platzhalter.
+            (FieldType::Collection { .. }, Value::Array(arr)) => render_collection(arr),
             (FieldType::Collection { .. }, _) => {
                 placeholder_count("table.placeholder.collection", 0)
             }
@@ -140,6 +149,48 @@ fn render_text(s: &str) -> AnyView {
 
 fn render_empty() -> AnyView {
     view! { <span></span> }.into_any()
+}
+
+/// Rendert die ID eines verknuepften Datensatzes mit dezenter Akzentuierung
+/// (monospaced, leichter Hintergrund), damit der User auf den ersten Blick
+/// erkennt: das ist eine technische Referenz, kein Anzeige-Wert.
+fn render_reference(id: &str) -> AnyView {
+    let owned = id.to_string();
+    let style = "font-family: ui-monospace, monospace; font-size: 0.85em; \
+                 padding: 0.05em 0.35em; border-radius: 0.25rem; \
+                 background: rgba(0,0,0,0.05); color: #1f2937;";
+    view! { <span style=style>{owned}</span> }.into_any()
+}
+
+/// Inline-Repraesentation einer Collection. Bei reinen Skalar-Arrays mit
+/// max. 3 Eintraegen werden die Werte komma-separiert dargestellt; ansonsten
+/// faellt der Renderer auf den Count-Platzhalter zurueck.
+fn render_collection(arr: &[Value]) -> AnyView {
+    const INLINE_LIMIT: usize = 3;
+    let count = arr.len() as i64;
+
+    let all_scalar = arr.iter().all(|v| {
+        matches!(
+            v,
+            Value::String(_) | Value::Number(_) | Value::Bool(_)
+        )
+    });
+
+    if arr.len() <= INLINE_LIMIT && all_scalar && !arr.is_empty() {
+        let joined = arr
+            .iter()
+            .map(|v| match v {
+                Value::String(s) => s.clone(),
+                Value::Number(n) => n.to_string(),
+                Value::Bool(b) => b.to_string(),
+                _ => String::new(),
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        return view! { <span>{joined}</span> }.into_any();
+    }
+
+    placeholder_count("table.placeholder.collection", count)
 }
 
 fn placeholder(key: &'static str) -> AnyView {

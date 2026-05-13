@@ -16,13 +16,24 @@ use unic_langid::{langid, LanguageIdentifier};
 
 const EN_FTL: &str = include_str!("../../locales/en/main.ftl");
 const DE_FTL: &str = include_str!("../../locales/de/main.ftl");
+const FR_FTL: &str = include_str!("../../locales/fr/main.ftl");
 
-/// Unterstuetzte Locales. Erweiterbar durch zusaetzliche Varianten und
-/// einen weiteren `include_str!`-Eintrag.
+/// Unterstuetzte Locales.
+///
+/// Eine neue Sprache hinzufuegen (z.B. `it`):
+/// 1. `client/locales/it/main.ftl` mit dem gleichen Schluessel-Set wie
+///    `de/`/`en/` anlegen (fehlende Schluessel fallen auf die Default-Locale
+///    zurueck — `t()` liefert dann den Roh-Schluessel).
+/// 2. Diesen `Locale`-Enum um eine Variante erweitern.
+/// 3. `code()`, `from_code()`, `is_known_code()`, `lang_id()`, `ftl_source()`
+///    und den initialen `available`-Vector in [`I18nContext::provide`]
+///    aktualisieren.
+/// 4. `locale-<code>`-Eintrag in jedem bestehenden `main.ftl` ergaenzen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Locale {
     De,
     En,
+    Fr,
 }
 
 impl Locale {
@@ -30,12 +41,14 @@ impl Locale {
         match self {
             Locale::De => "de",
             Locale::En => "en",
+            Locale::Fr => "fr",
         }
     }
 
     pub fn from_code(code: &str) -> Self {
         match code.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase().as_str() {
             "de" => Locale::De,
+            "fr" => Locale::Fr,
             _ => Locale::En,
         }
     }
@@ -45,13 +58,14 @@ impl Locale {
     /// loggen statt sie still auf `En` zu mappen.
     pub fn is_known_code(code: &str) -> bool {
         let primary = code.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase();
-        matches!(primary.as_str(), "de" | "en")
+        matches!(primary.as_str(), "de" | "en" | "fr")
     }
 
     fn lang_id(self) -> LanguageIdentifier {
         match self {
             Locale::De => langid!("de"),
             Locale::En => langid!("en"),
+            Locale::Fr => langid!("fr"),
         }
     }
 
@@ -59,6 +73,7 @@ impl Locale {
         match self {
             Locale::De => DE_FTL,
             Locale::En => EN_FTL,
+            Locale::Fr => FR_FTL,
         }
     }
 }
@@ -86,6 +101,7 @@ fn bundles_cell() -> &'static Mutex<HashMap<Locale, Bundle>> {
         let mut map = HashMap::new();
         map.insert(Locale::De, make_bundle(Locale::De));
         map.insert(Locale::En, make_bundle(Locale::En));
+        map.insert(Locale::Fr, make_bundle(Locale::Fr));
         Mutex::new(map)
     })
 }
@@ -187,7 +203,7 @@ impl I18nContext {
         let ctx = Self {
             locale: RwSignal::new(initial),
             revision: RwSignal::new(0),
-            available: RwSignal::new(vec![Locale::De, Locale::En]),
+            available: RwSignal::new(vec![Locale::De, Locale::En, Locale::Fr]),
         };
         provide_context(ctx);
         ctx

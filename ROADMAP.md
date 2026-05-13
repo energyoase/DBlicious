@@ -38,6 +38,8 @@ Beschreibt den vorhandenen Stand zur Kalibrierung der Folge-Phasen. Siehe `CLAUD
 | 0.5.4 | `LocalSource` als alternative `DataSource` | S | `client/src/components/table/data_source.rs` | Client-seitiges Sort/Filter ohne Server-Roundtrip moeglich (fuer kleine Datasets) |
 | 0.5.5 | Weitere Sprachen vorbereiten | S | `client/locales/`, `client/src/i18n/mod.rs::Locale` | Mind. eine dritte Sprache (z.B. `fr`) als Skelett, dokumentiertes Add-Verfahren |
 | 0.5.6 | Tests fuer den Daten-Loader und CRUD-Pfade | M | `server/src/` (neue `tests/`-Module) | `cargo test` deckt Loader-Roundtrip + Entity-CRUD ab |
+| 0.5.7 | Table-Dekomposition: voll-komponiert via Shell + Bausteine | M | `client/src/components/table/` (neue Module: `shell.rs`, `top_menu.rs`/`bottom_menu.rs`, `table_view.rs`, `selection.rs`, `selection_column.rs`, `row_actions.rs`, `entity_menu.rs`, `global_filter.rs`, `pager.rs`, `page_size.rs`) | `<EntityTableShell>` legt Context an (`TableState`, `SelectionState` neu, `DataResource`, `Rc<dyn DataSource>`, `Rc<Vec<ColumnMeta>>`, `entity_type`, Auth-Caps, `FilterRegistry`); Aufruf-Code komponiert den Baum selbst (`<TopMenu><GlobalFilter/><EntityMenu>…</EntityMenu></TopMenu><Table/><BottomMenu><Pager/></BottomMenu>`); Selektion (`<SelectionColumn mode=Single\|Multi/>`), Per-Row-Aktionen (`<RowActions>{…}</RowActions>` mit `RowContext`), Bulk-Aktionen (`<EntityAction enabled_when=…/>`, `<DeleteAction/>`, `<EditAction/>`) sind alle opt-in als eigene Komponenten, nicht als Props; bestehende `view.rs::EntityTable` mit `#[deprecated(note = "use EntityTableShell + composable blocks")]` markiert; einziger Consumer `routes/mod.rs::EntityListPage` auf neue Komposition migriert. |
+| 0.5.8 | Property-Filter-Pipeline: Filter-Registry + Standard-Komponenten | M | `client/src/components/table/filters/` (neu: `registry.rs`, `text_contains.rs`, `number_range.rs`, `enum_in.rs`, `bool_equals.rs`, `date_range.rs`); Konsument: `<Table>` aus 0.5.7 | Jeder Filter ist eine eigene Leptos-Komponente mit Prop `column: ColumnMeta`; Registrierung per String-ID (`"text-contains"`, `"number-range"`, …) in der `FilterRegistry`; Resolution pro Spalte: `ColumnMeta.filter_id` → Client-Default pro `FieldType` → kein Filter-UI; Filter schreiben in `FilterCriteria.predicates`, bestehende `LocalSource`/`RemoteSource`-Auswertung greift unveraendert; Custom-Filter erweitern die Registry ohne Aenderung an `<Table>`. |
 
 **Deliverable**: README-Erweiterungstabelle ist auf "erledigt" bei den genannten Punkten. Codebase ist sauber genug, um auf ihr die Vision aufzubauen.
 
@@ -77,6 +79,51 @@ Beschreibt den vorhandenen Stand zur Kalibrierung der Folge-Phasen. Siehe `CLAUD
 
 - **Bevy-ECS in WASM**: laeuft, ist aber im Web-Kontext noch ungewohnt. POC-Spike (~3 Tage) vor 1.4 empfehlen.
 - **DSL fuer EventTrigger**: was darf ein `EventTrigger`-Component referenzieren? Klare Trennung "Builder beschreibt Intent, Plugin (Phase 2) implementiert Logik" einhalten.
+
+---
+
+## Phase 1.5 — Implementations-Resolution (server-priorisiert)
+
+**Ziel**: Generischer Auswahlmechanismus fuer *jede* austauschbare Komponente (Filter, Editor, Formatter, Row-Action, …). Server entscheidet Default und Berechtigung; Client liefert die Implementierungen unter String-IDs. Knuepft direkt an die `FilterRegistry` aus 0.5.8 an und verallgemeinert sie.
+
+**Idee**: jede Komponentenart hat eine Client-Registry (`FilterRegistry`, `EditorRegistry`, `FormatterRegistry`, `ActionRegistry`). Pro Property/Spalte gibt der Server eine ID vor — der Client schlaegt nach. Permission-Gates leben ausschliesslich serverseitig: der Server liefert nur IDs aus, die der angemeldete Nutzer waehlen darf.
+
+**Resolution-Prioritaet (gilt fuer jede Komponentenart)**:
+
+1. Server-Pflicht pro Property (`ColumnMeta.{filter,editor,formatter,…}_id`)
+2. Server-Default pro Entity-Typ (`EntitySettings.{…}_defaults`, neu)
+3. Server-Default pro `FieldType` (globale Settings, neu)
+4. Client-Fallback pro `FieldType` (hardgecodeter Standard)
+
+Liefert der Server fuer ein Property mehrere erlaubte Varianten zurueck, darf der Nutzer in der UI eine waehlen; die Wahl wird per User/Group persistiert.
+
+### Arbeitspakete
+
+| # | Paket | Groesse | Bezug |
+|---|---|---|---|
+| 1.5.1 | `EntitySettings.field_type_defaults` (neu) + globale Type-Defaults im Loader | M | `shared/src/settings.rs`, `server/src/example/loader.rs`, `examples/shop/` |
+| 1.5.2 | `ColumnMeta` um `editor_id`/`formatter_id`/`action_ids` erweitern (analog `filter_id`) | S | `shared/src/lib.rs`, `server/src/schema.rs` (`RawColumnMeta`-Roundtrip) |
+| 1.5.3 | Per-User/Group erlaubte Varianten persistieren + Server-Resolver | M | `server/src/entity/`, `server/src/schema.rs`, `server/src/auth/` |
+| 1.5.4 | Client-Registries fuer Editor, Formatter, Action (`FilterRegistry` existiert nach 0.5.8) | M | `client/src/components/` (eigene Module je Registry) |
+| 1.5.5 | UI: Wahl-Komponente "welche Implementierung soll fuer diese Spalte gelten?" + Persistenz | M | neu: `client/src/components/implementation_picker.rs` |
+| 1.5.6 | Tests: Resolution-Reihenfolge, Permission-Negativfaelle, ID-unbekannt-Fallback | M | `shared/tests/`, `server/tests/` |
+
+### Dependencies
+
+- Phase 0.5.7 und 0.5.8 muessen abgeschlossen sein (Filter-Registry liefert den Templating-Mechanismus, der hier generalisiert wird).
+- Profitiert von Phase 1 (Builder), ist aber per Hand-Konfiguration in `--data-dir` (TOML/JSON) bereits ohne Builder nutzbar.
+
+### Deliverable
+
+- Server kann pro Property eine Implementations-ID vorschreiben **und/oder** mehrere erlauben.
+- Client liefert mehrere Filter/Editor/Formatter unter IDs; korrekte Implementierung wird per Resolution-Kette gefunden.
+- Unautorisierte ID-Wahl ist serverseitig geblockt.
+- Tests beweisen die Prioritaet und das Permission-Verhalten.
+
+### Risiken
+
+- **ID-Drift**: String-IDs sind fehleranfaellig. Empfehlung: pro Registry eine `register!`-Macro oder enum-basierte Variante mit `as_str()`; Test, dass jede registrierte ID auch im Server-Schema bekannt ist.
+- **Per-User-Persistenz** schneidet sich mit dem Auth-/Session-Modell — 1.5.3 muss klaeren, wo die Wahl liegt (User-Profile vs. Session-Local) und wie sie zwischen Geraeten synchronisiert.
 
 ---
 
