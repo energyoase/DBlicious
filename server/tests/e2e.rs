@@ -939,6 +939,208 @@ async fn entity_design_at_returns_specific_version() {
 }
 
 // =============================================================================
+// Phase 2 — Plugin-Manager (Schema + CRUD)
+// =============================================================================
+
+/// Minimal valides WASM-Modul (nur Magic + Version). Lädt unter Extism als
+/// "leeres" Plugin — keine Exports, also nicht call_function-bar, aber
+/// zum Testen von install/list/enable/delete reichts.
+const EMPTY_WASM: &[u8] = &[
+    0x00, 0x61, 0x73, 0x6d, // \0asm magic
+    0x01, 0x00, 0x00, 0x00, // version 1
+];
+
+fn empty_wasm_b64() -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(EMPTY_WASM)
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn install_plugin_persists_and_lists() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    let manifest = json!({
+        "id": "com.example.smoke",
+        "version": "0.1.0",
+        "apiVersion": 1,
+        "capabilities": { "triggers": ["validate"] },
+        "functions": {}
+    });
+
+    let res = exec(
+        r#"mutation($m:JSON!,$w:String!){
+            installPlugin(manifest:$m, wasmBase64:$w) {
+                id version enabled
+            }
+        }"#,
+        json!({"m": manifest, "w": empty_wasm_b64()}),
+        ctx.clone(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    assert_eq!(v["installPlugin"]["id"], json!("com.example.smoke"));
+    assert_eq!(v["installPlugin"]["enabled"], json!(true));
+
+    let list = exec(
+        r#"query { plugins { id version enabled } }"#,
+        json!({}),
+        ctx,
+    )
+    .await;
+    assert!(list.errors.is_empty(), "{:?}", list.errors);
+    let arr = list.data.into_json().unwrap()["plugins"]
+        .as_array()
+        .cloned()
+        .unwrap();
+    assert!(arr.iter().any(|p| p["id"] == "com.example.smoke"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn install_plugin_rejects_invalid_api_version() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    let manifest = json!({
+        "id": "com.example.bad",
+        "version": "0.1.0",
+        "apiVersion": 99,
+        "capabilities": {},
+        "functions": {}
+    });
+    let res = exec(
+        r#"mutation($m:JSON!,$w:String!){
+            installPlugin(manifest:$m, wasmBase64:$w) { id }
+        }"#,
+        json!({"m": manifest, "w": empty_wasm_b64()}),
+        ctx,
+    )
+    .await;
+    assert!(!res.errors.is_empty());
+    assert!(res.errors[0].message.contains("invalid_manifest"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn install_plugin_rejects_invalid_wasm() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    let manifest = json!({
+        "id": "com.example.bad-wasm",
+        "version": "0.1.0",
+        "apiVersion": 1,
+        "capabilities": {},
+        "functions": {}
+    });
+    // Bewusst kaputt: 4 Bytes ohne WASM-Magic.
+    use base64::Engine;
+    let broken = base64::engine::general_purpose::STANDARD.encode(b"junk");
+    let res = exec(
+        r#"mutation($m:JSON!,$w:String!){
+            installPlugin(manifest:$m, wasmBase64:$w) { id }
+        }"#,
+        json!({"m": manifest, "w": broken}),
+        ctx,
+    )
+    .await;
+    assert!(!res.errors.is_empty());
+    assert!(res.errors[0].message.contains("invalid_wasm"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn set_plugin_enabled_toggles() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    // Erst installieren.
+    let manifest = json!({
+        "id": "com.example.toggle",
+        "version": "0.1.0",
+        "apiVersion": 1,
+        "capabilities": {},
+        "functions": {}
+    });
+    let _ = exec(
+        r#"mutation($m:JSON!,$w:String!){ installPlugin(manifest:$m, wasmBase64:$w) { id } }"#,
+        json!({"m": manifest, "w": empty_wasm_b64()}),
+        ctx.clone(),
+    )
+    .await;
+
+    let res = exec(
+        r#"mutation { setPluginEnabled(id:"com.example.toggle", enabled:false) }"#,
+        json!({}),
+        ctx.clone(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    assert_eq!(res.data.into_json().unwrap()["setPluginEnabled"], json!(true));
+
+    let q = exec(
+        r#"query { plugin(id:"com.example.toggle") { enabled } }"#,
+        json!({}),
+        ctx,
+    )
+    .await;
+    assert!(q.errors.is_empty());
+    assert_eq!(q.data.into_json().unwrap()["plugin"]["enabled"], json!(false));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn delete_plugin_removes_it() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    let manifest = json!({
+        "id": "com.example.gone",
+        "version": "0.1.0",
+        "apiVersion": 1,
+        "capabilities": {},
+        "functions": {}
+    });
+    let _ = exec(
+        r#"mutation($m:JSON!,$w:String!){ installPlugin(manifest:$m, wasmBase64:$w) { id } }"#,
+        json!({"m": manifest, "w": empty_wasm_b64()}),
+        ctx.clone(),
+    )
+    .await;
+
+    let res = exec(
+        r#"mutation { deletePlugin(id:"com.example.gone") }"#,
+        json!({}),
+        ctx.clone(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    assert_eq!(res.data.into_json().unwrap()["deletePlugin"], json!(true));
+
+    let q = exec(
+        r#"query { plugin(id:"com.example.gone") { id } }"#,
+        json!({}),
+        ctx,
+    )
+    .await;
+    assert!(q.data.into_json().unwrap()["plugin"].is_null());
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn plugin_endpoints_require_admin_wildcard() {
+    boot().await;
+    let ctx = login_as("viewer", "viewer").await;
+    let res = exec(
+        r#"query { plugins { id } }"#,
+        json!({}),
+        ctx,
+    )
+    .await;
+    assert!(!res.errors.is_empty(), "viewer darf keine Plugins listen");
+    assert!(res.errors[0].message.contains("forbidden"));
+}
+
+// =============================================================================
 // Phase 1.5 — Implementations-Resolution
 // =============================================================================
 

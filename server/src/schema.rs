@@ -150,6 +150,30 @@ fn map_effective(p: shared::auth::EffectivePermission) -> EffectivePermissionVie
     }
 }
 
+// ---------- Plugins (Phase 2) ----------
+
+#[derive(Clone, SimpleObject)]
+pub struct PluginView {
+    pub id: String,
+    pub version: String,
+    /// `shared::plugin::PluginManifest` als JSON-Wert.
+    pub manifest: Json<serde_json::Value>,
+    pub enabled: bool,
+    pub installed_at: String,
+}
+
+fn map_plugin(m: crate::entity::plugins::Model) -> PluginView {
+    let manifest: serde_json::Value =
+        serde_json::from_str(&m.manifest_json).unwrap_or(serde_json::Value::Null);
+    PluginView {
+        id: m.id,
+        version: m.version,
+        manifest: Json(manifest),
+        enabled: m.enabled,
+        installed_at: m.installed_at,
+    }
+}
+
 #[derive(Clone, SimpleObject)]
 pub struct WhyAllowedTrace {
     /// Endergebnis (`"allow"` oder `"deny"`).
@@ -944,6 +968,27 @@ impl QueryRoot {
         Ok(data::allowed_implementations(&entity_type, &property, &registry).await)
     }
 
+    /// Liste aller installierten Plugins (Phase 2.5).
+    async fn plugins(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<PluginView>> {
+        require_permission(ctx, "*", shared::PermissionOp::Update).await?;
+        let plugins = crate::plugins::list_plugins()
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+        Ok(plugins.into_iter().map(map_plugin).collect())
+    }
+
+    async fn plugin(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+    ) -> async_graphql::Result<Option<PluginView>> {
+        require_permission(ctx, "*", shared::PermissionOp::Update).await?;
+        Ok(crate::plugins::get_plugin(&id)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?
+            .map(map_plugin))
+    }
+
     /// Bestimmte historische Version (fuer Revert-UI / Audit).
     async fn entity_design_at(
         &self,
@@ -1034,6 +1079,56 @@ impl MutationRoot {
             table_count,
             relation_count,
         })
+    }
+
+    // -- Plugins (Phase 2) --
+
+    /// Installiert oder ersetzt ein Plugin. Permissions: Admin-Wildcard.
+    ///
+    /// `wasmBase64` ist das WASM-Modul als Base64. `manifest` ist das
+    /// `shared::plugin::PluginManifest` als JSON. Das Manifest wird gegen
+    /// die Pflichtfelder validiert; die WASM-Binary wird einmal in Extism
+    /// geladen, um sicherzustellen, dass sie valid ist.
+    async fn install_plugin(
+        &self,
+        ctx: &Context<'_>,
+        manifest: Json<serde_json::Value>,
+        wasm_base64: String,
+    ) -> async_graphql::Result<PluginView> {
+        require_permission(ctx, "*", shared::PermissionOp::Update).await?;
+        let parsed: shared::plugin::PluginManifest = serde_json::from_value(manifest.0)
+            .map_err(|e| async_graphql::Error::new(format!("invalid_manifest: {e}")))?;
+        use base64::Engine;
+        let wasm = base64::engine::general_purpose::STANDARD
+            .decode(&wasm_base64)
+            .map_err(|e| async_graphql::Error::new(format!("invalid_wasm_base64: {e}")))?;
+        let model = crate::plugins::install_plugin(parsed, wasm)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+        Ok(map_plugin(model))
+    }
+
+    async fn set_plugin_enabled(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+        enabled: bool,
+    ) -> async_graphql::Result<bool> {
+        require_permission(ctx, "*", shared::PermissionOp::Update).await?;
+        crate::plugins::set_enabled(&id, enabled)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))
+    }
+
+    async fn delete_plugin(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+    ) -> async_graphql::Result<bool> {
+        require_permission(ctx, "*", shared::PermissionOp::Delete).await?;
+        crate::plugins::delete_plugin(&id)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))
     }
 
     // -- Implementations-Choice (Phase 1.5.3) --

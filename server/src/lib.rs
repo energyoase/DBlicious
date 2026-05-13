@@ -11,6 +11,7 @@ pub mod db;
 pub mod ddl;
 pub mod entity;
 pub mod example;
+pub mod plugins;
 pub mod schema;
 
 use async_graphql::Schema;
