@@ -27,6 +27,8 @@ pub mod groups;
 pub mod metadata_editor;
 pub mod metadata_settings;
 pub mod permissions;
+pub mod plugin_invocations;
+pub mod plugins;
 pub mod role_assignments;
 pub mod roles;
 pub mod sessions;

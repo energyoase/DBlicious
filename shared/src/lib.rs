@@ -14,6 +14,7 @@ pub mod header;
 pub mod menu;
 pub mod mutation;
 pub mod ops;
+pub mod plugin;
 pub mod security;
 pub mod settings;
 pub mod tabs;
