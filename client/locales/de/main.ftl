@@ -133,3 +133,22 @@ designer-column-add_hint = Spalten
 designer-column-toggle_pk = Primärschlüssel umschalten
 designer-port-tooltip = Im Verknüpfungsmodus anklicken, um eine Beziehung anzulegen
 designer-relation-tooltip = Klicken, um die Beziehung zu entfernen
+
+## Builder (Visual UI-Designer)
+builder-title = Visual Builder
+builder-subtitle = Entity: { $entity }
+builder-forbidden = Du hast keine Berechtigung, den Builder zu nutzen.
+builder-preview-title = Live-Vorschau
+builder-action-add = Knoten hinzufügen
+builder-action-delete = Knoten löschen
+builder-action-undo = Rückgängig
+builder-action-redo = Wiederholen
+builder-action-save = Speichern
+builder-action-reload = Server-Stand laden
+builder-nodes_count = { $n } Knoten
+builder-status-idle = Nicht gespeichert
+builder-status-loading = Wird geladen…
+builder-status-saving = Wird gespeichert…
+builder-status-saved = Gespeichert (Version { $version })
+builder-status-conflict = Konflikt — Server hat Version { $version }
+builder-status-error = Fehler: { $message }

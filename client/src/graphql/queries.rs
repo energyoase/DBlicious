@@ -205,6 +205,195 @@ pub async fn fetch_entities(
 }
 
 // =============================================================================
+// Builder-Design-Persistenz (Phase 1.6)
+// =============================================================================
+
+const ENTITY_DESIGN_QUERY: &str = r#"
+    query EntityDesign($entityType: String!) {
+        entityDesign(entityType: $entityType) {
+            entityType
+            version
+            schemaVersion
+            state
+            createdAt
+            createdBy
+            locked
+        }
+    }
+"#;
+
+const SAVE_ENTITY_DESIGN_MUTATION: &str = r#"
+    mutation SaveEntityDesign(
+        $entityType: String!,
+        $schemaVersion: Int!,
+        $state: JSON!,
+        $expectedVersion: Int,
+    ) {
+        saveEntityDesign(
+            entityType: $entityType,
+            schemaVersion: $schemaVersion,
+            state: $state,
+            expectedVersion: $expectedVersion,
+        ) {
+            ok
+            error
+            design {
+                entityType
+                version
+                schemaVersion
+                state
+                createdAt
+                createdBy
+                locked
+            }
+            conflictCurrent {
+                entityType
+                version
+                schemaVersion
+                state
+                createdAt
+                createdBy
+                locked
+            }
+        }
+    }
+"#;
+
+const REVERT_ENTITY_DESIGN_MUTATION: &str = r#"
+    mutation RevertEntityDesign($entityType: String!, $targetVersion: Int!) {
+        revertEntityDesign(entityType: $entityType, targetVersion: $targetVersion) {
+            ok
+            error
+            design {
+                entityType
+                version
+                schemaVersion
+                state
+                createdAt
+                createdBy
+                locked
+            }
+        }
+    }
+"#;
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityDesign {
+    pub entity_type: String,
+    pub version: i32,
+    pub schema_version: i32,
+    /// `state`-Blob (`tree.nodes` + `projection`). Roh; Aufrufer parsen
+    /// die `tree`-Sektion separat in `shared::builder` o.ae.
+    pub state: serde_json::Value,
+    pub created_at: String,
+    pub created_by: String,
+    pub locked: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EntityDesignData {
+    entity_design: Option<EntityDesign>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveEntityDesignData {
+    save_entity_design: SaveEntityDesignServerResult,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveEntityDesignServerResult {
+    ok: bool,
+    error: Option<String>,
+    design: Option<EntityDesign>,
+    conflict_current: Option<EntityDesign>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RevertEntityDesignData {
+    revert_entity_design: SaveEntityDesignServerResult,
+}
+
+#[derive(Debug, Clone)]
+pub struct SaveEntityDesignResult {
+    pub ok: bool,
+    pub error: Option<String>,
+    pub design: Option<EntityDesign>,
+    pub conflict_current: Option<EntityDesign>,
+}
+
+/// Laedt die aktive Builder-Design-Version fuer einen Entity-Typ.
+pub async fn fetch_entity_design(entity_type: &str) -> Result<Option<EntityDesign>, GqlError> {
+    let data: EntityDesignData =
+        execute(ENTITY_DESIGN_QUERY, EntityTypeVars { entity_type }).await?;
+    Ok(data.entity_design)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveEntityDesignVars<'a> {
+    entity_type: &'a str,
+    schema_version: i32,
+    state: serde_json::Value,
+    expected_version: Option<i32>,
+}
+
+pub async fn save_entity_design(
+    entity_type: &str,
+    schema_version: i32,
+    state: serde_json::Value,
+    expected_version: Option<i32>,
+) -> Result<SaveEntityDesignResult, GqlError> {
+    let data: SaveEntityDesignData = execute(
+        SAVE_ENTITY_DESIGN_MUTATION,
+        SaveEntityDesignVars {
+            entity_type,
+            schema_version,
+            state,
+            expected_version,
+        },
+    )
+    .await?;
+    Ok(SaveEntityDesignResult {
+        ok: data.save_entity_design.ok,
+        error: data.save_entity_design.error,
+        design: data.save_entity_design.design,
+        conflict_current: data.save_entity_design.conflict_current,
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RevertEntityDesignVars<'a> {
+    entity_type: &'a str,
+    target_version: i32,
+}
+
+pub async fn revert_entity_design(
+    entity_type: &str,
+    target_version: i32,
+) -> Result<SaveEntityDesignResult, GqlError> {
+    let data: RevertEntityDesignData = execute(
+        REVERT_ENTITY_DESIGN_MUTATION,
+        RevertEntityDesignVars {
+            entity_type,
+            target_version,
+        },
+    )
+    .await?;
+    Ok(SaveEntityDesignResult {
+        ok: data.revert_entity_design.ok,
+        error: data.revert_entity_design.error,
+        design: data.revert_entity_design.design,
+        conflict_current: None,
+    })
+}
+
+// =============================================================================
 // Designer-Mutation
 // =============================================================================
 

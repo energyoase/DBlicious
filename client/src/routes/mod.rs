@@ -202,6 +202,235 @@ pub fn DesignerPage() -> impl IntoView {
 }
 
 #[component]
+pub fn BuilderPage() -> impl IntoView {
+    use crate::builder::{
+        load_tree, provide_history, provide_ui_tree_with, save_tree, BuilderCanvas, SaveOutcome,
+        UiTree,
+    };
+    use crate::components::table::{
+        filters::default_registry, BottomMenu, BuilderPreviewSource, EntityTableShell, Pager,
+        TableView, DEFAULT_PREVIEW_ROWS,
+    };
+    use leptos::task::spawn_local;
+
+    let params = use_params_map();
+    let design = use_design();
+    let card = design.surface(SurfaceLevel::Card).inline.clone();
+    let h1 = design.text(TextVariant::H1).inline.clone();
+    let muted = design.text(TextVariant::Muted).inline.clone();
+    let primary_btn = design.button(crate::styling::ButtonVariant::Primary).inline.clone();
+    let secondary_btn = design.button(crate::styling::ButtonVariant::Secondary).inline.clone();
+
+    // Auth-Gate analog zum DesignerPage: ohne Update-Recht kein Builder.
+    let auth = AuthContext::use_context();
+    let allowed = auth.is_allowed("*", shared::PermissionOp::Update);
+
+    // Builder-State + History fuer den gesamten Unterbaum bereitstellen.
+    // Wir starten mit leerem Tree; bei erfolgreichem Load wird er ersetzt.
+    let tree_sig = provide_ui_tree_with(UiTree::empty());
+    let _history = provide_history();
+
+    let entity_type = move || {
+        params
+            .with(|p| p.get("entity_type").map(|s| s.to_string()))
+            .unwrap_or_default()
+    };
+
+    // Phase 1.6: aktuelle Server-Version (None = noch nicht geladen oder
+    // Tabelle leer). Save-Mutation schickt das als expected_version mit.
+    let current_version: RwSignal<Option<i32>> = RwSignal::new(None);
+    // UI-Status: Idle | Loading | Saving | Saved(time) | Conflict(server_version) | Error(msg)
+    #[derive(Clone)]
+    enum SaveStatus {
+        Idle,
+        Loading,
+        Saving,
+        Saved(i32),
+        Conflict(i32),
+        Error(String),
+    }
+    let status: RwSignal<SaveStatus> = RwSignal::new(SaveStatus::Idle);
+
+    // Beim Mount: aktive Version laden und in den Tree-Signal kippen.
+    let entity_for_load = entity_type();
+    if !entity_for_load.is_empty() && allowed {
+        status.set(SaveStatus::Loading);
+        spawn_local(async move {
+            match load_tree(&entity_for_load).await {
+                Ok(Some((design, tree))) => {
+                    tree_sig.tree.set(tree);
+                    current_version.set(Some(design.version));
+                    status.set(SaveStatus::Saved(design.version));
+                }
+                Ok(None) => {
+                    // Server hat noch nichts — bleibt Idle, expected_version None.
+                    status.set(SaveStatus::Idle);
+                }
+                Err(e) => {
+                    status.set(SaveStatus::Error(format!("load: {e}")));
+                }
+            }
+        });
+    }
+
+    let on_save = {
+        let entity_for_save = entity_type();
+        move |_| {
+            let entity = entity_for_save.clone();
+            let tree = tree_sig.tree.get();
+            let expected = current_version.get();
+            status.set(SaveStatus::Saving);
+            spawn_local(async move {
+                match save_tree(&entity, &tree, expected).await {
+                    Ok(SaveOutcome::Ok { design }) => {
+                        current_version.set(Some(design.version));
+                        status.set(SaveStatus::Saved(design.version));
+                    }
+                    Ok(SaveOutcome::Conflict { current }) => {
+                        current_version.set(Some(current.version));
+                        status.set(SaveStatus::Conflict(current.version));
+                    }
+                    Ok(SaveOutcome::Locked { current }) => {
+                        if let Some(c) = &current {
+                            current_version.set(Some(c.version));
+                        }
+                        status.set(SaveStatus::Error("locked".into()));
+                    }
+                    Ok(SaveOutcome::Error(e)) => {
+                        status.set(SaveStatus::Error(e));
+                    }
+                    Err(e) => {
+                        status.set(SaveStatus::Error(format!("network: {e}")));
+                    }
+                }
+            });
+        }
+    };
+
+    let on_reload_from_server = {
+        let entity_for_reload = entity_type();
+        move |_| {
+            let entity = entity_for_reload.clone();
+            status.set(SaveStatus::Loading);
+            spawn_local(async move {
+                match load_tree(&entity).await {
+                    Ok(Some((design, tree))) => {
+                        tree_sig.tree.set(tree);
+                        current_version.set(Some(design.version));
+                        status.set(SaveStatus::Saved(design.version));
+                    }
+                    Ok(None) => status.set(SaveStatus::Idle),
+                    Err(e) => status.set(SaveStatus::Error(format!("reload: {e}"))),
+                }
+            });
+        }
+    };
+
+    let status_muted = muted.clone();
+    let status_view = {
+        let secondary_btn = secondary_btn.clone();
+        move || {
+            let muted = status_muted.clone();
+            match status.get() {
+                SaveStatus::Idle => view! {
+                    <span style=muted>{move || t("builder.status.idle")}</span>
+                }
+                .into_any(),
+                SaveStatus::Loading => view! {
+                    <span style=muted>{move || t("builder.status.loading")}</span>
+                }
+                .into_any(),
+                SaveStatus::Saving => view! {
+                    <span style=muted>{move || t("builder.status.saving")}</span>
+                }
+                .into_any(),
+                SaveStatus::Saved(v) => view! {
+                    <span style="color: #16a34a;">
+                        {move || crate::t!("builder.status.saved", "version" => v as i64)}
+                    </span>
+                }
+                .into_any(),
+                SaveStatus::Conflict(v) => {
+                    let reload = on_reload_from_server.clone();
+                    let style = secondary_btn.clone();
+                    view! {
+                        <div style="display: flex; gap: 0.5rem; align-items: center; color: #b91c1c;">
+                            <span>
+                                {move || crate::t!("builder.status.conflict", "version" => v as i64)}
+                            </span>
+                            <button style=style on:click=reload>
+                                {move || t("builder.action.reload")}
+                            </button>
+                        </div>
+                    }
+                    .into_any()
+                }
+                SaveStatus::Error(msg) => view! {
+                    <span style="color: #b91c1c;">
+                        {move || crate::t!("builder.status.error", "message" => msg.clone())}
+                    </span>
+                }
+                .into_any(),
+            }
+        }
+    };
+
+    view! {
+        <div style=card>
+            <h1 style=h1>{move || t("builder.title")}</h1>
+            <p style=muted.clone()>
+                {move || crate::t!("builder.subtitle", "entity" => entity_type())}
+            </p>
+            {move || if !allowed {
+                view! { <p>{move || t("builder.forbidden")}</p> }.into_any()
+            } else {
+                let primary = primary_btn.clone();
+                let on_save = on_save.clone();
+                let status_view = status_view.clone();
+                view! {
+                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
+                        <button style=primary on:click=on_save>
+                            {move || t("builder.action.save")}
+                        </button>
+                        {status_view}
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <BuilderCanvas/>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <h2 style="margin: 0;">{move || t("builder.preview.title")}</h2>
+                            // Reaktive Re-Konstruktion der EntityTableShell, sobald sich der Tree
+                            // aendert. Rc<dyn DataSource> ist !Send, daher direkt in der Render-
+                            // Closure konstruieren (kein Leptos-Memo).
+                            {move || {
+                                let cols = tree_sig.tree.with(|t| crate::builder::project_columns(t));
+                                let src: Rc<dyn crate::components::table::DataSource> = Rc::new(
+                                    BuilderPreviewSource::from_columns(&cols, DEFAULT_PREVIEW_ROWS),
+                                );
+                                let entity = entity_type();
+                                let filters = Rc::new(default_registry());
+                                view! {
+                                    <EntityTableShell
+                                        entity_type=entity
+                                        columns=cols
+                                        source=src
+                                        filters=filters
+                                    >
+                                        <TableView/>
+                                        <BottomMenu>
+                                            <Pager/>
+                                        </BottomMenu>
+                                    </EntityTableShell>
+                                }
+                            }}
+                        </div>
+                    </div>
+                }.into_any()
+            }}
+        </div>
+    }
+}
+
+#[component]
 pub fn NotFoundPage() -> impl IntoView {
     view! {
         <div style="padding: 2rem;">

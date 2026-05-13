@@ -116,6 +116,25 @@ table-actions-new = New
 table-actions-edit = Edit
 table-actions-delete = Delete
 
+## Builder (Visual UI-Designer)
+builder-title = Visual Builder
+builder-subtitle = Entity: { $entity }
+builder-forbidden = You don't have permission to use the builder.
+builder-preview-title = Live preview
+builder-action-add = Add node
+builder-action-delete = Delete node
+builder-action-undo = Undo
+builder-action-redo = Redo
+builder-action-save = Save
+builder-action-reload = Load server state
+builder-nodes_count = { $n } nodes
+builder-status-idle = Unsaved
+builder-status-loading = Loading…
+builder-status-saving = Saving…
+builder-status-saved = Saved (version { $version })
+builder-status-conflict = Conflict — server has version { $version }
+builder-status-error = Error: { $message }
+
 ## Designer
 designer-title = Schema designer
 designer-forbidden = You don't have permission to edit the schema.
@@ -133,3 +152,14 @@ designer-column-add_hint = Columns
 designer-column-toggle_pk = Toggle primary key
 designer-port-tooltip = Click in link mode to create a relation
 designer-relation-tooltip = Click to remove the relation
+
+## Builder (Visual UI-Designer)
+builder-title = Visual Builder
+builder-subtitle = Entity: { $entity }
+builder-forbidden = You do not have permission to use the builder.
+builder-preview-title = Live preview
+builder-action-add = Add node
+builder-action-delete = Delete node
+builder-action-undo = Undo
+builder-action-redo = Redo
+builder-nodes_count = { $n } nodes

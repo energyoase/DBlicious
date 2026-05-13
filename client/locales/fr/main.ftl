@@ -133,3 +133,22 @@ designer-column-add_hint = Colonnes
 designer-column-toggle_pk = Basculer la clé primaire
 designer-port-tooltip = Cliquez en mode lien pour créer une relation
 designer-relation-tooltip = Cliquez pour supprimer la relation
+
+## Builder (Concepteur visuel)
+builder-title = Concepteur visuel
+builder-subtitle = Entité : { $entity }
+builder-forbidden = Vous n'avez pas la permission d'utiliser le concepteur.
+builder-preview-title = Aperçu en direct
+builder-action-add = Ajouter un nœud
+builder-action-delete = Supprimer le nœud
+builder-action-undo = Annuler
+builder-action-redo = Rétablir
+builder-action-save = Enregistrer
+builder-action-reload = Charger l'état serveur
+builder-nodes_count = { $n } nœuds
+builder-status-idle = Non enregistré
+builder-status-loading = Chargement…
+builder-status-saving = Enregistrement…
+builder-status-saved = Enregistré (version { $version })
+builder-status-conflict = Conflit — le serveur a la version { $version }
+builder-status-error = Erreur : { $message }
