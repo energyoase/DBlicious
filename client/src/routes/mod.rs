@@ -16,8 +16,9 @@ use leptos_router::hooks::use_params_map;
 use crate::auth::AuthContext;
 use crate::components::designer::Designer;
 use crate::components::table::{
-    BottomMenu, DeleteAction, EditAction, EntityTableShell, GlobalFilter, PageSize, Pager,
-    RemoteSource, RowActions, SelectionColumn, SelectionMode, TableView, TopMenu,
+    filters::default_registry, BottomMenu, DeleteAction, EditAction, EntityTableShell,
+    GlobalFilter, PageSize, Pager, RemoteSource, RowActions, SelectionColumn, SelectionMode,
+    TableView, TopMenu,
 };
 use crate::i18n::t;
 use crate::styling::{use_design, SurfaceLevel, TextVariant};
@@ -133,6 +134,7 @@ pub fn EntityListPage() -> impl IntoView {
                                 source=source
                                 entity_type=entity_type_for_table
                                 settings=settings_for_table
+                                filters=Rc::new(default_registry())
                             >
                                 <TopMenu>
                                     <GlobalFilter/>

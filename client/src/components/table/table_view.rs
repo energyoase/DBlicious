@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use shared::{ColumnMeta, Entity, SortDirection};
 
 use super::actions::RowContext;
+use super::filters::{resolve_filter_id, FilterContext};
 use super::formatters::FieldCell;
 use super::selection::SelectionMode;
 use super::shell::use_shell;
@@ -22,15 +23,29 @@ pub fn TableView() -> impl IntoView {
     let table_style = design.table().inline.clone();
     let header_row_style = design.table_header_row().inline.clone();
     let header_cell_actions = design.table_header_cell().inline.clone();
+    // Styles vorab clonen, damit nachfolgende Closures `design` nicht
+    // mehrfach konsumieren.
+    let header_cell_selection = design.table_header_cell().inline.clone();
+    let header_cell_filter = design.table_header_cell().inline.clone();
+    let header_cell_filter_sel = design.table_header_cell().inline.clone();
+    let header_cell_filter_actions = design.table_header_cell().inline.clone();
 
     let columns = shell.columns();
     let state = shell.state;
     let data = shell.data;
     let selection = shell.selection;
     let row_actions_trigger = shell.row_actions_trigger;
+    let filters = shell.filters();
 
-    // Headerspalten + optionale Selektions-/Aktions-Spalte.
+    // Pruefen, ob die Filter-Reihe ueberhaupt gerendert werden soll: nur wenn
+    // mindestens eine Spalte einen Filter aufloest.
+    let any_filterable = columns
+        .iter()
+        .any(|c| c.filterable && resolve_filter_id(c, &filters).is_some());
+
     let columns_for_header = columns.clone();
+    let columns_for_filter_row = columns.clone();
+    let filters_for_row = filters.clone();
     view! {
         <div style="overflow-x: auto;">
             <table style=table_style>
@@ -40,9 +55,8 @@ pub fn TableView() -> impl IntoView {
                         {move || {
                             let mode = selection.mode.get();
                             (mode != SelectionMode::None).then(|| {
-                                let header_cell = design.table_header_cell().inline.clone();
                                 view! {
-                                    <th style=header_cell>
+                                    <th style=header_cell_selection.clone()>
                                         // Multi: "alle in Page" toggle. Single: leer.
                                         {(mode == SelectionMode::Multi).then(|| view! {
                                             <SelectionHeaderCheckbox/>
@@ -62,6 +76,46 @@ pub fn TableView() -> impl IntoView {
                             has.then(|| view! { <th style=header_cell_actions.clone()></th> })
                         }}
                     </tr>
+                    // Filter-Reihe: nur wenn mind. eine Spalte einen Filter
+                    // aufloest. Selection- und Action-Spalten bleiben leer.
+                    {any_filterable.then(|| {
+                        let cell_style = header_cell_filter.clone();
+                        let cell_style_sel = header_cell_filter_sel.clone();
+                        let cell_style_actions = header_cell_filter_actions.clone();
+                        let cols = columns_for_filter_row.clone();
+                        let filters = filters_for_row.clone();
+                        let row_actions_trigger = row_actions_trigger;
+                        view! {
+                            <tr>
+                                {move || {
+                                    let mode = selection.mode.get();
+                                    (mode != SelectionMode::None).then(|| {
+                                        view! { <th style=cell_style_sel.clone()></th> }
+                                    })
+                                }}
+                                {cols.iter().cloned().map(|c| {
+                                    let cell_style = cell_style.clone();
+                                    let filter_view = if c.filterable {
+                                        resolve_filter_id(&c, &filters).and_then(|id| {
+                                            filters.get(id).map(|factory| {
+                                                factory(FilterContext { column: c.clone() })
+                                            })
+                                        })
+                                    } else {
+                                        None
+                                    };
+                                    view! { <th style=cell_style>{filter_view}</th> }
+                                }).collect_view()}
+                                {move || {
+                                    let _ = row_actions_trigger.get();
+                                    let has = shell.with_row_actions(|s| s.borrow().is_some());
+                                    has.then(|| {
+                                        view! { <th style=cell_style_actions.clone()></th> }
+                                    })
+                                }}
+                            </tr>
+                        }
+                    })}
                 </thead>
                 <tbody>
                     <Suspense fallback=move || view! {
