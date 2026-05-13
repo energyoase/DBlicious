@@ -205,6 +205,127 @@ pub async fn fetch_entities(
 }
 
 // =============================================================================
+// Implementations-Resolution (Phase 1.5)
+// =============================================================================
+
+const RESOLVE_IMPLEMENTATION_QUERY: &str = r#"
+    query ResolveImplementation($t:String!,$p:String!,$r:String!,$u:String){
+        resolveImplementation(entityType:$t, property:$p, registry:$r, userId:$u)
+    }
+"#;
+
+const ALLOWED_IMPLEMENTATIONS_QUERY: &str = r#"
+    query AllowedImplementations($t:String!,$p:String!,$r:String!){
+        allowedImplementations(entityType:$t, property:$p, registry:$r)
+    }
+"#;
+
+const SET_IMPLEMENTATION_CHOICE_MUTATION: &str = r#"
+    mutation SetImplementationChoice($t:String!,$p:String!,$r:String!,$c:String!){
+        setImplementationChoice(entityType:$t, property:$p, registry:$r, chosenId:$c)
+    }
+"#;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ResolveVars<'a> {
+    t: &'a str,
+    p: &'a str,
+    r: &'a str,
+    u: Option<&'a str>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ResolveData {
+    resolve_implementation: Option<String>,
+}
+
+pub async fn resolve_implementation(
+    entity_type: &str,
+    property: &str,
+    registry: &str,
+    user_id: Option<&str>,
+) -> Result<Option<String>, GqlError> {
+    let data: ResolveData = execute(
+        RESOLVE_IMPLEMENTATION_QUERY,
+        ResolveVars {
+            t: entity_type,
+            p: property,
+            r: registry,
+            u: user_id,
+        },
+    )
+    .await?;
+    Ok(data.resolve_implementation)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AllowedVars<'a> {
+    t: &'a str,
+    p: &'a str,
+    r: &'a str,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AllowedData {
+    allowed_implementations: Vec<String>,
+}
+
+pub async fn allowed_implementations(
+    entity_type: &str,
+    property: &str,
+    registry: &str,
+) -> Result<Vec<String>, GqlError> {
+    let data: AllowedData = execute(
+        ALLOWED_IMPLEMENTATIONS_QUERY,
+        AllowedVars {
+            t: entity_type,
+            p: property,
+            r: registry,
+        },
+    )
+    .await?;
+    Ok(data.allowed_implementations)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SetChoiceVars<'a> {
+    t: &'a str,
+    p: &'a str,
+    r: &'a str,
+    c: &'a str,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetChoiceData {
+    set_implementation_choice: bool,
+}
+
+pub async fn set_implementation_choice(
+    entity_type: &str,
+    property: &str,
+    registry: &str,
+    chosen_id: &str,
+) -> Result<bool, GqlError> {
+    let data: SetChoiceData = execute(
+        SET_IMPLEMENTATION_CHOICE_MUTATION,
+        SetChoiceVars {
+            t: entity_type,
+            p: property,
+            r: registry,
+            c: chosen_id,
+        },
+    )
+    .await?;
+    Ok(data.set_implementation_choice)
+}
+
+// =============================================================================
 // Builder-Design-Persistenz (Phase 1.6)
 // =============================================================================
 
