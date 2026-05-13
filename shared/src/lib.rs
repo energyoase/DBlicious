@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod auth;
 pub mod editor;
 pub mod error;
 pub mod header;
