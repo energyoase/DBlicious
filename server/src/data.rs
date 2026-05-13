@@ -1114,6 +1114,206 @@ pub async fn permissions_count() -> u64 {
         .unwrap_or(0)
 }
 
+// =============================================================================
+// Phase 1.6 — entity_designs (Builder-Persistenz)
+// =============================================================================
+//
+// Wire-Format der `state`-Spalte (vom Client geliefert):
+// ```json
+// { "schemaVersion": 1, "tree": { "nodes": [...] }, "projection": {...} }
+// ```
+//
+// Der Server kennt nur den `projection`-Teil typisiert — `tree` ist eine
+// opaque Vorlage fuer Phase 4 (Codegen).
+
+/// Aktuelle Builder-State-`schemaVersion` (Phase-1.6-Format). Spaetere
+/// Migrationen erhoehen das.
+pub const DESIGN_SCHEMA_VERSION: i32 = 1;
+
+/// Reservierte User-ID fuer System-Schreiber (Boot-Snapshot, Migrations-Tools).
+pub const SYSTEM_USER_ID: &str = "system";
+
+/// Legt einen System-User an, falls noch nicht vorhanden. Audit-Anker fuer
+/// alle automatischen Schreiber (DB-Init, Migrationen).
+pub async fn ensure_system_user(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+    if entity::users::Entity::find_by_id(SYSTEM_USER_ID.to_string())
+        .one(db)
+        .await?
+        .is_some()
+    {
+        return Ok(());
+    }
+    entity::users::ActiveModel {
+        id: ActiveValue::Set(SYSTEM_USER_ID.to_string()),
+        username: ActiveValue::Set(SYSTEM_USER_ID.to_string()),
+        display_name: ActiveValue::Set("system".to_string()),
+        locale: ActiveValue::Set(None),
+        // Login blockiert.
+        active: ActiveValue::Set(false),
+        password_hash: ActiveValue::Set(None),
+    }
+    .insert(db)
+    .await?;
+    Ok(())
+}
+
+/// Liefert die hoechste vorhandene Version fuer einen entity_type, oder `None`
+/// wenn die Tabelle leer ist.
+pub async fn entity_design_latest_version(entity_type: &str) -> Option<i32> {
+    use sea_orm::QueryOrder;
+    entity::entity_designs::Entity::find()
+        .filter(entity::entity_designs::Column::EntityType.eq(entity_type))
+        .order_by_desc(entity::entity_designs::Column::Version)
+        .one(&conn())
+        .await
+        .ok()
+        .flatten()
+        .map(|m| m.version)
+}
+
+/// Liefert die aktive Version (`MAX(version)`) als komplettes Model.
+pub async fn entity_design_active(
+    entity_type: &str,
+) -> Option<entity::entity_designs::Model> {
+    use sea_orm::QueryOrder;
+    entity::entity_designs::Entity::find()
+        .filter(entity::entity_designs::Column::EntityType.eq(entity_type))
+        .order_by_desc(entity::entity_designs::Column::Version)
+        .one(&conn())
+        .await
+        .ok()
+        .flatten()
+}
+
+/// Spezifische Version laden.
+pub async fn entity_design_version(
+    entity_type: &str,
+    version: i32,
+) -> Option<entity::entity_designs::Model> {
+    entity::entity_designs::Entity::find_by_id((entity_type.to_string(), version))
+        .one(&conn())
+        .await
+        .ok()
+        .flatten()
+}
+
+/// Append eine neue Version. `expected_version` ist die zuletzt vom Client
+/// gesehene Version — `None` bedeutet "ich gehe davon aus, dass noch keine
+/// Version existiert".
+///
+/// Liefert `Err(SaveDesignError::Conflict { current })` wenn die Server-Sicht
+/// abweicht (klassisches optimistic locking).
+pub enum SaveDesignError {
+    Conflict { current_version: Option<i32> },
+    Locked,
+    Db(sea_orm::DbErr),
+}
+
+impl From<sea_orm::DbErr> for SaveDesignError {
+    fn from(e: sea_orm::DbErr) -> Self {
+        SaveDesignError::Db(e)
+    }
+}
+
+pub async fn save_entity_design(
+    entity_type: &str,
+    schema_version: i32,
+    state_json: &str,
+    expected_version: Option<i32>,
+    created_by: &str,
+) -> Result<entity::entity_designs::Model, SaveDesignError> {
+    let current = entity_design_latest_version(entity_type).await;
+    if current != expected_version {
+        return Err(SaveDesignError::Conflict { current_version: current });
+    }
+    // Locked-Check: wenn die aktive Version locked ist, keine neue erlaubt.
+    if let Some(active) = entity_design_active(entity_type).await {
+        if active.locked {
+            return Err(SaveDesignError::Locked);
+        }
+    }
+    let next_version = current.unwrap_or(-1) + 1;
+    let model = entity::entity_designs::ActiveModel {
+        entity_type: ActiveValue::Set(entity_type.to_string()),
+        version: ActiveValue::Set(next_version),
+        state_json: ActiveValue::Set(state_json.to_string()),
+        schema_version: ActiveValue::Set(schema_version),
+        created_at: ActiveValue::Set(Utc::now().to_rfc3339()),
+        created_by: ActiveValue::Set(created_by.to_string()),
+        locked: ActiveValue::Set(false),
+    }
+    .insert(&conn())
+    .await?;
+    Ok(model)
+}
+
+/// Schreibt den State einer alten Version als *neue* Version.
+pub async fn revert_entity_design(
+    entity_type: &str,
+    target_version: i32,
+    created_by: &str,
+) -> Result<entity::entity_designs::Model, SaveDesignError> {
+    let Some(target) = entity_design_version(entity_type, target_version).await else {
+        return Err(SaveDesignError::Db(sea_orm::DbErr::Custom(format!(
+            "version {target_version} fuer entity_type '{entity_type}' nicht gefunden"
+        ))));
+    };
+    let current = entity_design_latest_version(entity_type).await;
+    save_entity_design(
+        entity_type,
+        target.schema_version,
+        &target.state_json,
+        current,
+        created_by,
+    )
+    .await
+}
+
+/// Boot-Snapshot: pro entity_type im Loader-Set, fuer den noch keine
+/// `version=0` existiert, wird ein Snapshot aus `projection` (Loader-
+/// Spalten/Editor/Settings) und einem leeren `tree.nodes`-Array geschrieben.
+/// Idempotent.
+pub async fn seed_entity_designs_from_example(
+    db: &DatabaseConnection,
+) -> Result<(), sea_orm::DbErr> {
+    use sea_orm::PaginatorTrait;
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
+    for (entity_type, ets) in &set.entities {
+        let count = entity::entity_designs::Entity::find()
+            .filter(entity::entity_designs::Column::EntityType.eq(entity_type.clone()))
+            .count(db)
+            .await
+            .unwrap_or(0);
+        if count > 0 {
+            continue;
+        }
+        let projection = serde_json::json!({
+            "columns":  serde_json::to_value(&ets.columns).unwrap_or(serde_json::Value::Null),
+            "settings": ets.settings.as_ref().and_then(|s| serde_json::to_value(s).ok()).unwrap_or(serde_json::Value::Null),
+            "editor":   ets.editor.as_ref().and_then(|e| serde_json::to_value(e).ok()).unwrap_or(serde_json::Value::Null),
+        });
+        let state = serde_json::json!({
+            "schemaVersion": DESIGN_SCHEMA_VERSION,
+            "tree": { "nodes": [] },
+            "projection": projection,
+        });
+        entity::entity_designs::ActiveModel {
+            entity_type: ActiveValue::Set(entity_type.clone()),
+            version: ActiveValue::Set(0),
+            state_json: ActiveValue::Set(state.to_string()),
+            schema_version: ActiveValue::Set(DESIGN_SCHEMA_VERSION),
+            created_at: ActiveValue::Set(Utc::now().to_rfc3339()),
+            created_by: ActiveValue::Set(SYSTEM_USER_ID.to_string()),
+            locked: ActiveValue::Set(false),
+        }
+        .insert(db)
+        .await?;
+    }
+    Ok(())
+}
+
 pub async fn seed_permissions(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     let Some(set) = crate::example::current() else {
         return Ok(());

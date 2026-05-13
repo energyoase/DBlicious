@@ -731,6 +731,213 @@ async fn my_permissions_is_empty_for_anonymous() {
     assert_eq!(v["myPermissions"].as_array().unwrap().len(), 0);
 }
 
+// =============================================================================
+// Phase 1.6 — Builder-Design-Persistenz
+// =============================================================================
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn entity_design_boot_snapshot_exists_for_each_loader_type() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    for et in ["product", "order", "customer"] {
+        let res = exec(
+            r#"query($t:String!){ entityDesign(entityType:$t){
+                entityType version schemaVersion createdBy locked state
+            } }"#,
+            json!({"t": et}),
+            ctx.clone(),
+        )
+        .await;
+        assert!(res.errors.is_empty(), "{} -> {:?}", et, res.errors);
+        let v = res.data.into_json().unwrap();
+        let d = &v["entityDesign"];
+        assert!(!d.is_null(), "Boot-Snapshot fuer '{et}' muss existieren");
+        assert_eq!(d["version"], json!(0));
+        assert_eq!(d["createdBy"], json!("system"));
+        assert_eq!(d["locked"], json!(false));
+        // projection.columns muss nicht-leer sein (Loader-Daten projiziert).
+        let cols = &d["state"]["projection"]["columns"];
+        assert!(
+            cols.as_array().map(|a| !a.is_empty()).unwrap_or(false),
+            "projection.columns fuer {et} darf nicht leer sein, war: {cols}"
+        );
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn save_entity_design_bumps_version() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    // Boot-Snapshot ist version=0; naechster save erwartet expected_version=0.
+    let q = r#"mutation($t:String!,$sv:Int!,$s:JSON!,$e:Int){
+        saveEntityDesign(entityType:$t, schemaVersion:$sv, state:$s, expectedVersion:$e){
+            ok error
+            design { entityType version createdBy }
+        }
+    }"#;
+    let state = json!({
+        "schemaVersion": 1,
+        "tree": { "nodes": [] },
+        "projection": { "columns": [], "settings": null, "editor": null }
+    });
+    let res = exec(
+        q,
+        json!({"t":"product","sv":1,"s":state,"e":0}),
+        ctx.clone(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    assert_eq!(v["saveEntityDesign"]["ok"], json!(true));
+    assert_eq!(v["saveEntityDesign"]["design"]["version"], json!(1));
+    assert_ne!(
+        v["saveEntityDesign"]["design"]["createdBy"], json!("system"),
+        "User-Save darf nicht als 'system' zaehlen"
+    );
+
+    // Zweite Save: expectedVersion=1 → wird 2.
+    let res = exec(
+        q,
+        json!({"t":"product","sv":1,"s":state,"e":1}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty());
+    assert_eq!(res.data.into_json().unwrap()["saveEntityDesign"]["design"]["version"], json!(2));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn save_entity_design_returns_conflict_on_stale_expected_version() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    let state = json!({"schemaVersion":1,"tree":{"nodes":[]},"projection":{"columns":[]}});
+    let q = r#"mutation($t:String!,$sv:Int!,$s:JSON!,$e:Int){
+        saveEntityDesign(entityType:$t, schemaVersion:$sv, state:$s, expectedVersion:$e){
+            ok error
+            conflictCurrent { version }
+        }
+    }"#;
+
+    // Boot-Snapshot ist version=0; expected=42 ist falsch.
+    let res = exec(
+        q,
+        json!({"t":"product","sv":1,"s":state,"e":42}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    assert_eq!(v["saveEntityDesign"]["ok"], json!(false));
+    assert_eq!(
+        v["saveEntityDesign"]["error"],
+        json!("concurrent_design_modification")
+    );
+    assert_eq!(v["saveEntityDesign"]["conflictCurrent"]["version"], json!(0));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn revert_entity_design_creates_new_version_with_old_state() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    // Erst eine neue Version anlegen, sodass wir auf version=0 zuruecksetzen koennen.
+    let save_q = r#"mutation($t:String!,$sv:Int!,$s:JSON!,$e:Int){
+        saveEntityDesign(entityType:$t, schemaVersion:$sv, state:$s, expectedVersion:$e){
+            ok design { version state }
+        }
+    }"#;
+    let new_state = json!({
+        "schemaVersion": 1,
+        "tree": { "nodes": [{"id": 1, "boundField": {"key": "marker"}}] },
+        "projection": { "columns": [], "settings": null, "editor": null }
+    });
+    let save_res = exec(
+        save_q,
+        json!({"t":"product","sv":1,"s":new_state,"e":0}),
+        ctx.clone(),
+    )
+    .await;
+    assert!(save_res.errors.is_empty());
+    assert_eq!(
+        save_res.data.into_json().unwrap()["saveEntityDesign"]["design"]["version"],
+        json!(1)
+    );
+
+    // Revert auf version=0 → soll Version 2 mit State von Version 0 anlegen.
+    let revert_q = r#"mutation($t:String!,$v:Int!){
+        revertEntityDesign(entityType:$t, targetVersion:$v){
+            ok design { version state createdBy }
+        }
+    }"#;
+    let res = exec(
+        revert_q,
+        json!({"t":"product","v":0}),
+        ctx.clone(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    assert_eq!(v["revertEntityDesign"]["ok"], json!(true));
+    let reverted_version = v["revertEntityDesign"]["design"]["version"].as_i64().unwrap();
+    assert_eq!(reverted_version, 2, "Revert muss neue Version anlegen, keine Loeschung");
+    // Der createdBy des Revert ist der admin (nicht "system"), auch wenn der
+    // Original-State von system stammt.
+    assert_ne!(v["revertEntityDesign"]["design"]["createdBy"], json!("system"));
+    // State.tree muss leer sein (wie in Version 0).
+    let nodes = &v["revertEntityDesign"]["design"]["state"]["tree"]["nodes"];
+    assert_eq!(nodes.as_array().map(|a| a.len()).unwrap_or(99), 0);
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn save_entity_design_requires_update_permission() {
+    boot().await;
+    let ctx = login_as("viewer", "viewer").await;
+    let state = json!({"schemaVersion":1,"tree":{"nodes":[]},"projection":{"columns":[]}});
+    let res = exec(
+        r#"mutation($t:String!,$sv:Int!,$s:JSON!){
+            saveEntityDesign(entityType:$t, schemaVersion:$sv, state:$s){
+                ok error
+            }
+        }"#,
+        json!({"t":"product","sv":1,"s":state}),
+        ctx,
+    )
+    .await;
+    assert!(
+        !res.errors.is_empty(),
+        "viewer ohne Update-Recht muss abgelehnt werden"
+    );
+    assert!(res.errors[0].message.contains("forbidden"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn entity_design_at_returns_specific_version() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    // Boot-Snapshot ist 0. Wir wollen explizit version=0 zurueckkriegen.
+    let res = exec(
+        r#"query($t:String!,$v:Int!){ entityDesignAt(entityType:$t, version:$v){
+            version createdBy
+        } }"#,
+        json!({"t":"product","v":0}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    assert_eq!(v["entityDesignAt"]["version"], json!(0));
+    assert_eq!(v["entityDesignAt"]["createdBy"], json!("system"));
+}
+
 #[tokio::test(flavor = "current_thread")]
 #[serial_test::serial]
 async fn logout_invalidates_only_this_token() {

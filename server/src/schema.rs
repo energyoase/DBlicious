@@ -138,6 +138,50 @@ pub struct WhyAllowedTrace {
     pub note: Option<String>,
 }
 
+// ---------- Builder-Design-Persistenz (Phase 1.6) ----------
+
+#[derive(Clone, SimpleObject)]
+pub struct EntityDesignView {
+    pub entity_type: String,
+    pub version: i32,
+    pub schema_version: i32,
+    /// State-Blob (`tree.nodes` + `projection`). Wie bei `Entity.fields` als
+    /// opaques JSON ausgeliefert — der Client deserialisiert in das
+    /// `shared::builder`-Format.
+    pub state: Json<serde_json::Value>,
+    pub created_at: String,
+    pub created_by: String,
+    pub locked: bool,
+}
+
+#[derive(Clone, SimpleObject)]
+pub struct SaveEntityDesignResult {
+    pub ok: bool,
+    /// Bei Erfolg: die soeben angelegte neue Version.
+    pub design: Option<EntityDesignView>,
+    /// Bei `ok=false`: aktueller Server-Stand (oder `None`, wenn die
+    /// Tabelle fuer diesen entity_type noch leer ist) — der Client kann
+    /// damit eine Konflikt-Resolution anbieten.
+    pub conflict_current: Option<EntityDesignView>,
+    /// Klassifizierter Fehlercode (`"concurrent_design_modification"`,
+    /// `"locked"`, `"forbidden"`, `"internal"`); leer bei Erfolg.
+    pub error: Option<String>,
+}
+
+fn map_entity_design(m: crate::entity::entity_designs::Model) -> EntityDesignView {
+    let state: serde_json::Value =
+        serde_json::from_str(&m.state_json).unwrap_or(serde_json::Value::Null);
+    EntityDesignView {
+        entity_type: m.entity_type,
+        version: m.version,
+        schema_version: m.schema_version,
+        state: Json(state),
+        created_at: m.created_at,
+        created_by: m.created_by,
+        locked: m.locked,
+    }
+}
+
 // ---------- Translatable ----------
 
 #[derive(Clone, SimpleObject)]
@@ -790,6 +834,33 @@ impl QueryRoot {
         require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
         Ok(data::settings_for_async(&entity_type).await.map(map_settings))
     }
+
+    /// Aktive Builder-Version (Phase 1.6). `None` wenn fuer den entity_type
+    /// noch nichts persistiert ist (sehr selten — Boot-Snapshot legt
+    /// version=0 fuer alle Loader-Typen an).
+    async fn entity_design(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+    ) -> async_graphql::Result<Option<EntityDesignView>> {
+        require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
+        Ok(data::entity_design_active(&entity_type)
+            .await
+            .map(map_entity_design))
+    }
+
+    /// Bestimmte historische Version (fuer Revert-UI / Audit).
+    async fn entity_design_at(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+        version: i32,
+    ) -> async_graphql::Result<Option<EntityDesignView>> {
+        require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
+        Ok(data::entity_design_version(&entity_type, version)
+            .await
+            .map(map_entity_design))
+    }
 }
 
 pub struct MutationRoot;
@@ -868,6 +939,118 @@ impl MutationRoot {
             table_count,
             relation_count,
         })
+    }
+
+    // -- Builder-Designs (Phase 1.6) --
+
+    /// Append-only Save eines Builder-States.
+    ///
+    /// `expectedVersion`:
+    /// - `None` ⇒ Aufrufer glaubt, die Tabelle ist fuer den entity_type
+    ///   leer. Stimmt das nicht, ist es Konflikt.
+    /// - `Some(n)` ⇒ Aufrufer glaubt, die aktuelle Version ist `n`. Server
+    ///   bumpt dann auf `n + 1`.
+    ///
+    /// Bei Konflikt liefert das Result `ok=false`, `error="concurrent_design_modification"`
+    /// und `conflictCurrent` mit dem aktuellen Server-Stand.
+    async fn save_entity_design(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+        schema_version: i32,
+        state: Json<serde_json::Value>,
+        expected_version: Option<i32>,
+    ) -> async_graphql::Result<SaveEntityDesignResult> {
+        let actor = require_permission(ctx, &entity_type, shared::PermissionOp::Update).await?;
+        let state_json = state.0.to_string();
+        match data::save_entity_design(
+            &entity_type,
+            schema_version,
+            &state_json,
+            expected_version,
+            &actor.id,
+        )
+        .await
+        {
+            Ok(model) => Ok(SaveEntityDesignResult {
+                ok: true,
+                design: Some(map_entity_design(model)),
+                conflict_current: None,
+                error: None,
+            }),
+            Err(data::SaveDesignError::Conflict { current_version: _ }) => {
+                let current = data::entity_design_active(&entity_type)
+                    .await
+                    .map(map_entity_design);
+                Ok(SaveEntityDesignResult {
+                    ok: false,
+                    design: None,
+                    conflict_current: current,
+                    error: Some("concurrent_design_modification".to_string()),
+                })
+            }
+            Err(data::SaveDesignError::Locked) => Ok(SaveEntityDesignResult {
+                ok: false,
+                design: None,
+                conflict_current: data::entity_design_active(&entity_type)
+                    .await
+                    .map(map_entity_design),
+                error: Some("locked".to_string()),
+            }),
+            Err(data::SaveDesignError::Db(e)) => {
+                tracing::warn!(target: "server::designs", "save db error: {e}");
+                Ok(SaveEntityDesignResult {
+                    ok: false,
+                    design: None,
+                    conflict_current: None,
+                    error: Some("internal".to_string()),
+                })
+            }
+        }
+    }
+
+    /// Revert: schreibt eine ALTE Version als NEUE Version. Keine
+    /// Loeschung — die Versions-Historie bleibt vollstaendig.
+    async fn revert_entity_design(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+        target_version: i32,
+    ) -> async_graphql::Result<SaveEntityDesignResult> {
+        let actor = require_permission(ctx, &entity_type, shared::PermissionOp::Update).await?;
+        match data::revert_entity_design(&entity_type, target_version, &actor.id).await {
+            Ok(model) => Ok(SaveEntityDesignResult {
+                ok: true,
+                design: Some(map_entity_design(model)),
+                conflict_current: None,
+                error: None,
+            }),
+            Err(data::SaveDesignError::Conflict { .. }) => Ok(SaveEntityDesignResult {
+                ok: false,
+                design: None,
+                conflict_current: data::entity_design_active(&entity_type)
+                    .await
+                    .map(map_entity_design),
+                error: Some("concurrent_design_modification".to_string()),
+            }),
+            Err(data::SaveDesignError::Locked) => Ok(SaveEntityDesignResult {
+                ok: false,
+                design: None,
+                conflict_current: data::entity_design_active(&entity_type)
+                    .await
+                    .map(map_entity_design),
+                error: Some("locked".to_string()),
+            }),
+            Err(data::SaveDesignError::Db(e)) => {
+                tracing::warn!(target: "server::designs", "revert db error: {e}");
+                Ok(SaveEntityDesignResult {
+                    ok: false,
+                    design: None,
+                    conflict_current: None,
+                    error: Some("internal".to_string()),
+                })
+            }
+        }
     }
 
     // -- Entity-CRUD --

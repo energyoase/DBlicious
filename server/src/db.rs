@@ -95,6 +95,8 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::role_assignments::Entity),
         // Phase 0.7.6: Audit-Log.
         schema.create_table_from_entity(entity::audit_log::Entity),
+        // Phase 1.6: Builder-Design-Persistenz.
+        schema.create_table_from_entity(entity::entity_designs::Entity),
     ];
     for t in &mut tables {
         t.if_not_exists();
@@ -113,6 +115,9 @@ async fn seed_if_empty(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     if entity::users::Entity::find().count(db).await? == 0 {
         crate::data::seed_users(db).await?;
     }
+    // System-User (Phase 1.6) als Audit-Anker. Idempotent — der Aufruf
+    // bleibt no-op, wenn der User bereits existiert.
+    crate::data::ensure_system_user(db).await?;
     if entity::translatable_languages::Entity::find()
         .count(db)
         .await?
@@ -134,6 +139,9 @@ async fn seed_if_empty(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     if entity::permissions::Entity::find().count(db).await? == 0 {
         crate::data::seed_permissions(db).await?;
     }
+    // Phase 1.6: Boot-Snapshot der Builder-Designs aus dem Loader-Set.
+    // Idempotent pro entity_type (existierende version=0 bleibt unangefasst).
+    crate::data::seed_entity_designs_from_example(db).await?;
     Ok(())
 }
 
