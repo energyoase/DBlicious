@@ -15,14 +15,15 @@ Prereqs (one-time): `rustup target add wasm32-unknown-unknown` and `cargo instal
 - Run server (port from `config.toml` / `--bind`, GraphiQL at `/`, GraphQL at `POST /graphql`): `cargo run -p server -- --data-dir ./examples/shop`
 - Run client (port 8080, proxies `/graphql` → `127.0.0.1:8000`): `cd client && trunk serve`
 - Both must be running for the app to load data. The client expects the server's GraphQL endpoint at the same origin via the Trunk proxy (`client/Trunk.toml`).
-- Build / lint / format: `cargo build`, `cargo clippy`, `cargo fmt`. There are currently no tests in the workspace.
+- Build / lint / format: `cargo build`, `cargo clippy`, `cargo fmt`.
+- Tests: `cargo test --workspace` (oder gezielt `cargo test -p shared`, `cargo test -p server`). Wenn ein lokaler Dev-Server laufen koennte (`server.exe`-Datei-Lock unter Windows), nutze `cargo test --target-dir target-test ...` — `target-test/` ist in `.gitignore`.
 - The release profile in the workspace `Cargo.toml` (`opt-level = "z"`, `lto`, `codegen-units = 1`, `strip`) is tuned for WASM size — don't loosen it without reason.
 
 ## Architecture
 
 ### Type contract (`shared/`)
 
-`shared/src/lib.rs` defines the on-the-wire types (`NavigationNode`, `ColumnMeta`, `FieldType`, `Entity`, `EntityPage`, `Sort`, `FilterCriteria`). Both server and client depend on these via plain `serde`. **`FieldType` is a tagged enum** (`#[serde(tag = "kind", rename_all = "camelCase")]`) — values like `{"kind":"money","currencyCodeField":"currency"}`. Don't change the tag/case without updating both sides.
+`shared/src/lib.rs` defines the on-the-wire types (`NavigationNode`, `ColumnMeta`, `FieldType`, `Entity`, `EntityPage`, `Sort`, `FilterCriteria`). Both server and client depend on these via plain `serde`. **`FieldType` is a tagged enum** (`#[serde(tag = "kind", rename_all = "camelCase")]`) — values like `{"kind":"money","currency_code_field":"currency"}`. Achtung: `rename_all` greift hier nur fuer die Variantennamen (= `kind`-Wert), die **inneren Felder** einer Struct-Variante bleiben snake_case (`currency_code_field`, `case_insensitive` bei `FilterPredicate`). Pinned via `shared/tests/field_type_wire_format.rs`. Don't change the tag/case without updating both sides.
 
 ### Server (`server/`)
 
@@ -37,7 +38,7 @@ Prereqs (one-time): `rustup target add wasm32-unknown-unknown` and `cargo instal
 
 **Beispiel-/Daten-Loader (`server/src/example/`).** Format-Dispatch (`format.rs`: `read_typed`, `find_file`, `SUPPORTED_EXTS`) ist absichtlich offen — heute werden `.json` und `.toml` unterstuetzt, neue Formate (YAML, Skripte) lassen sich durch je einen Match-Arm in `read_typed` plus einen Eintrag in `SUPPORTED_EXTS` erweitern. `loader.rs::load(dir)` liest das Verzeichnislayout (`config.{toml,json}`, `navigation.*`, `security/{users,groups}.*`, `translatables/{languages,entries,values}.*`, `entities/<type>/{columns,editor,settings,seed}.*`); fehlende Sub-Dateien sind kein Fehler, das fehlende Top-Verzeichnis schon. Das geladene Set wird per `example::install` in einen prozessweiten `RwLock`-Slot gelegt, den `data::*` synchron konsultiert. Tests laden `examples/shop/` ueber `setup_for_tests`.
 
-**Tests**: `server/src/db.rs::reset()` setzt den Pool-Slot zurueck, damit `#[serial_test::serial]`-annotierte Tests pro Lauf mit einem frischen `sqlite::memory:`-Stand starten koennen. `lib.rs::fresh_test_setup()` ist der Test-Entrypoint; jeder `#[tokio::test]` startet mit einem `boot().await`.
+**Tests**: `server/src/db.rs::reset()` setzt den Pool-Slot zurueck, damit `#[serial_test::serial]`-annotierte Tests pro Lauf mit einem frischen `sqlite::memory:`-Stand starten koennen. `lib.rs::fresh_test_setup()` ist der Test-Entrypoint; jeder `#[tokio::test]` startet mit einem `boot().await`. Loader-Tests in `server/tests/loader.rs` umgehen `setup_for_tests` und brauchen kein `#[serial]`, weil sie den prozessweiten `example::install`-Slot nicht anfassen. Shared-Tests in `shared/tests/` decken Wire-Format (`field_type_wire_format`), Header-Hash, Validierung, Security und das `DbSchema`-Roundtrip ab.
 
 ### Client (`client/`)
 
