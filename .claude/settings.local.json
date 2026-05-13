@@ -27,7 +27,8 @@
       "Bash(CARGO_TARGET_DIR=target-test cargo build -p server)",
       "Bash(CARGO_TARGET_DIR=target-test cargo build -p cli)",
       "Bash(./target-test/debug/server.exe *)",
-      "Bash(CARGO_TARGET_DIR=target-test cargo clippy --workspace --no-deps -- -A clippy::doc_overindented_list_items -A clippy::too_many_arguments)"
+      "Bash(CARGO_TARGET_DIR=target-test cargo clippy --workspace --no-deps -- -A clippy::doc_overindented_list_items -A clippy::too_many_arguments)",
+      "WebSearch"
     ]
   }
 }

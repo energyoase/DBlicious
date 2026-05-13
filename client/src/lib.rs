@@ -14,6 +14,7 @@
 
 pub mod app;
 pub mod auth;
+pub mod builder;
 pub mod commands;
 pub mod components;
 pub mod graphql;

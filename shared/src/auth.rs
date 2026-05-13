@@ -157,6 +157,46 @@ pub enum Effect {
 }
 
 // =============================================================================
+// EffectivePermission — projizierte Sicht fuer den Client (Phase 0.7.5)
+// =============================================================================
+
+/// Ergebnis der serverseitigen Resolver-Projektion.
+///
+/// Eine flache Auflistung erlaubter `(Resource, Op)`-Tupel. Der Server
+/// berechnet diese Liste pro Session (siehe geplanter Resolver in Phase
+/// 0.7.3) und schickt sie dem Client beim Login mit. Der Client trifft
+/// danach **keine eigenen** Vererbungs-/Deny-Entscheidungen mehr; die
+/// UI-Gating-Logik (Phase 0.7.5) prueft ausschliesslich, ob ein Eintrag in
+/// dieser Liste existiert.
+///
+/// Bewusst kein `effect`-Feld: in der projizierten Liste sind nur
+/// `Allow`-Eintraege; alles, was nicht drin steht, gilt als verweigert.
+///
+/// Solange Phase 0.7.4 (Server-Enforcement/Projektion) nicht ausgeliefert
+/// ist, bleibt das Feld in [`crate::AuthSession`] leer (`None`) und der
+/// Client faellt auf das Legacy-`Permission`-Modell zurueck.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub struct EffectivePermission {
+    pub resource: Resource,
+    pub op: Op,
+}
+
+impl EffectivePermission {
+    pub fn new(resource: Resource, op: Op) -> Self {
+        Self { resource, op }
+    }
+
+    /// Convenience: erlaubt ein ganzer Entity-Typ + Op.
+    pub fn entity_type(name: impl Into<String>, op: Op) -> Self {
+        Self {
+            resource: Resource::entity_type(name),
+            op,
+        }
+    }
+}
+
+// =============================================================================
 // Permission — die eigentliche Regel
 // =============================================================================
 

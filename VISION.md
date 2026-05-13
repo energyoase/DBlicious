@@ -80,7 +80,7 @@ Heute sind `ColumnMeta`, `FieldType`, Editor- und Settings-Layouts statische TOM
 
 **Bewusst kein ECS-Framework**: Bevy/`hecs`/`legion` waeren fuer einen Web-Admin-Builder ueberdimensioniert. Performance-Vorteile zahlen sich erst bei vier- bis fuenfstelligen Knotenzahlen aus; der Builder zeigt 5–50 sichtbare Elemente gleichzeitig. Siehe Architektur-Leitprinzip "Dev/Prod-Asymmetrie" in `ROADMAP.md`. Falls spaeter doch hunderte Tabellen mit hunderten Spalten in *einer* Designer-Session noetig sind, kann eine indexierte `HashMap<NodeId, UiNode>` ohne grossen Umbau nachgezogen werden.
 
-### 3. WASM-Plugin-Sandbox via Extism (Phase 3)
+### 3. WASM-Plugin-Sandbox via Extism (Phase 2)
 
 User-Logic (z.B. Validatoren, Hooks, Berechnungen pro Entity) laeuft als WASM-Plugin. Extism liefert:
 
@@ -128,10 +128,13 @@ Werkzeuge: Rust derive/attribute macros, optional `cargo-scaffold` fuer das Repo
 | Phase | Ziel | Schluesselarbeit |
 |---|---|---|
 | **Phase 0 — IST** | Grundgerueste | axum/async-graphql/Leptos-Workspace, SeaORM/SQLite-Persistenz, `--data-dir`-Loader, Designer (`saveDbSchema`), CLI |
-| **Phase 0.5 — Konsolidierung** | Lose Enden schliessen | Server-seitiges Sort/Filter, Spalten vom Server, Reference-/Collection-Formatter, `LocalSource` |
+| **Phase 0.5 — Konsolidierung** ✅ | Lose Enden schliessen | Server-seitiges Sort/Filter, Spalten vom Server, Reference-/Collection-Formatter, `LocalSource`, Table-Dekomposition, Property-Filter-Pipeline |
+| **Phase 0.7 — Auth- & Permission-Modell** | Server als Single Source of Truth fuer Permissions | `Subject`/`Resource`/`Op`/`Effect` als shared-Typen; parallel Groups+Roles; Row-Level deferred; `tenant_id NULL` als Schema-Vorbereitung |
 | **Phase 1 — Builder-Foundation** | Reaktiver Visual Editor | `UiTree`/`UiNode` als Plain-Rust + Leptos-Signals; Drag&Drop-Canvas in Leptos; Projektion `UiTree → shared::ColumnMeta` |
-| **Phase 2 — WASM-Plugin-Sandbox** | Sichere User-Logik | Extism Host-SDK; Manifest-Security; Host-Functions fuer DB-Lesezugriff |
-| **Phase 3 — AI-Schema-Engine + sichere Migrationen** | Automatisiertes Schema-Mapping | LLM mit strict Function Calling; `rusty_schema_diff`-Validierung; zweiphasige Migrationen |
+| **Phase 1.5 — Implementations-Resolution** | Server-priorisierte Auswahl austauschbarer Komponenten | Pro Property erlaubte Filter/Editor/Formatter/Action-IDs; Client-Registries; Resolution-Reihenfolge Pflicht→Defaults→Fallback |
+| **Phase 1.7 — ERP-Plattform-Bausteine** | Building Blocks fuer rechtskonforme ERP-Anwendungen | Number-Sequences (gapless), Period-Locks, GoBD-Append-Only, File-Storage, PDF, Email, State-Machine, Job-Scheduler, DSGVO-Tooling, Encryption, Aggregations, Volltextsuche, Webhooks |
+| **Phase 2 — WASM-Plugin-Sandbox** | Sichere User-Logik (Server + Client) | Extism Host-SDK; Manifest-Security; **Server- UND Client-WASM-Runtime**; Host-Functions fuer DB-Lesezugriff |
+| **Phase 3 — AI-Schema-Engine + sichere Migrationen** | Automatisiertes Schema-Mapping | LLM mit strict Function Calling; `rusty_schema_diff`-Validierung; zweiphasige Migrationen mit Dual-Write/Dual-Read |
 | **Phase 4 — Codegen & Optimierung** | Standalone-Prod-Binaries | AST-Codegen aus `UiTree`; optionale WASI-NN; Security-Audit |
 
 Jede Phase ist unabhaengig wertvoll. Detailliertes Arbeitspaket-Breakdown mit Bezuegen, Akzeptanzkriterien und Risiken in [`ROADMAP.md`](./ROADMAP.md).
@@ -150,10 +153,10 @@ Jede Phase ist unabhaengig wertvoll. Detailliertes Arbeitspaket-Breakdown mit Be
 
 ## Offene Fragen / zu klaeren
 
-- **Builder-State-Lokalitaet**: Halten wir den `UiTree` nur clientseitig (Signals + GraphQL-Save) oder spiegeln wir ihn auch serverseitig (z.B. fuer Multi-User-Live-Editing)? Heutige Antwort: clientseitig, serverseitig nur als JSON-Blob in `entity_designs`. Live-Editing waere ein eigener Schritt mit Subscriptions.
-- **AI-Provider**: Lokales LLM (via WASI-NN) vs. externe API (Anthropic/OpenAI)? Hat Implikationen fuer Latency, Kosten, Datenschutz.
-- **Migrations-Tooling**: native SeaORM-Migration-Crate ausreichend, oder eigener Layer fuer zweiphasige Rollouts?
-- **Plugin-Distribution**: Registry, Filesystem-Drop-in, oder DB-Tabelle?
+- **Builder-State-Lokalitaet** — geklaert: clientseitig, serverseitig nur als JSON-Blob in `entity_designs`. Optimistic-Locking via `expected_version`; CRDT-basierte Live-Kollaboration explizit out-of-scope (siehe [`ROADMAP.md` Out-of-Scope](./ROADMAP.md#bewusst-out-of-scope)).
+- **AI-Provider** — offen: Lokales LLM (via WASI-NN) vs. externe API (Anthropic/OpenAI)? Hat Implikationen fuer Latency, Kosten, Datenschutz. Entscheidung in Phase 3, vermutlich startend mit externer API + Provider-Abstraktion fuer spaeteren WASI-NN-Switch.
+- **Migrations-Tooling** — geklaert: eigener Layer ueber SeaORM-Migrationen (`server/src/migrations/`), siehe Phase 3.7-Spezifikation in `ROADMAP.md`.
+- **Plugin-Distribution** — teilweise geklaert: DB-Tabelle `plugins` als Storage, IndexedDB-Cache im Client (pull-basiert, siehe Architektur-Vertraege §5 in `ROADMAP.md`). Discovery/Marketplace bleibt offen fuer Phase 4.
 
 ---
 

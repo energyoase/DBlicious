@@ -237,9 +237,20 @@ fn max_access(a: PropertyAccessLevel, b: PropertyAccessLevel) -> PropertyAccessL
 pub struct AuthSession {
     pub token: String,
     pub user: SecurityUser,
-    /// Effektive Permissions zur Session-Zeit. Der Client kann ohne Re-Fetch
-    /// von `groups` UI gating durchfuehren.
+    /// Legacy-Permission-Modell (CRUD-Flags pro Entity-Typ). Der Client
+    /// nutzt das so lange als Fallback, bis [`AuthSession::effective`]
+    /// vom Server gesetzt wird (Phase 0.7.4).
     pub permissions: Vec<Permission>,
+    /// Projizierte Liste aus dem neuen [`crate::auth`]-Modell (Phase
+    /// 0.7.5). Wenn der Server diese Liste setzt, gilt sie als alleinige
+    /// Wahrheit fuer UI-Gating; alles, was nicht drin steht, wird
+    /// versteckt.
+    ///
+    /// `None` (Default) signalisiert dem Client, dass die Projektion noch
+    /// nicht implementiert ist — er faellt dann auf das Legacy-
+    /// `permissions`-Feld zurueck.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective: Option<Vec<crate::auth::EffectivePermission>>,
     /// ISO-8601-Zeitstempel; nach diesem Punkt MUSS der Client neu loggen.
     /// `None` heisst "keine harte Ablaufgrenze" (Mock-Default).
     #[serde(default)]

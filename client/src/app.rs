@@ -16,7 +16,7 @@ use crate::i18n::{
     set_available_locales_from_bundle, t, I18nContext, Locale,
 };
 use crate::routes::{
-    DashboardPage, DesignerPage, EditorPage, EntityListPage, LoginPage, NotFoundPage,
+    BuilderPage, DashboardPage, DesignerPage, EditorPage, EntityListPage, LoginPage, NotFoundPage,
 };
 use crate::styling::{
     provide_design_system, provide_style_overrides, use_design, use_style_overrides,
@@ -105,6 +105,7 @@ fn AppLayout() -> impl IntoView {
                         <Route path=path!("/entities/:entity_type") view=EntityListPage/>
                         <Route path=path!("/entities/:entity_type/:id") view=EditorPage/>
                         <Route path=path!("/designer") view=DesignerPage/>
+                        <Route path=path!("/builder/:entity_type") view=BuilderPage/>
                     </Routes>
                 </main>
             </div>

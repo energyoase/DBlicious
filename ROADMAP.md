@@ -91,36 +91,44 @@ Beschreibt den vorhandenen Stand zur Kalibrierung der Folge-Phasen. Siehe `CLAUD
 **Target-Modell**:
 
 ```
-Subject  := User | Group
+Subject  := User | Group | Role
 Resource := EntityType
-          | EntityProperty   (z.B. "product.price")
-          | EntityInstance   (z.B. ("product", "p-42"))
-          | Action           (z.B. "exportCsv")
-          | ImplementationId (z.B. filter:"number-range")
-          | Migration        (id)
+          | EntityProperty       (z.B. "product.price")
+          | EntityInstance       (Row-Level, in 0.7 noch nicht enforced — siehe Granularitaet)
+          | Action               (z.B. "exportCsv")
+          | ImplementationId     (z.B. filter:"number-range")
+          | Migration            (id)
 Op       := Create | Read | Update | Delete | Execute | Choose
-          | Approve | Cutover | Contract | Rollback           // Migration-Ops
+          | Approve | Cutover | Contract | Rollback                    // Migration-Ops
 Effect   := Allow | Deny
 ```
 
-- **Rollen** = benannte Group-Sets; Group-Membership ist die Persistenz-Einheit.
-- **Vererbung**: Permissions auf `EntityType` vererben auf alle `EntityProperty` desselben Typs, sofern nicht explizit ueberschrieben. Property-Permissions auf `EntityInstance` analog. Spezifischere Ebene gewinnt; bei gleicher Spezifitaet gewinnt **Deny vor Allow**.
+- **Group** ist Mitgliedschafts-Einheit (User ↔ Group, n:m). **Role** ist Permission-Buendel (Role → Permissions, n:m). Beide treten als `Subject` einer Permission auf. Ein User erbt Permissions ueber drei Wege: direkt zugewiesen, ueber eine seiner Groups, oder ueber eine Role, die ihm oder einer seiner Groups zugewiesen ist. Zwei bewusst orthogonale Konzepte: Organisations-Struktur (Group, z.B. "Marketing") und Rechte-Struktur (Role, z.B. "ContentEditor") decken sich in der Praxis selten — beide werden gebraucht.
+- **Granularitaet (`EntityType`/`EntityProperty`/`EntityInstance`)**: alle drei sind im Enum, aber Phase 0.7 enforced *zunaechst* nur `EntityType` und `EntityProperty`. Fuer `EntityInstance` (Row-Level) wirft der Resolver `not_implemented`; per Server-Config (`config.toml` ⇒ `permissions.enable_row_level = false`) kontrolliert. Spaeter aktivierbar, sobald die Performance-Frage (per-Row-Evaluierung vs. WHERE-Klausel-Rewriting vs. opt-in Plugin-Trigger `beforeRead`) entschieden ist. Maximale Konfigurierbarkeit ist Ziel, schrittweise Implementierung der Pfad dorthin.
+- **Vererbung**: Permissions auf `EntityType` vererben auf alle `EntityProperty` desselben Typs, sofern nicht explizit ueberschrieben. Property-Permissions auf `EntityInstance` analog (sobald enforced). Spezifischere Ebene gewinnt; bei gleicher Spezifitaet gewinnt **Deny vor Allow**.
 - **Choose-Permission**: aus Phase 1.5; gibt dem User das Recht, eine bestimmte `ImplementationId` (oder Wildcard `filter.*`) zu waehlen.
-- **Persistenz**: flache Tabelle `permissions(subject_id, subject_kind, resource_kind, resource_id, op, effect, priority)`. Indizierbar, auditierbar, ohne tiefe Hierarchien.
+- **Persistenz**: flache Tabelle `permissions(subject_id, subject_kind, resource_kind, resource_id, op, effect, priority, tenant_id NULL)`. Indizierbar, auditierbar, ohne tiefe Hierarchien. Daneben Mitgliedschafts-Tabellen: `roles(id, name, ...)`, `role_assignments(subject_kind, subject_id, role_id)` (Role an User oder Group), sowie das bereits existierende `user_groups`.
+- **Multi-Tenancy** (Schema-Vorbereitung, kein Enforcement in 0.7): Default ist single-tenant — `tenant_id` in allen `permissions`-Eintraegen `NULL`. Die Spalte ist von Anfang an Teil des Schemas, damit spaetere Multi-Tenant-Szenarien (gemeinsame User-Base ueber mehrere Apps, Sub-Mandanten innerhalb eines Servers) ohne Schema-Migration auskommen. Der Resolver beachtet `tenant_id` nur, wenn `config.toml` Multi-Tenancy aktiviert — Phase 0.7 implementiert den Single-Tenant-Pfad vollstaendig und reserviert den Multi-Tenant-Pfad als spaetere Erweiterung.
+- **Anonymous-User**: existiert als impliziter `Subject::Anonymous` (kein Login). Default-Role `"Anonymous"` mit minimalen Read-Permissions auf oeffentlich markierte Resources. Per `auth.allow_anonymous = false` im `config.toml` abschaltbar — dann verweigert der Server alle Anfragen ohne Session-Token mit `unauthenticated`.
+- **Wildcard-Grammatik** (Permission-Werte und Manifest-Capabilities): echtes Glob via `globset`-Crate (`product.*`, `*.price`, `filter.*`, `*` als Catch-All). Eine dokumentierte POSIX-Glob-Untermenge — kein `**`, kein Regex.
 - **Evaluation**: Server-Resolver berechnet `effective(user, resource, op) -> Effect` pro Anfrage; Ergebnis pro Session gecached. Client bekommt eine **projizierte Liste** seiner erlaubten Operationen, darf aber nichts erzwingen.
 
 ### Arbeitspakete
 
-| # | Paket | Groesse | Bezug | Akzeptanz |
-|---|---|---|---|---|
-| 0.7.1 | `Permission`, `Subject`, `Resource`, `Op`, `Effect` als `shared`-Typen | S | neu: `shared/src/auth.rs` | Wire-Format gepinnt durch `shared/tests/auth_wire_format.rs` |
-| 0.7.2 | `permissions`-Tabelle (SeaORM) + Loader-Format `security/permissions.{toml,json}` | M | `server/src/entity/permission.rs`, `server/src/example/loader.rs` | Loader-Roundtrip-Test gruen |
-| 0.7.3 | Server-Resolver `effective(user, resource, op)` mit Vererbung + Deny-Priority + Session-Cache | M | neu: `server/src/auth/resolver.rs` | Unit-Tests pro Praedikat, Integration ueber gemockte Sessions |
-| 0.7.4 | Enforcement in CRUD-Resolvern + GraphQL-Mutation-Schicht | M | `server/src/schema.rs` | Negative Tests: nicht autorisierter Aufruf → Error-Code `forbidden` |
-| 0.7.5 | Client-`AuthContext` aus projizierter Liste speisen | S | `client/src/auth/` | UI versteckt Aktionen, fuer die der Server keine Erlaubnis liefert |
-| 0.7.6 | Audit-Log: alle Permission-Aenderungen + alle verweigerten Zugriffe | S | neu: `server/src/audit.rs` | Tabelle `audit_log` enthaelt Eintraege bei jedem Deny |
-| 0.7.7 | Debug-Endpoint `whyAllowed(user, resource, op) -> Trace` | S | `server/src/schema.rs` | Liefert geordnete Liste aller passenden Regeln + Effekte |
-| 0.7.8 | Migrations-Skript: heutiges `security/{users,groups}` → neues `permissions`-Format | S | neu: `cli/src/cmd/migrate_security.rs` | Idempotent, dry-run-faehig |
+| # | Paket | Groesse | Bezug | Akzeptanz | Status |
+|---|---|---|---|---|---|
+| 0.7.1 | `Permission`, `Subject` (User\|Group\|Role), `Resource`, `Op`, `Effect` als `shared`-Typen | S | neu: `shared/src/auth.rs` | Wire-Format gepinnt durch `shared/tests/auth_wire_format.rs` | ✅ |
+| 0.7.2 | `permissions`-Tabelle (mit `tenant_id NULL`) + `roles` + `role_assignments` (SeaORM) + Loader-Format `security/{permissions,roles,role_assignments}.{toml,json}` | M | `server/src/entity/{permission,role,role_assignment}.rs`, `server/src/example/loader.rs` | Loader-Roundtrip-Test gruen; Role-Zuweisungen an User UND Group werden gelesen | offen |
+| 0.7.3 | Server-Resolver `effective(user, resource, op)` mit Group-Vererbung + Role-Vererbung + Deny-Priority + Session-Cache; Row-Level wirft `not_implemented` bei deaktivierter Config | M | neu: `server/src/auth/resolver.rs` | Unit-Tests pro Praedikat (inkl. User-via-Group-via-Role), Integration ueber gemockte Sessions | offen |
+| 0.7.4 | Enforcement in CRUD-Resolvern + GraphQL-Mutation-Schicht | M | `server/src/schema.rs` | Negative Tests: nicht autorisierter Aufruf → Error-Code `forbidden` | offen |
+| 0.7.5 | Client-`AuthContext` aus projizierter Liste speisen | S | `client/src/auth/`; `shared::auth::EffectivePermission` neu, `AuthSession.effective: Option<Vec<…>>` additiv (`skip_serializing_if`) | UI-Gating-APIs (`can`, `can_entity_type`, `can_property`, `can_execute`, `can_choose`, `can_migration`) und LocalStorage-Persist; bis 0.7.4 die Liste fuellt, faellt der Client auf das Legacy-`Permission`-Modell zurueck | ✅ (Client-Seite); UI-Hookup wartet auf 0.7.4 |
+| 0.7.6 | Audit-Log: alle Permission-Aenderungen + alle verweigerten Zugriffe | S | neu: `server/src/audit.rs` | Tabelle `audit_log` enthaelt Eintraege bei jedem Deny | offen |
+| 0.7.7 | Debug-Endpoint `whyAllowed(user, resource, op) -> Trace` | S | `server/src/schema.rs` | Liefert geordnete Liste aller passenden Regeln + Effekte | offen |
+| 0.7.8 | Migrations-Skript: heutiges `security/{users,groups}` → neues `permissions`-Format | S | neu: `cli/src/cmd/migrate_security.rs` | Idempotent, dry-run-faehig | offen |
+
+**Abweichungen / Lessons learned**:
+- 0.7.5 wurde **vor** 0.7.4 gezogen, weil die Client-API in der Form jetzt schon Tests verträgt und keinen Server-Zustand braucht. Mechanismus: solange `AuthSession.effective` `None` ist, faellt der Client auf das Legacy-`Permission`-Modell zurueck (CRUD-Flags pro Entity-Typ, Non-Entity-Resources permissiv). Sobald 0.7.4 die Liste fuellt, gilt strikte Membership ohne Client-Aenderung. Tests in `client/src/auth/mod.rs` decken beide Modi ab; die destruktive `clear()`-Pfad-Spur ist nur in wasm-bindgen-Tests vollstaendig pruefbar, weil `web_sys::window()` auf nativem Test-Target panikt.
+- `AuthSession.effective` ist additiv und mit `skip_serializing_if = "Option::is_none"` serialisiert — das bestehende Wire-Format und alle GraphQL-Queries bleiben unveraendert. Der Server setzt das Feld heute explizit auf `None` (Marker fuer 0.7.4).
 
 ### Dependencies
 
@@ -135,8 +143,9 @@ Effect   := Allow | Deny
 ### Risiken
 
 - **Performance des Resolvers**: pro CRUD-Aufruf darf nicht erneut die ganze Permission-Tabelle gescannt werden. Session-Cache mit Invalidierung bei Permission-Aenderung ist Pflicht.
-- **Komplexitaet von Deny-vor-Allow + Wildcards**: kann zu schwer debuggbaren Effekten fuehren. Der `whyAllowed`-Endpoint ist die Notbremse und wird vom Audit-UI sichtbar gemacht.
+- **Komplexitaet von Deny-vor-Allow + Wildcards + Groups+Roles**: kann zu schwer debuggbaren Effekten fuehren. Der `whyAllowed`-Endpoint ist die Notbremse und muss die Herkunfts-Kette ausweisen (direkt / via Group X / via Role Y / via Role Y an Group X).
 - **Migrations-Pfad** des bestehenden security-Formats: Bestandsdaten unter `examples/shop/security/` muessen automatisch konvertiert werden, sonst bricht der Loader nach 0.7.2.
+- **Row-Level deferred**: das Enum erlaubt `EntityInstance`-Permissions, die der Resolver heute ablehnt. Risiko: User/Designer modellieren Regeln, die ins Leere laufen. Mitigation: Loader warnt mit `WARN row-level permission ignored (enable_row_level=false)`.
 
 ---
 
@@ -146,17 +155,29 @@ Effect   := Allow | Deny
 
 **Schluesseltechnologie**: **Plain Rust + Leptos-Signals**. Der Builder-State ist eine `RwSignal<UiTree>` mit einer simplen, codegen-naheliegenden Datenstruktur (siehe Spezifikation unten). Kein ECS-Framework — begruendet im Architektur-Leitprinzip "Dev/Prod-Asymmetrie": die Designer-Session arbeitet mit kleinen Knoten-Mengen (5–50 sichtbar), und Performance-Wunder wie kolumnarer Memory zahlen sich erst bei vier- bis fuenfstelligen Knoten aus. Das Endprodukt entsteht via Codegen als fixierte Komponenten-Crate.
 
+**Status**: 1.1 + 1.2 + 1.3 + 1.4 + 1.5 + 1.7 erledigt (2026-05-13). Datenstrukturen, Signal-Wrapper, EventTrigger-Vertrag, Guard-Mini-DSL, `UiTree`→`Vec<ColumnMeta>`-Projektion, `BuilderCanvas` mit Drag&Drop + Toolbar + Route `/builder/:entity_type`, `BuilderPreviewSource`, Undo/Redo. **Offen**: 1.6 (Persistenz `saveEntityDesign`, M) — Server-Schema + GraphQL-Mutation + Live-Reload, deshalb separat.
+
 ### Arbeitspakete
 
-| # | Paket | Groesse | Bezug |
-|---|---|---|---|
-| 1.1 | `UiTree`/`UiNode`-Datenstruktur in `client/src/builder/` (Rust-Struct, `RwSignal<UiTree>`) | S | neu: `client/src/builder/mod.rs`, `client/src/builder/tree.rs` |
-| 1.2 | `UiNode`-Felder definieren: `transform`, `style`, `bound_field`, `event_trigger: Option<EventTrigger>`, `draggable: bool`, `children: Vec<UiNode>` | M | neu: `client/src/builder/node.rs` |
-| 1.3 | Bruecke `UiTree` ↔ `shared::ColumnMeta`/`FieldType`: Projektions-Funktion exportiert UI-State als `Vec<ColumnMeta>` | M | neu: `client/src/builder/project.rs` |
-| 1.4 | Drag&Drop-Canvas in Leptos: Mouse-Events mutieren `UiTree`-Signal, Leptos rendert reaktiv | L | neu: `client/src/builder/canvas.rs`, neue Route `/builder/:entity_type` |
-| 1.5 | Live-Preview: gleiche `EntityTable` wie heute, gespeist aus den per Projektion erzeugten `ColumnMeta` | M | `client/src/components/table/` (neue `DataSource`-Variante `BuilderPreviewSource`) |
-| 1.6 | Persistenz des Builder-State: Speichern via GraphQL-Mutation `saveEntityDesign` (analog `saveDbSchema`) | M | `server/src/schema.rs`, neue Tabelle `entity_designs` |
-| 1.7 | Undo/Redo via `Vec<UiTree>`-Snapshot-Stack | S | `client/src/builder/history.rs` |
+| # | Paket | Groesse | Bezug | Status |
+|---|---|---|---|---|
+| 1.1 | `UiTree`/`UiNode`-Datenstruktur in `client/src/builder/` (Rust-Struct, `RwSignal<UiTree>`) | S | neu: `client/src/builder/mod.rs`, `client/src/builder/tree.rs` | ✅ |
+| 1.2 | `UiNode`-Felder definieren: `transform`, `style`, `bound_field`, `event_trigger: Option<EventTrigger>`, `draggable: bool`, `children: Vec<UiNode>` | M | neu: `client/src/builder/node.rs`; `EventTrigger`/`GuardExpr` in `shared/src/builder/`; Guard-Parser+Evaluator in `shared/src/builder/guard.rs` | ✅ |
+| 1.3 | Bruecke `UiTree` ↔ `shared::ColumnMeta`/`FieldType`: Projektions-Funktion exportiert UI-State als `Vec<ColumnMeta>` | M | neu: `client/src/builder/project.rs`; `BoundField` um optionale `field_type`/`label_key`/`sortable`/`filterable` erweitert (alle `skip_serializing_if`, Wire-Vertrag aus Phase 1.2 unveraendert) | ✅ |
+| 1.4 | Drag&Drop-Canvas in Leptos: Mouse-Events mutieren `UiTree`-Signal, Leptos rendert reaktiv | L | neu: `client/src/builder/canvas.rs` (`BuilderCanvas` + `BuilderNodeView`, pointer-events am Container, Drag = 1 History-Snapshot), neue Route `/builder/:entity_type` in `app.rs` + `routes::BuilderPage` mit Live-Preview ueber `BuilderPreviewSource`; i18n-Strings `builder-*` in `de/en/fr` | ✅ |
+| 1.5 | Live-Preview: gleiche `EntityTable` wie heute, gespeist aus den per Projektion erzeugten `ColumnMeta` | M | neu: `client/src/components/table/builder_preview.rs` (`BuilderPreviewSource` wrappt `LocalSource`, `synthesize_preview_rows` erzeugt deterministische Platzhalterwerte pro `FieldType`) | ✅ |
+| 1.6 | Persistenz des Builder-State: GraphQL-Mutation `saveEntityDesign` + Subscription `entityDesignUpdated` + CLI-Befehl `dblicious design reset <entity_type>` (idempotent, dry-run-faehig) | M | `server/src/schema.rs`, neue Tabelle `entity_designs`, `cli/src/cmd/design.rs` | offen |
+| 1.7 | Undo/Redo via `Vec<UiTree>`-Snapshot-Stack | S | neu: `client/src/builder/history.rs` (`BuilderHistory` mit `past`/`future`-Stacks, Capacity-Cap `100`, FIFO-Drop am Boden; Convenience `mutate_with_history` / `undo` / `redo`) | ✅ |
+
+**Abweichungen / Lessons learned**:
+- Paket 1.2 wurde leicht erweitert, weil der Architektur-Vertrag (Abschnitt "Builder ↔ Plugin") `EventTrigger`/`EventKind`/`TriggerTarget`/`GuardExpr` ohnehin in `shared/src/builder.rs` verlangt und den Guard-Parser unter `shared/src/builder/guard.rs` als Teil dieses Pakets nennt. Beide Wege wurden gleichzeitig erledigt — das Wire-Format der Event-Vertraege ist nun in `shared/tests/builder_wire_format.rs` gepinnt; der Guard hat Parser **und** einen kleinen Evaluator (JS-aehnliche Truthiness, Typ-Mismatch ⇒ `false` bei `Eq`).
+- `UiTree`/`UiNode` leben (wie in der Roadmap angegeben) im Client. Sollte Phase 1.6 ergeben, dass `saveEntityDesign` denselben JSON-Tree als Wire-Format akzeptieren muss, koennen sie ohne API-Bruch nach `shared` gehoben werden — die Serialisierung folgt bereits den `camelCase`/`skip_serializing_if`-Konventionen aus dem Roadmap-Beispiel (`"id": 42`, `"tokenRef": "table_cell"`, optionale Felder weggelassen).
+- Paket 1.3 brauchte einen Platz fuer die projektions-relevanten Metadaten. Loesung: `BoundField` haelt nur den Binding-Key strikt, optionale Override-Felder (`field_type`/`label_key`/`sortable`/`filterable`) sind durchgehend `skip_serializing_if = "Option::is_none"`, damit der minimale Designer-Stand aus Phase 1.2 (`{"key": "..."}`) unveraendert auf der Leitung bleibt. Defaults der Projektion: `label_key = "column.<key>"`, `sortable/filterable = FieldType::is_scalar()`.
+- Paket 1.5 wurde in zwei Schichten zerlegt: `synthesize_preview_rows` (reine Datenfunktion ohne Leptos-Bezug, gut testbar) und `BuilderPreviewSource` (DataSource-Wrapper um `LocalSource`). Die Quelle delegiert Sort/Filter/Pagination an die bestehende `LocalSource`-Auswertung; der Builder-Host konstruiert die Quelle via `Memo` aus dem `UiTreeSignal` neu, sobald sich der Tree aendert.
+- Paket 1.7 nutzt Leptos-Signals fuer beide Stacks und ist deshalb `Copy`-faehig (Context-tauglich). Tests koennen Signals ausserhalb einer `App` instantiieren, indem sie `Owner::new().with(|| …)` umrahmen — analoge Technik wird auch fuer zukuenftige Builder-Tests funktionieren.
+- Paket 1.4 setzt das Drag-Snapshot-Pattern bewusst auf "ein Snapshot pro `pointerdown`", nicht pro `pointermove`. Pointermove mutiert das `UiTreeSignal` ohne weiteren History-Eintrag — sonst kaeme pro Pixel-Schritt ein Snapshot in den Stack. Add/Delete-Aktionen sind je ein eigener Snapshot ueber `mutate_with_history`.
+- Die Live-Preview im `BuilderPage` darf **kein** `Memo<Rc<dyn DataSource>>` benutzen — `Rc` ist `!Send`, `Memo` braucht aber `Send + Sync`. Loesung: die `BuilderPreviewSource` wird direkt in der Render-Closure von `EntityTableShell` neu konstruiert; Reaktivitaet kommt vom `tree_sig.tree.with(...)` darin.
+- 0.7.5 wartet auf 0.7.4: der Client-Code ist fertig, aber die UI-Komponenten gaten **noch immer** ueber die Legacy-API (`is_allowed`/`PermissionOp`). Migration auf die neue `can_*`-API ist eine reine Search-and-Replace-Operation, sobald der Server die Projektion liefert.
 
 ### Dependencies / Vorbedingungen
 
@@ -246,6 +267,13 @@ Server-Start:
 
 **Konfliktbehandlung bei paralleler Bearbeitung**: Optimistic Locking via `expected_version` in der Save-Mutation. Konflikt ⇒ Fehlercode `concurrent_design_modification` mit serverseitiger Diff-Sicht.
 
+**Verhaeltnis zu `db_schemas`** (bestehend aus dem Pre-Phase-0-Designer): die zwei Tabellen sind **orthogonal, koennen koexistieren und sollen sich nicht widersprechen**.
+
+- `db_schemas` (bestehend) speichert *typisierte Tabellen-DDL* — Resultat von `saveDbSchema` ⇒ `ddl::try_apply_schema`. Optional: wer kein Schema setzt, lebt mit der generischen `entities`-Tabelle.
+- `entity_designs` (Phase 1.6) speichert das *UI/Editor/Settings/Columns-Metadatum* — den Builder-Output. Pflicht, sobald der Designer benutzt wird.
+- Wenn beide fuer denselben `entity_type` existieren, ist die Spalten-Wahrheit `entity_designs.projection.columns`. Beim `saveEntityDesign` validiert der Server, dass `projection.columns` mit dem `db_schemas`-Schema vereinbar ist (kompatible Field-Types, keine im Schema fehlenden Pflichtspalten). Konflikt ⇒ Fehler `design_schema_mismatch`. Empfehlung: `saveEntityDesign` mit optionalem `apply_schema_migration: bool`-Flag, das eine `db_schemas`-Aktualisierung mit anstoesst; ohne das Flag bleibt `db_schemas` unveraendert.
+- Phase 3 (Migrationen) operiert primaer auf `db_schemas`-Veraenderungen; `entity_designs.projection.columns` wird im selben Migration-Schritt mitmigriert (siehe Spezifikation Phase 3 — `MigrationStep::AddColumn`/`DropColumn` projizieren auf beide).
+
 ---
 
 ## Phase 1.5 — Implementations-Resolution (server-priorisiert)
@@ -290,6 +318,96 @@ Liefert der Server fuer ein Property mehrere erlaubte Varianten zurueck, darf de
 
 - **ID-Drift**: String-IDs sind fehleranfaellig. Empfehlung: pro Registry eine `register!`-Macro oder enum-basierte Variante mit `as_str()`; Test, dass jede registrierte ID auch im Server-Schema bekannt ist.
 - **Per-User-Persistenz** schneidet sich mit dem Auth-/Session-Modell — 1.5.3 muss klaeren, wo die Wahl liegt (User-Profile vs. Session-Local) und wie sie zwischen Geraeten synchronisiert.
+
+---
+
+## Phase 1.7 — ERP-Plattform-Bausteine
+
+**Ziel**: Plattform-Features, die echte ERP-Anwendungen brauchen und nicht sauber als User-Entity oder Plugin abbildbar sind. Liefert die Building Blocks fuer Rechnungsstellung (DE/EU rechtskonform), Belegverwaltung, Workflows, Background-Verarbeitung, Reporting, Compliance.
+
+**Begruendung**: ohne diese Schicht zwingt ein ERP-Bauer entweder Pattern in Plugins, die transaktionssicher nicht abbildbar sind (Gapless-Number-Sequence), oder muss Framework-Internals umgehen (File-Storage). Phase 1.7 liegt **vor Phase 2**, weil Plugins die meisten dieser Bausteine als Host-Functions konsumieren.
+
+**Schluesseltechnologie**: vorhandener Stack, ergaenzt um wenige fokussierte Crates: `typst-cli`/`lopdf` (PDF), `lettre` (SMTP), `apalis` oder `tokio-cron-scheduler` (Job-Scheduler), SeaORM FTS5-Erweiterung (Volltextsuche), optional `aws-sdk-s3` (Storage-Backend).
+
+### Arbeitspakete
+
+#### A — Buchhaltung & Finanzen
+
+| # | Paket | Groesse | Bezug | Akzeptanz |
+|---|---|---|---|---|
+| 1.7.1 | Number-Sequence-Service: gapless, concurrent-safe, FY-Reset; Tabelle `number_sequences(scope, year, current, format_template)` | M | neu: `server/src/sequences/`; GraphQL-Mutation `nextNumber(scope) -> String` | Property-Test: 1000 parallele Aufrufe liefern 1..1000 lueckenlos; FY-Reset zum 01.01. konfigurierbar |
+| 1.7.2 | FX-Rate-Store + Conversion-Helper; Tabelle `fx_rates(date, from, to, rate, source)` mit historischen Saetzen; konfigurierbarer Provider (ECB Daily-Feed o.ae.) | M | neu: `server/src/fx/`; `host.fx.convert(amount, from, to, date?)`-Host-Function | Historische Buchung mit damaligem Kurs reproduzierbar; Banker-Rounding korrekt |
+| 1.7.3 | Period-Locks: pro Entity-Typ konfigurierbare Sperre nach Datum; CRUD wirft `period_locked` bei Schreibzugriff auf gesperrte Datensaetze; Lock per CLI/UI durch berechtigten User | M | `server/src/schema.rs`, neue Tabelle `period_locks` | Monats-/Quartals-/Jahresabschluss moeglich; Backdating geblockt |
+| 1.7.4 | GoBD-Unveraenderbarkeit als Entity-Setting: `EntitySettings.append_only = true` ⇒ Update/Delete liefern `gobd_protected`-Fehler; nur "Storno"-Operation (neue Gegenbuchung, alter Datensatz bleibt) zulaessig | M | `shared/src/settings.rs`, `server/src/schema.rs` | Gebuchte Rechnung kann nicht editiert werden, nur storniert |
+
+#### B — Workflow & Prozesse
+
+| # | Paket | Groesse | Bezug | Akzeptanz |
+|---|---|---|---|---|
+| 1.7.5 | State-Machine-Engine: pro Entity-Typ optionale `state_machine`-Konfiguration mit Transitionen, Guards (Mini-DSL wie `GuardExpr`), Permission pro Uebergang | L | neu: `shared/src/state_machine.rs`, `server/src/sm/` | Invoice geht nur per `post`-Transition von `draft` → `posted`; Permission `Invoice.post` erforderlich; Audit-Eintrag pro Transition |
+| 1.7.6 | Approval-Workflow auf State-Machine: Multi-Stage-Approvals, Delegation, Stellvertreter-Regelung | M | wie 1.7.5 + `server/src/approval/` | Bestellung > X € braucht Vorgesetzten-Bestaetigung; Delegations-Pfad transparent im Audit |
+| 1.7.7 | Background-Job-Scheduler: cron-style + adhoc; Retries; Audit pro Job; Job-Code ist Plugin oder Builtin | L | neu: `server/src/jobs/`, neue Tabellen `jobs`/`job_runs` | Mahnlauf laeuft nightly; Retry bei Fehler; Audit zeigt Erfolg/Fail/Duration |
+
+#### C — Dokumente & Kommunikation
+
+| # | Paket | Groesse | Bezug | Akzeptanz |
+|---|---|---|---|---|
+| 1.7.8 | File-Storage-Abstraction mit pluggable Backends (Local-FS, S3, MinIO); Anhang-Tabelle `attachments(entity_type, entity_id, blob_ref, mime, size, hash)` | M | neu: `server/src/storage/`; `host.storage.put/get/delete`-Host-Functions | Rechnung mit Beleg-PDF speicherbar; Backend per Config waehlbar; Hash-Check beim Lesen |
+| 1.7.9 | PDF-Generierung via Template (typst preferred, fallback wkhtmltopdf); Templates im neuen `pdf_templates`-Eintrag oder per Designer pflegbar | M | neu: `server/src/pdf/` | Rechnungs-PDF generiert sich auf Knopfdruck; Template per Designer bearbeitbar |
+| 1.7.10 | Email-Versand mit SMTP-Config + Template-Rendering; Bounce-Handling; Versand-Audit; Doku-Pflichthinweis fuer DKIM/SPF | M | neu: `server/src/email/`; `host.email.send`-Host-Function | Rechnung wird mit PDF-Anhang an Kunde verschickt; Versand-Audit nachvollziehbar |
+| 1.7.11 | Digitale Signatur (eIDAS-fortgeschritten) via X.509-Keypair pro Tenant/User; Pflicht ab XRechnung-Versand | M | neu: `server/src/signing/`, integriert in 1.7.9 + 1.7.10 | Signierte XRechnung-XML wird von externem Validator akzeptiert |
+
+#### D — Reporting & Search
+
+| # | Paket | Groesse | Bezug | Akzeptanz |
+|---|---|---|---|---|
+| 1.7.12 | Aggregation-Queries: GraphQL-Resolver `entityAggregation(entity_type, group_by, measures: [{kind, field}])` mit Sum/Avg/Count/Min/Max/Pivot | M | `server/src/schema.rs` | Umsatz pro Monat per einem GraphQL-Call moeglich; Group-By auf Joins (Kunde) funktioniert |
+| 1.7.13 | Volltextsuche: SQLite FTS5 ueber `entities`-Tabelle und ausgewaehlte typisierte Tabellen; konfigurierbar pro Entity-Typ | M | `server/src/search/` | Globale Suchbox findet "Rechnung 2024-0042" oder "Mueller GmbH" ueber alle Entities |
+| 1.7.14 | Excel/CSV-Bulk-Export pro Entity-Liste mit aktiven Filtern/Sortierung; Permission-gegated | S | `server/src/export/` | Steuerberater bekommt Jahres-Rechnungs-Liste als CSV; Excel mit korrekten Datentypen |
+| 1.7.15 | Bulk-Import mit Validierung, Dry-Run, transaktionalem Rollback; CSV/Excel; pro-Spalten-Mapping-UI | M | neu: `server/src/import/`; CLI + UI | 5000 Kunden aus CSV importierbar mit Validierungs-Report; Fehler rollbacken |
+
+#### E — Compliance & Recht
+
+| # | Paket | Groesse | Bezug | Akzeptanz |
+|---|---|---|---|---|
+| 1.7.16 | DSGVO-Tooling: Subject-Daten-Export (`exportUserData(subject_id) -> ZIP`); Anonymisierung mit GoBD-Konflikt-Resolution (Pseudonymisierung gebuchter Datensaetze statt Loeschung) | M | neu: `server/src/gdpr/` | Auskunfts-Anfrage in <24h erfuellbar; Loeschung respektiert GoBD-Aufbewahrungsfristen mit Pseudonymisierung |
+| 1.7.17 | Encryption-at-Rest: SQLCipher als Build-Option + Field-Level-Encryption fuer markierte Felder (`ColumnMeta.encrypted = true`) | M | `server/Cargo.toml`, `shared/src/lib.rs` | Datei-DB ohne Key nicht lesbar; sensitive Felder (Bankverbindung, Personaldaten) mit Per-Field-Key |
+| 1.7.18 | Long-Term-Archive: PDF/A-Konvertierung beim Buchen; immutable WORM-Storage (Filesystem-Read-Only-Mount oder S3-Object-Lock) | M | wie 1.7.8 + 1.7.9, eigener Archiv-Pfad | 10-Jahres-Pflicht-Aufbewahrung machbar; Audit zeigt Archivierungs-Zeitpunkt; Original-Hash bleibt verifizierbar |
+
+#### F — Integration
+
+| # | Paket | Groesse | Bezug | Akzeptanz |
+|---|---|---|---|---|
+| 1.7.19 | Webhooks: externe Subscriber auf CRUD-Events; Tabelle `webhooks(url, event_pattern, secret, retry_policy)`; HMAC-Signatur pro Delivery; Delivery-Audit | M | neu: `server/src/webhooks/` | Externes System wird ueber neue Rechnung via POST informiert; Retry bei 5xx; Signatur per Secret verifizierbar |
+| 1.7.20 | Hierarchien-Helper: rekursive CTE-Queries fuer Tree-FieldType; Cycle-Detection; Path-Materialisierung; neuer FieldType `Tree { parent_field: String }` | M | `server/src/data.rs`, `shared/src/lib.rs` | Kontenplan mit beliebiger Tiefe abbildbar; Drill-Down (alle Kinder von Konto 4400) funktioniert |
+| 1.7.21 | OpenAPI/REST-Adapter neben GraphQL fuer Konsumenten ohne GraphQL-Support | M | neu: `server/src/rest/` | `/api/v1/products` liefert paginierte JSON-Liste; OpenAPI-Schema-Doc generiert |
+
+### Dependencies
+
+- Phase 0.7 (Auth) ist Vorbedingung fuer 1.7.4 (Append-Only-Permissions), 1.7.5 (Permissions auf State-Transitions), 1.7.6 (Approvals), 1.7.14 (Export-Permissions).
+- Phase 1.5 (Implementations-Resolution) ist hilfreich fuer 1.7.8 (Storage-Backend-Wahl), 1.7.10 (Email-Provider-Wahl), 1.7.13 (Search-Backend-Wahl).
+- **Plugins (Phase 2) konsumieren viele 1.7-Features als Host-Functions** — daher 1.7 vor 2.
+
+### Deliverable
+
+- Eine Demo-ERP-Anwendung (Rechnungsstellung, Kunden, Produkte, Mahnungen) ist mit vertretbarem Aufwand auf der Plattform baubar.
+- DE-rechtskonform: gapless Nummerierung, GoBD-Append-Only, DSGVO-Auskunft.
+- E-Rechnung (XRechnung/ZUGFeRD) ist mit zusaetzlichem User-Plugin moeglich.
+
+### Risiken
+
+- **Scope-Explosion**: 21 Arbeitspakete sind viel. Mitigation: Sub-Phasen A–F koennen unabhaengig laufen; **A (Finanzen) + C (Dokumente) + E.1 (DSGVO) als MVP**, Rest schrittweise.
+- **PDF/A + eIDAS-Komplexitaet** (1.7.11, 1.7.18): koennen sich aufblasen. Mitigation: erste Version nur PDF (kein /A), Signing als optionales Modul.
+- **Job-Scheduler vs. Plugin-async-Triggers**: ueberlappende Mechaniken. Klar abgrenzen: Scheduler ist **zeit-getriggerte** Jobs (cron), Plugin-Triggers sind **event-getriggerte** (afterSave). Doku in Architektur-Vertraegen ergaenzen, wenn 1.7.7 gebaut wird.
+- **GoBD vs. DSGVO-Konflikt**: das "Recht auf Loeschung" kollidiert mit der Pflicht zur Aufbewahrung gebuchter Belege. 1.7.16 muss Pseudonymisierung statt Loeschung implementieren und juristische Beratung in der Doku verweisen.
+
+### Empfohlene Reihenfolge innerhalb Phase 1.7
+
+**MVP-Pfad — rechtskonforme Rechnungsstellung**: 1.7.1 → 1.7.4 → 1.7.8 → 1.7.9 → 1.7.10 → 1.7.3 → 1.7.16.
+
+**Erweiterung — Workflow & Auswertung**: 1.7.5 → 1.7.12 → 1.7.13 → 1.7.14 → 1.7.15.
+
+**Spaeter — produktive Reife**: 1.7.6, 1.7.7, 1.7.2, 1.7.11, 1.7.17, 1.7.18, 1.7.19, 1.7.20, 1.7.21.
 
 ---
 
@@ -441,8 +559,8 @@ Proposed → Approved → Expanding → Expanded → CuttingOver → Cutover →
 | beliebig → RollingBack    | Manuell oder Step-Fehler   | Snapshot-Restore (vor Contract: voll; nach Contract: best effort aus `backup_to`)     | terminal                         |
 
 - **Dual-Write/Dual-Read**: in `Expanded`/`CuttingOver` schreibt der Server in alte *und* neue Spalte (Dual-Write) und liest aus der neuen mit Fallback auf die alte (Dual-Read). Implementiert im CRUD-Resolver, gesteuert durch die `migrations`-Tabelle.
-- **24h-Fenster** nach Cutover: Snapshot wird aufgehoben, Rollback ueber `restoreSnapshot(migration_id)` moeglich. Danach ist nur noch eine neue inverse Migration der Weg.
-- **Verifikations-Run**: System-Job vergleicht stichprobenartig fuer N Rows, ob `transform(old) == new`. Default N=100, konfigurierbar.
+- **Rollback-Fenster nach Cutover**: konfigurierbar via `MigrationProposal.cutover_window` (Pro-Migration-Override) oder global `config.toml ⇒ migrations.cutover_rollback_window = "24h"`. Default 24h. Innerhalb des Fensters Rollback via `restoreSnapshot(migration_id)`; danach ist nur eine neue inverse Migration der Weg.
+- **Verifikations-Run**: System-Job vergleicht stichprobenartig fuer N Rows, ob `transform(old) == new`. N konfigurierbar via `MigrationProposal.verification_sample` oder global `migrations.verification_sample = 100`. Default 100.
 
 **Persistenz**:
 
@@ -498,6 +616,147 @@ CREATE TABLE migrations (
 
 ---
 
+## Vision ueber Phase 4 hinaus
+
+Phase 4 schliesst die Meta-Framework-Vision (Codegen + Audit). Was darueber hinaus kaeme, um mit Enterprise-Plattformen wie SAP, Oracle, Microsoft Dynamics zu konkurrieren, ist hier als **Trajektorie** festgehalten — keine verbindliche Planung, sondern Richtungs-Skizze. Aufnahme einer dieser Phasen in den verbindlichen Plan erfordert eigene Entscheidung mit ADR.
+
+**Realismus**: SAP-Paritaet ist eine 10-Jahre-Mehrteam-Investition mit 60+ Jahren Branchenwissen. dblicious zielt **nicht** auf 1:1-Funktionsumfang, sondern auf Plattform-Eigenschaften, die einen modernen Open-Source-Konkurrenten in **spezifischen Maerkten** ermoeglichen: KMU/Mid-Market, Greenfield-Toechter, Industry-Vertical-Nischen, Open-Source-affine Kaeufer (GovTech, Health, Forschung).
+
+Strategisch differenziert sich dblicious durch: moderner Rust-Stack, WASM-Plugin-Komposition, AI-assistierte Schema-Evolution, Codegen-zu-Standalone, Open-Source-First. Diese Eigenschaften sind in SAP nicht nachrüstbar.
+
+Phase 5 und 6 sind **Pflicht** fuer jeden Enterprise-Vertrieb und daher mit Arbeitspaket-Skizzen versehen. Phase 7–11 sind strategische Optionen, fuer die zum Zeitpunkt der Festlegung eigene Detail-Planung noetig ist.
+
+---
+
+### Phase 5 — Enterprise Identity & Compliance (Pflicht-Schicht)
+
+**Ziel**: ohne diese Schicht kommt dblicious bei keinem Enterprise-IT-Security-Review durch.
+
+**Arbeitspakete-Skizze**:
+- 5.1 SAML 2.0 / OIDC / OAuth 2.0 Federation (Login via Okta, Azure AD, Keycloak, Authelia)
+- 5.2 SCIM-Provisioning: User/Group automatisch aus IdP synchronisiert
+- 5.3 LDAP/AD-Bridge fuer legacy Enterprise
+- 5.4 MFA: TOTP, FIDO2/WebAuthn (SMS optional)
+- 5.5 Risk-based Authentication: anomale Logins detektieren, Step-up-Auth
+- 5.6 Segregation of Duties (SoD): konfigurierbare Constraints ("gleiche Person darf nicht X UND Y")
+- 5.7 SoX/COSO/ISO-27001 Compliance-Framework: Controls-Katalog mit nachweisbarem Reporting
+- 5.8 Data Loss Prevention (DLP) Hooks auf Exports + Outbound-Integrationen
+- 5.9 Privileged Access Management: Admin-Zugriff mit Begruendung + erweitertem Audit
+- 5.10 Tamper-Evident Audit-Hashing-Chain auf `audit_log` (Blockchain-aehnlich, Pflicht fuer SoX)
+
+**Dependencies**: Phase 0.7 (Auth-Modell) ist Vorbedingung.
+
+**Markt-Begruendung**: ohne 5.1–5.4 ist kein Enterprise-Pilot moeglich. 5.5–5.10 ist die Schicht, die bei der Compliance-Pruefung kommt.
+
+---
+
+### Phase 6 — Skalierung & High Availability (Pflicht ab Mid-Market+)
+
+**Ziel**: aus SQLite-Single-Server wird eine produktionsreife Multi-Instance-Plattform.
+
+**Arbeitspakete-Skizze**:
+- 6.1 PostgreSQL/MySQL als Production-Backend-Option neben SQLite (Backend-Abstraktion via SeaORM-Backend-Plug; SQLite bleibt fuer Dev/KMU)
+- 6.2 Read-Replicas + Failover-Logik
+- 6.3 Geo-Replikation, Active-Active-Option
+- 6.4 Sharding-/Partitionierungs-Strategie fuer grosse Mandanten oder einzelne riesige Tabellen
+- 6.5 Distributed Cache (Redis-style) fuer Hot-Reads (Session, Permission, Resolver)
+- 6.6 Resource-Governance per Tenant: Query-Quota, RPS-Limit, Storage-Cap
+- 6.7 Point-in-Time Recovery + Backup-Verification (Restore-Tests als Pflicht-CI)
+- 6.8 Performance-SLA-Monitoring mit query-level Insights (p50/p95/p99-Reports)
+- 6.9 In-Memory Column Store (DuckDB embedded) als Option fuer Analytics-Workload — SAP-HANA-Pendant
+- 6.10 Capacity-Planning-Tools (Forecast aktuelle Wachstumsrate ⇒ wann erreicht der Mandant die Limits)
+
+**Dependencies**: Phase 1.7 (Plattform-Bausteine) sollte stabil sein; viele 1.7-Tabellen brauchen Sharding-Strategie-Anpassung.
+
+**Markt-Begruendung**: KMU laufen mit SQLite single-Server bis ~50 User. Ab Mid-Market wird PostgreSQL erwartet. Geo-Replikation ist ab Konzern-Pilot Pflicht.
+
+---
+
+### Phase 7 — Process Orchestration & Event-Driven Architecture (strategische Skizze)
+
+**Differenzierungsfeld**: dort, wo SAP-Workflows und SAP-Process-Mining ansetzen.
+
+- BPMN-Engine fuer lang-laufende Prozesse (Pausen, Eskalation, Wiederaufnahme)
+- Saga-Pattern fuer verteilte Transaktionen ueber Modulgrenzen
+- Event-Streaming-Backbone (Kafka/NATS/Redpanda-Integration; fuer KMU embedded `tokio-broadcast`)
+- Outbox-Pattern fuer transactional events ohne Doppel-Delivery
+- Schema-Registry fuer Events
+- Process-Mining: aus Audit-Log echte Prozessfluesse rekonstruieren, Bottlenecks zeigen
+- Compensation-Handler fuer Rollback in verteilten Workflows
+
+---
+
+### Phase 8 — Advanced Analytics & Embedded AI (strategische Skizze)
+
+**Differenzierungsfeld**: SAP-HANA-Analytics + SAP-Joule-Copilot-Pendant.
+
+- Real-time OLAP: multidimensionale Cubes mit Drill-Down bis auf den Beleg
+- Materialized Views mit Auto-Refresh
+- In-Database Time-Series + Window-Functions
+- Embedded ML-Inference via WASI-NN (greift Phase 4.5 auf)
+- Document AI: OCR + strukturierte Extraktion (Rechnungs-Scan → MigrationProposal-aehnlich)
+- Conversational AI / Copilot: natural-language Queries gegen Operational Data
+- Anomaly Detection im Audit-Log (Fraud, ungewoehnliche Buchungen)
+- Self-Service BI fuer Business-User
+
+---
+
+### Phase 9 — Globalisierung & Master Data Management (strategische Skizze)
+
+**SAPs groesster Burggraben** — 60+ Country-Localizations.
+
+- Multi-Country Tax-Engines (pro Land Regeln, mehrere Rates, Withholding-Tax)
+- Per-Country E-Invoicing-Mandate (XRechnung DE, FatturaPA IT, SAT MX, Peppol EU, …)
+- Multi-Calendar (Hijri, Buddhist, Hebrew, Fiscal-Year-Varianten)
+- RTL-Sprachen (Arabisch, Hebraeisch, Persisch)
+- Currency-Formats per Country
+- MDM: Golden-Records, Match-Merge, Survivorship-Rules (gleicher Kunde aus 3 Systemen ⇒ 1 Wahrheit)
+- Cross-Reference-Tabellen fuer ID-Mapping zwischen Systemen
+- Data-Quality-Scoring + Cleansing-Workflows
+
+---
+
+### Phase 10 — Integration Hub, ECM, Mobile (strategische Skizze)
+
+**Bruecke zur restlichen Systemlandschaft + mobile Workforce.**
+
+- iPaaS-Style-Adapter (Salesforce, Stripe, HubSpot, Slack, MS-Teams, …) als Plugin-Bundle
+- EDI-Layer: ANSI X12, EDIFACT, UBL, SAP-IDoc-Bridge
+- SOAP-Adapter (legacy Enterprise spricht oft nur SOAP)
+- Enterprise Content Management mit Retention-Policies
+- DAM (Digital Asset Management)
+- Mobile-First-Apps pro Rolle (Sales-Aussendienst, Lager-Picker, Manager-Dashboards)
+- Offline-First-Sync mit Konfliktaufloesung
+- B2B-Customer-Self-Service-Portals (Kunde sieht eigene Rechnungen, Bestellungen, Tickets)
+- WCAG 2.1 AAA Accessibility
+
+---
+
+### Phase 11 — Lifecycle Management & Ecosystem (strategische Skizze)
+
+**SAP-Transport-System-Pendant + Marketplace-Aufbau.**
+
+- Multi-Environment-Lifecycle (Dev/Test/QA/Prod) mit Transport-System-aehnlicher Promotion-Pipeline
+- Customer-Specific Extensions ohne Plattform-Forking
+- Upgrade-Tooling: Plattform-Version X.Y → X.Z auf Customer-Deployment anwenden, mit Regressionstest-Pipeline
+- Configuration-Management: Settings als versionierte Artefakte
+- Blue/Green Deployments + Canary Releases
+- Plugin-Marketplace mit echtem Bezahl- und Zertifizierungs-Layer (erweitert Phase 4.2)
+- Partner-Zertifizierung + Industry-Vertical-Bundles
+- Customer-Health-Scores + Usage-Analytics
+
+---
+
+### Bleibt auch in dieser Vision aussen vor
+
+Auch ueber Phase 4 hinaus:
+
+- **60+ Jahre Branchenwissen** in vorgefertigten Modulen (FI/CO/MM/SD/PP/QM/PS/HR/WM/…). Das bauen Domain-Experten und Partner auf der Plattform — dblicious liefert die Bausteine, nicht die Branchen-Apps.
+- **Proprietaere Branchen-Anwendungen** wie SAP IBP, SAP TM, SAP S/4HANA Cloud Public — eigene Produkte mit eigener Roadmap.
+- **Enterprise-Sales- und -Support-Apparat**, Customer-Success-Manager, weltweite Niederlassungen — Business-Model-Frage, kein Framework-Feature.
+
+---
+
 ## Architektur-Vertraege: Builder ↔ Plugin
 
 Diese Spezifikation bindet Phase 1 (Builder/UI-State), Phase 1.5 (Implementations-Resolution) und Phase 2 (WASM-Plugins) zusammen. Aenderungen erfordern Updates in mindestens zwei dieser Phasen — der Vertrag ist die Schnittstelle, an der sie sich treffen.
@@ -540,7 +799,7 @@ pub enum TriggerTarget {
 pub struct GuardExpr(pub String);          // Mini-DSL ueber `fields.*`
 ```
 
-- `event` greift **client- oder serverseitig**, je nach Variante. `BeforeSave`/`AfterSave`/`BeforeDelete` laufen im Server-Resolver; `Click`/`Change`/`Submit` im Client. `Custom` ist explizit aus Code oder anderem Plugin getriggert.
+- `event` greift **client- oder serverseitig**, je nach Variante. `BeforeSave`/`AfterSave`/`BeforeDelete` laufen im Server-Resolver; `Click`/`Change`/`Submit` im Client (Extism-WASM-Runtime im Browser, siehe Abschnitt 5 dieses Vertrags). `Custom` ist explizit aus Code oder anderem Plugin getriggert; Runtime wird im Manifest des Ziel-Plugins gesetzt.
 - `guard` ist eine Mini-Expression-Sprache ueber Entity-Felder (`fields.status == "draft" && fields.price > 0`); Parser liegt unter `shared/src/builder/guard.rs` und ist Teil von Paket 1.2.
 - `args` werden zum Plugin-Aufruf serialisiert (das Plugin sieht sie als JSON).
 - `debounce_ms` ist UI-only und ignoriert serverseitig.
@@ -559,11 +818,13 @@ dblicious = ">=0.2, <0.3"                     # Server-Versionsbereich
 plugins   = ["com.example.locale-utils ^1"]   # Plugin-Dependencies
 
 [capabilities]
+runtime        = "server"                     # "server" | "client" | "both"
 triggers       = ["beforeSave", "deriveField", "validate"]
-db_read        = ["product", "category"]      # Entity-Typen mit Read-Capability
-db_write       = ["product"]                  # Entity-Typen mit Write-Capability
+db_read        = ["product", "category"]      # Entity-Typen mit Read-Capability (server-only)
+db_write       = ["product"]                  # Entity-Typen mit Write-Capability (server-only)
 http_fetch     = ["https://api.example.com/*"]
-fs_paths       = []
+fs_paths       = []                            # server-only
+dom_access     = false                         # client-only: Lese-/Schreibzugriff auf Builder-projizierte DOM-Nodes
 max_pages      = 16                           # Extism Memory (à 64 KiB)
 max_runtime_ms = 200                          # pro Trigger-Aufruf
 
@@ -578,21 +839,47 @@ signature  = "base64:..."
 
 - **Versionierung**: SemVer fuer `version`. Server lehnt Inkompatible mit `compatibility.dblicious`-Range ab.
 - **Capabilities sind Whitelist**: nicht im Manifest gelistete Calls werden vom Host abgewiesen — auch wenn der Plugin-Code sie versucht.
-- **Dependencies**: topologisch geladen; Zyklen oder unaufloesbare Versionen ⇒ Plugin disabled mit klarer Fehlermeldung.
+- **Dependencies**: topologisch geladen; Cargo-Style **SemVer-Range-Intersect** bei Diamond-Dependencies (A^1.2 ∩ B^1.5 ⇒ neueste Version in Schnittmenge). Zyklen oder leerer Intersect ⇒ Plugin disabled mit klarer Fehlermeldung inkl. Auflistung der konfligierenden Ranges.
 - **Signing**: Phase 2 optional. Ab Phase 4 (Marketplace) Pflicht — Server prueft Signatur gegen registrierte Public Keys.
 
 ### 3. Trigger-Point-Vertraege
 
 Jeder Trigger hat einen festen Input/Output-JSON-Vertrag. **Plugin liest stdin als JSON, schreibt stdout als JSON** (Extism-Pattern).
 
-| Trigger        | Input                                                          | Output                                                | Sync? | Fehler-Effekt                  |
-|----------------|----------------------------------------------------------------|-------------------------------------------------------|-------|--------------------------------|
-| `beforeSave`   | `{ entity_type, fields_before?, fields_after, user }`          | `{ fields_after?, validation? }`                      | sync  | Save abgebrochen               |
-| `afterSave`    | `{ entity_type, entity, op: "create"\|"update", user }`        | `void`                                                | async | nur Audit-Log                  |
-| `beforeDelete` | `{ entity_type, entity, user }`                                | `{ validation? }`                                     | sync  | Delete abgebrochen             |
-| `deriveField`  | `{ entity_type, fields, target_field }`                        | `{ value: <json> }`                                   | sync  | Feld bleibt unveraendert       |
-| `validate`     | `{ entity_type, fields, user }`                                | `{ errors: [{field, code, message}] }`                | sync  | Save abgebrochen, Errors im UI |
-| `customAction` | `{ name, args, user, context }`                                | `{ result: <json> }`                                  | sync  | UI zeigt Fehlermeldung         |
+| Trigger          | Runtime           | Input                                                          | Output                                                | Sync? | Fehler-Effekt                  |
+|------------------|-------------------|----------------------------------------------------------------|-------------------------------------------------------|-------|--------------------------------|
+| `beforeSave`     | server            | `{ entity_type, fields_before?, fields_after, user }`          | `{ fields_after?, validation? }`                      | sync  | Save abgebrochen               |
+| `afterSave`      | server            | `{ entity_type, entity, op: "create"\|"update", user }`        | `void`                                                | async | nur Audit-Log                  |
+| `beforeDelete`   | server            | `{ entity_type, entity, user }`                                | `{ validation? }`                                     | sync  | Delete abgebrochen             |
+| `deriveField`    | server oder client | `{ entity_type, fields, target_field }`                        | `{ value: <json> }`                                   | sync  | Feld bleibt unveraendert       |
+| `validate`       | server oder client | `{ entity_type, fields, user }`                                | `{ errors: [{field, code, message}] }`                | sync  | Save abgebrochen, Errors im UI |
+| `customAction`   | server oder client | `{ name, args, user, context }`                                | `{ result: <json> }`                                  | sync  | UI zeigt Fehlermeldung         |
+| `onClick`        | client            | `{ node_id, event: {...}, fields, user }`                      | `{ effects?: [Effect] }`                              | sync  | nur Audit-Log                  |
+| `onChange`       | client            | `{ node_id, field, old_value, new_value, fields, user }`       | `{ fields_after?, effects?: [Effect] }`               | sync  | UI rollt Aenderung zurueck     |
+| `onSubmit`       | client            | `{ form_id, fields, user }`                                    | `{ proceed: bool, fields_after?, validation? }`       | sync  | Submit blockiert               |
+
+- **`validate`-Doppelregel**: client-seitig fuer Live-Feedback (Tastatur-Echtzeit), server-seitig als Autoritaet. Beide Plugins koennen dieselbe Plugin-ID haben (Code wird in beide Runtimes deployed) oder unterschiedliche. Server-Validate gilt; Client-Validate ist UX.
+- **`customAction`** entscheidet ueber `manifest.runtime`, wo es laeuft. `"both"` heisst: Server hat die Autoritaet, Client darf optimistisch vorrechnen.
+- **`Effect`** im Client-Trigger-Output: deklarative UI-Mutationen. Plugin manipuliert nicht direkt DOM — der Host fuehrt Effects aus.
+
+**`Effect`-Typisierung** (definiert in `shared/src/builder/effect.rs`):
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum Effect {
+    Navigate    { route: String },
+    Toast       { level: ToastLevel, message: String },
+    SetField    { field: String, value: serde_json::Value },
+    FocusNode   { node_id: u64 },
+    Reload,
+    Custom      { name: String, args: serde_json::Value },   // Erweiterungspunkt
+}
+```
+
+`Custom` ist der **Erweiterungspunkt**: Plugin-spezifische Effects, die der Host nicht selbst kennt, werden an registrierte Effect-Handler (UI-Code oder anderes Plugin) weitergegeben. Ist kein Handler registriert ⇒ Warn-Log + Effect ignoriert. Core-Varianten sind hart-typisiert; Aenderung der Variantenmenge erfordert Schema-Version-Bump (analog `EventTrigger`-Schema-Drift in Phase 1).
+
+**Effect-Ergebnis-Pfad**: nach Ausfuehrung gibt der Host eine Liste `[{ effect_id, success, error? }]` an das Plugin zurueck — entweder synchron als Anhang am naechsten Trigger-Aufruf oder via `host.effects.last_results()`-Host-Function. Plugin kann auf Fehler reagieren (z.B. Toast bei Navigate-Fail), ist aber nicht verpflichtet; der Host loggt jeden Effect-Fail unabhaengig in `plugin_invocations`.
 
 **Fehler-Semantik**: jedes Plugin kann strukturiert
 ```json
@@ -606,47 +893,77 @@ zurueckgeben. Der Host wandelt das in einen GraphQL-Error mit `extensions.code` 
 
 ### 4. Host-Function-Katalog
 
-Funktionen, die der Host dem Plugin ueber `extism::Function` exponiert. Alle sind capability-gegated und auditiert.
+Funktionen, die der Host dem Plugin ueber `extism::Function` exponiert. Alle sind capability-gegated und auditiert. Runtime-Spalte: `S` = nur server, `C` = nur client, `S+C` = beide.
 
 ```text
-host.db.query(query: { entity_type, filter, sort, page }) -> EntityPage
-    capability: db_read enthaelt entity_type
-    quota:      max 100 Calls pro Trigger-Aufruf
+[S+C]  host.log(level, message, fields?) -> void
+            immer erlaubt; landet in plugin_invocations-Audit
 
-host.db.insert(entity_type, fields) -> EntityChangeResult
-    capability: db_write enthaelt entity_type
-    Reentrancy-blockiert in *Save-Triggern desselben entity_type
+[S+C]  host.now() -> ISO-8601-String
+            immer erlaubt
 
-host.db.update(entity_type, id, fields, expected_hash?) -> EntityChangeResult
-    capability: db_write enthaelt entity_type
-    expected_hash analog shared::EntityHeader::hash
+[S+C]  host.crypto.random(n: u32) -> bytes
+            kryptografisch sicher (OS-RNG); fuer IDs, Tokens, Nonces.
+            Keys sollten ueber eine dedizierte API (TBI) erzeugt werden,
+            nicht aus diesen Bytes von Hand.
 
-host.db.delete(entity_type, id, expected_hash?) -> EntityChangeResult
-    capability: db_write enthaelt entity_type
+[S+C]  host.entity.hash(entity_type, fields) -> u64
+            fuer Concurrency-Checks; gleicher Algorithmus wie
+            shared::EntityHeader::hash
 
-host.http.fetch(method, url, headers?, body?) -> { status, headers, body }
-    capability-check gegen manifest.http_fetch (Glob-Pattern)
-    timeout: 5000 ms hart, nicht via Manifest weiter erhoehbar
+[S+C]  host.i18n.t(key, locale?, args?) -> String
+            Server: gegen Loader-Translatables; Client: gegen
+            i18n::I18nContext
 
-host.log(level: "info"|"warn"|"error", message, fields?) -> void
-    immer erlaubt; landet in plugin_invocations-Audit
+[S]    host.db.query(query: { entity_type, filter, sort, page }) -> EntityPage
+            capability: db_read enthaelt entity_type
+            quota:      max 100 Calls pro Trigger-Aufruf
 
-host.now() -> ISO-8601-String
-    immer erlaubt
+[S]    host.db.insert(entity_type, fields) -> EntityChangeResult
+            capability: db_write enthaelt entity_type
+            Reentrancy-blockiert in *Save-Triggern desselben entity_type
 
-host.crypto.random(n: u32) -> bytes
-    immer erlaubt; nicht fuer Crypto-Keys gedacht
+[S]    host.db.update(entity_type, id, fields, expected_hash?) -> EntityChangeResult
+            capability: db_write enthaelt entity_type
 
-host.i18n.t(key, locale?, args?) -> String
-    nur fuer customAction mit UI-Rueckmeldung
+[S]    host.db.delete(entity_type, id, expected_hash?) -> EntityChangeResult
+            capability: db_write enthaelt entity_type
+            Reentrancy-blockiert in beforeDelete desselben entity_type
 
-host.entity.hash(entity_type, fields) -> u64
-    fuer Concurrency-Checks; gleicher Algorithmus wie shared::EntityHeader::hash
+[S]    host.http.fetch(method, url, headers?, body?) -> { status, headers, body }
+            capability-check gegen manifest.http_fetch (Glob, voller URL inkl. Query-String)
+            redirects: nur folgen, wenn Ziel-URL ebenfalls in Allowlist matcht;
+                       sonst Fehler `redirect_to_disallowed_host`
+            timeout: 5000 ms hart
+
+[C]    host.http.fetch_browser(method, url, headers?, body?) -> { status, headers, body }
+            client-only, geht durch Browser-fetch (unterliegt CORS);
+            capability-check wie [S] (voller URL inkl. Query-String);
+            Allowlist-Redirects: Browser folgt nativ, Host wertet manifest.http_fetch
+            erneut gegen die finale URL aus, sonst Fehler `redirect_to_disallowed_host`
+
+[C]    host.ui.read(node_id, prop) -> Value
+            capability: dom_access = true; liest projizierte UiNode-Properties
+
+[C]    host.ui.dispatch(effect: Effect) -> void
+            capability: dom_access = true; reicht einen Effect (siehe oben)
+            an den Host weiter, der ihn ausfuehrt (kein direkter DOM-Zugriff)
 ```
 
-**Capability-Format**: `db_read`/`db_write` sind Listen von Entity-Type-Namen. `"*"` als Wildcard im Manifest erlaubt (z.B. `db_read = ["*"]`). `http_fetch` ist eine Liste von URL-Glob-Pattern.
+**Capability-Format**: `db_read`/`db_write` sind Listen von Entity-Type-Pattern mit echtem Glob (`product`, `product.*`, `inventory.*`, `*`). `http_fetch` ist eine Liste von URL-Glob-Pattern (gegen vollen URL inkl. Query-String). Glob-Implementierung: `globset`-Crate, dokumentierte POSIX-Glob-Untermenge (kein `**`, kein Regex). Selbe Grammatik wie bei Phase 0.7-Permissions.
 
-**Audit**: jeder Host-Function-Call wird mit `(plugin_id, trigger_event, host_fn, duration_ms, outcome)` in `plugin_invocations` geloggt (siehe 2.8). Quota- oder Capability-Verletzungen sind eigene Outcome-Werte.
+**Audit**: jeder Host-Function-Call wird mit `(plugin_id, runtime: "server"|"client", trigger_event, host_fn, duration_ms, outcome)` in `plugin_invocations` geloggt (siehe 2.8). Client-Audits werden in Batches an den Server geschickt — kein Real-Time-Garantie auf Client-Seite, aber bei Page-Unload geflusht. Quota- oder Capability-Verletzungen sind eigene Outcome-Werte.
+
+### 5. Client-WASM-Laufzeit (Browser)
+
+Plugins mit `runtime = "client"` oder `"both"` werden bei Page-Load vom Server geliefert (capability-gegated: User muss `Execute`-Permission auf das Plugin haben, sonst nicht ausgeliefert) und in einer Extism-WASM-Instanz **innerhalb** des Browser-WASM-Clients ausgefuehrt — also WASM-in-WASM.
+
+- **Performance**: Extism im Browser ist messbar (mehrere ms pro Aufruf). Fuer Hot-Path-Validierung (Tastatur-Echtzeit) sollte das Plugin idempotent und unter ~5 ms bleiben; andernfalls Trigger entkoppeln (debounce).
+- **`runtime = "both"`**: derselbe WASM-Blob laeuft in beiden Runtimes. Der Host stellt jeweils nur die fuer die Runtime erlaubten Host-Functions zur Verfuegung; ein Aufruf nicht-verfuegbarer Functions (z.B. `host.db.query` im Client) ist Laufzeitfehler mit Outcome `host_function_unavailable`. Plugin-Autoren fragen Runtime via `host.runtime()` (immer verfuegbar) ab und bauen Fallback-Pfade.
+- **Capability-Doppelpruefung**: Server liefert nur Plugins, die der Client *darf*. Innerhalb des Client-WASM prueft der Host nochmals jede Capability — Browser-Code ist nicht trustworthy, der Doppel-Check ist Pflicht.
+- **Storage & Cache-Invalidierung**: Plugin-Blobs werden im IndexedDB des Browsers nach `(plugin_id, version)` gecached. Beim Page-Load fragt der Client `/plugins/manifest` ab (gibt aktive Plugin-Liste mit Versionen zurueck) und laedt fehlende oder veraltete Blobs nach. **Pull-basiert**: kein Server-Push, kein WebSocket noetig — Trade-off ist eine eventual consistency von Sekunden bis Minuten, was fuer Plugin-Updates akzeptabel ist.
+- **Kein File-System-Zugriff**, kein direkter DOM-Zugriff — alle UI-Effekte gehen ueber `host.ui.dispatch(Effect)`.
+- **Reentrancy-Schutz auch im Client**: `onChange → host.ui.dispatch({setField})` darf nicht zu einem rekursiven `onChange` desselben Felds fuehren (Loop-Detection in der Effect-Pipeline).
 
 ---
 
@@ -657,6 +974,8 @@ Diese Punkte sind keiner Phase exklusiv zugeordnet und laufen mit:
 - **Observability**: ab Phase 2 strukturiertes Logging (tracing-crate), spaetestens Phase 4 Metrics-Export (OpenTelemetry).
 - **Testing**: jede Phase liefert Tests. Integration-Tests gegen reales SQLite, keine Mocks fuer DB-Pfade.
 - **Security**: WASM-Sandbox-Audit in Phase 2 vorbereiten, Audit-Trail in Phase 3 (jede AI-Aktion auditierbar), externer Audit in Phase 4.
+- **Audit-Retention**: alle Audit-Tabellen (`audit_log`, `plugin_invocations`, `migrations`) werden konfigurierbar geprunt — Default `audit.retention = "30d"`. Manuelles Aufraeumen via `dblicious audit prune --older-than <duration>`. Privacy-Compliance (DSGVO etc.) bleibt User-Verantwortung; Roadmap markiert das als Risiko, kein technisches Enforcement.
+- **System-User**: ein User mit reservierter ID `"system"` ist beim DB-Init in `users` geseedet, kein Login. Audit-Anker fuer Seed-Daten (`entity_designs.created_by`, Loader-importierte Eintraege), automatisierte Schritte (Migration-System, DB-Init) und alle Operationen ohne menschlichen Akteur.
 - **Dokumentation**: pro Phase mind. ein Abschnitt in `CLAUDE.md` (architektonische Sicht) + README-Update.
 - **i18n**: deutsche und englische `.ftl`-Files parallel pflegen; neue UI-Strings nie hardcoded.
 
@@ -692,6 +1011,73 @@ Solo-Entwicklung: Reihenfolge wie aufgelistet, ohne Parallelisierung. Phasen sin
 - **Phase 0.7**: Permissions werden serverseitig erzwungen; Client zeigt nur projizierte Sicht. `whyAllowed`-Debug-Endpoint und Audit-Log sind nutzbar.
 - **Phase 1**: Ein Entity-Type laesst sich vollstaendig im UI zusammenklicken; resultierende Tabelle ist identisch zur Hand-konfigurierten Variante.
 - **Phase 1.5**: Ein Property kann eine Implementations-ID vorgeben oder mehrere erlauben; nicht erlaubte Wahl wird serverseitig geblockt.
+- **Phase 1.7**: Eine Demo-Rechnungsanwendung (gapless Nummerierung, GoBD-Append-Only, PDF + Email, DSGVO-Auskunft) ist auf der Plattform mit vertretbarem Aufwand baubar.
 - **Phase 2**: Ein nicht-triviales Plugin (z.B. Slug-Generator + Validator) laeuft sandboxed in einem CRUD-Pfad.
 - **Phase 3**: Eine `messy_orders.json` mit ~5 fremden Feldern wird per Agent in eine non-destruktive Migration uebersetzt und akzeptiert.
 - **Phase 4**: `dblicious export` produziert ein Workspace, das `cargo build --release` ohne Aenderungen besteht und im Browser laeuft.
+
+---
+
+## Konsolidiertes Risiko-Register
+
+Auflistung aller in den Phasen genannten Risiken, plus Cross-Cutting. Bewertung: **Wahrscheinlichkeit** (niedrig/mittel/hoch) wie oft das Risiko ohne Mitigation eintreten wuerde; **Schaden** (niedrig/mittel/hoch) wie viel es kostet, wenn es eintritt. Eigentuemer ist bei Solo-Entwicklung "n/a".
+
+| # | Risiko | Phase | W. | Schaden | Mitigation |
+|---|---|---|---|---|---|
+| R-01 | Permission-Resolver-Performance: pro CRUD-Aufruf scannt die ganze Permissions-Tabelle | 0.7 | hoch | hoch | Session-Cache mit Invalidierung; Indizes auf `(subject_id, resource_kind)` |
+| R-02 | Deny-vor-Allow + Wildcards + Groups+Roles wird schwer debuggbar | 0.7 | mittel | mittel | `whyAllowed`-Debug-Endpoint zeigt Herkunfts-Kette; im Audit-UI sichtbar |
+| R-03 | Bestehende `security/{users,groups}` brechen nach Schema-Migration | 0.7 | hoch | mittel | Automatisches Migrations-Skript (0.7.8), idempotent + dry-run |
+| R-04 | Row-Level-Permissions modelliert, aber nicht enforced — User irrt sich | 0.7 | mittel | niedrig | Loader warnt `WARN row-level permission ignored`; Config-Flag dokumentiert |
+| R-05 | `UiTree`-Iteration O(n) skaliert nicht ueber ~1000 Knoten pro Session | 1 | niedrig | niedrig | Falls noetig: `HashMap<NodeId, UiNode>` als lokaler Refactor |
+| R-06 | `EventTrigger`-DSL: Builder-Intent leakt in Plugin-Implementierungs-Details | 1 | mittel | hoch | Architektur-Vertrag bindet beide Phasen; Tests fuer Wire-Format |
+| R-07 | Implementations-ID-Drift: String-IDs fehleranfaellig zwischen Server und Client | 1.5 | mittel | mittel | `register!`-Macro oder enum-basierte `as_str()`-Variante; CI-Test, dass jede ID im Server-Schema existiert |
+| R-08 | Per-User-Persistenz der Implementations-Wahl ist nicht klar | 1.5 | mittel | mittel | Entscheidung in 1.5.3: vermutlich User-Profile, Sync ueber alle Geraete |
+| R-09 | Plugin-Calls in heissen CRUD-Pfaden adden Latenz | 2 | hoch | mittel | Latenz-Budget pro Trigger (`max_runtime_ms`); async fuer `afterSave`; Caching |
+| R-10 | Security-Audit der WASM-Sandbox: Capability-Escape moeglich | 2 | mittel | hoch | Externer Audit vor Production-Freigabe (4.6); strikte Host-Function-Validierung |
+| R-11 | LLM-Halluzinationen produzieren ungueltige `MigrationProposal` | 3 | hoch | mittel | Function-Calling + deterministischer Diff-Validator hart geblockt; adversarielle Tests |
+| R-12 | Drop-Column-Backfill-Pfad in Migrationen ist heikel | 3 | mittel | hoch | Destruktive Schritte nur in Contract-Phase, mit explizitem User-Confirm; `backup_to`-Tabelle |
+| R-13 | LLM-Kosten laufen aus dem Ruder | 3 | mittel | mittel | Cost-Cap pro User-Stunde; AI-Provider-Abstraktion erlaubt spaeteren WASI-NN-Switch |
+| R-14 | Codegen-Drift: Templates synchron zu Laufzeit-Crates halten | 4 | hoch | mittel | CI-Test, der Codegen-Output baut + Smoke-Test laufen laesst |
+| R-15 | WASI-NN-Switch zu WasmEdge bricht Plugin-Kompatibilitaet | 4 | niedrig | mittel | Nur wenn Inference-Anforderung real ist; Phase 4+, nicht in 2 |
+| R-16 | Audit-Log-Wachstum unbeschraenkt | cross | mittel | niedrig | `audit.retention = "30d"`-Default; CLI-Prune `dblicious audit prune` |
+| R-17 | API-Stabilitaet `shared`-Wire-Format vs. Plugin-Manifeste | 2+ | mittel | hoch | `api_version`-Feld im Manifest; Compatibility-Range; Breaking-Changes nur mit Major-Bump |
+| R-18 | Number-Sequence-Gapless-Garantie unter Last bricht (Concurrent-Inserts) | 1.7 | mittel | hoch | Transaktion mit Row-Lock; Property-Test mit 1000 parallelen Aufrufen; Doku, dass Sequenz nicht ueber Replikas hinweg garantiert ist |
+| R-19 | GoBD vs. DSGVO-Konflikt: Loeschen vs. Aufbewahren | 1.7 | hoch | hoch | 1.7.16 implementiert Pseudonymisierung statt Loeschung fuer gebuchte Datensaetze; Doku-Verweis auf juristische Beratung |
+| R-20 | Scope-Explosion Phase 1.7 (21 Arbeitspakete) | 1.7 | hoch | mittel | MVP-Pfad (A + C + 1.7.16) zuerst; Rest schrittweise; klare Sub-Phasen A–F als unabhaengige Einheiten |
+
+---
+
+## Bewusst Out-of-Scope
+
+Liste der **Nicht-Ziele**, damit nicht jemand sie versehentlich ins Scope holt. Wenn doch reinkommt: eigene Roadmap-Phase, eigene Begruendung.
+
+### Architektur / Stack
+
+- **Loco** als Full-Stack-Framework. axum + async-graphql ist gesetzt; siehe `VISION.md` "Architekturentscheidungen".
+- **NoSQL als Datenbank** (Surreal, Mongo, …). SeaORM + SQLite bleibt; das Schemaless-Konzept loesen wir ueber generische `entities`-Tabelle vs. typisierte Designer-Tabellen.
+- **Bevy ECS / generische Runtime-Engine im Builder**. Siehe [ADR-0002](./docs/adr/0002-no-ecs-framework.md).
+- **Dioxus** oder andere Multi-Plattform-GUI-Frameworks. Leptos CSR/WASM ist gesetzt; Mobile/Desktop sind kein Ziel.
+- **SSR (Server-Side Rendering von Leptos)**. CSR + WASM bleibt — vereinfachte Architektur, gute UX-Latenz nach dem ersten Load.
+
+### Multi-User / Verteilung
+
+- **CRDT-basierte Live-Kollaboration** auf demselben `entity_design` zwischen mehreren Editoren. Optimistic-Locking mit `expected_version` ist die Antwort. Wenn doch noetig: eigene Phase mit eigener Begruendung.
+- **Multi-Region-Deployment / Read-Replicas** in Phase 1–3. Single-Server-Default. `tenant_id`-Vorbereitung in 0.7 erlaubt spaetere Erweiterung; Phase 4+ kann Replikation evaluieren.
+- **Real-Time-Sync zwischen mehreren Server-Instanzen**. Single-Server bleibt der Default.
+
+### Plugin- und Code-Distribution
+
+- **Plugin-Hot-Reload zur Laufzeit** ohne Page-Reload (Client) bzw. Server-Reload. Pull-basierter IndexedDB-Cache mit Version-Check auf Page-Load reicht.
+- **Eigene Sprache/DSL fuer Plugins** ausser dem, was Extism-PDKs (TS/Python/Go/Rust) bereitstellen. Wer mehr will, schreibt sein PDK selbst.
+- **Generierte Bundles mit anderen Frontend-Frameworks** (Angular/React/Vue). Codegen-Output ist Rust + Leptos.
+
+### Auth / Sicherheit
+
+- **Eigener Auth-Provider** (OAuth/OIDC-Server-Implementierung). Session-Mechanik bleibt; falls OAuth/OIDC noetig wird, integrieren wir einen externen Provider (z.B. Authelia, Keycloak) als Identitaets-Quelle.
+- **Strict ACID-Compliance** mit Distributed-Transactions. SQLite WAL ist Default; einzelnes Schreib-Lock ist okay fuer den Anwendungsfall.
+- **Strikte Capability-basierte Security** (Macaroons, Zanzibar-Style-Relationships). RBAC mit Groups+Roles + Resource-Granularitaet reicht.
+
+### Operatives
+
+- **Eingebauter Embedded-DB-Browser**. SQLite-Standard-Tools (`sqlite3` CLI, DBeaver, …) sind ausreichend.
+- **Eigener Hosting-Service / SaaS-Plattform**. dblicious ist eine Bibliothek/Framework, die der User selbst hostet.
