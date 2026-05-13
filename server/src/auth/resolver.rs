@@ -108,7 +108,9 @@ pub fn row_level_enabled() -> bool {
 // =============================================================================
 
 /// Liefert die Menge aller Subjects, die fuer `user_id` wirksam sind.
-async fn subjects_for_user(
+/// Wird von [`effective`] (Auswertung) und von `schema::my_permissions`
+/// (Projektion fuer den Client) genutzt.
+pub(crate) async fn subjects_for_user(
     db: &DatabaseConnection,
     user_id: &str,
 ) -> Result<Vec<Subject>, sea_orm::DbErr> {
@@ -202,6 +204,118 @@ fn resource_specificity(perm: &Resource, query: &Resource) -> Option<u8> {
         ) if r1 == r2 && (i1 == i2 || i1 == "*") => Some(1),
         _ => None,
     }
+}
+
+// =============================================================================
+// Trace-Variante (Phase 0.7.7)
+// =============================================================================
+
+/// Eine einzelne passende Regel im Trace.
+#[derive(Debug, Clone)]
+pub struct TraceRule {
+    pub subject_kind: String,
+    pub subject_id: String,
+    pub resource_kind: String,
+    pub resource_id: String,
+    pub op: String,
+    pub effect: Effect,
+    pub specificity: u8,
+    pub priority: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct Trace {
+    pub final_effect: Effect,
+    /// Sortiert: hoechste Spezifitaet zuerst, dann Deny vor Allow,
+    /// dann hoehere Priority, dann subject_id lexikographisch.
+    pub rules: Vec<TraceRule>,
+    /// Zusatz-Notiz wenn die Auswertung von "Standard" abweicht
+    /// (z.B. row-level nicht aktiviert).
+    pub note: Option<String>,
+}
+
+/// Berechnet alle passenden Regeln fuer `(user, resource, op)` und liefert
+/// sie in Aufloesungs-Reihenfolge zurueck. Die *erste* Regel in `rules` ist
+/// der Gewinner (gleiches Ergebnis wie [`effective`]).
+///
+/// Im Gegensatz zu [`effective`] bricht diese Funktion auch bei
+/// `EntityInstance` ohne Row-Level-Enforcement nicht ab — sie liefert dann
+/// `note = Some("row-level not enabled")` und `final_effect = Deny`.
+/// So koennen Debugging-Aufrufe ungefaehr abschaetzen, was der Resolver
+/// liefern wuerde, wenn Row-Level aktiv waere.
+pub async fn trace_effective(
+    user_id: &str,
+    resource: &Resource,
+    op: Op,
+) -> Result<Trace, ResolveError> {
+    let row_level_note = if matches!(resource, Resource::EntityInstance { .. })
+        && !row_level_enabled()
+    {
+        Some("row-level not enabled".to_string())
+    } else {
+        None
+    };
+
+    let db = conn();
+    let subjects = subjects_for_user(&db, user_id).await?;
+    let perms = entity::permissions::Entity::find().all(&db).await?;
+
+    let mut matched: Vec<TraceRule> = Vec::new();
+    for p in perms {
+        let Some(subject) = Subject::from_storage(&p.subject_kind, &p.subject_id) else {
+            continue;
+        };
+        if !subjects.contains(&subject) {
+            continue;
+        }
+        let Some(perm_resource) = Resource::from_storage(&p.resource_kind, &p.resource_id) else {
+            continue;
+        };
+        let Some(spec) = resource_specificity(&perm_resource, resource) else {
+            continue;
+        };
+        let Some(perm_op) = Op::from_str(&p.op) else { continue };
+        if perm_op != op {
+            continue;
+        }
+        let Some(perm_effect) = Effect::from_str(&p.effect) else { continue };
+
+        matched.push(TraceRule {
+            subject_kind: p.subject_kind,
+            subject_id: p.subject_id,
+            resource_kind: p.resource_kind,
+            resource_id: p.resource_id,
+            op: p.op,
+            effect: perm_effect,
+            specificity: spec,
+            priority: p.priority,
+        });
+    }
+
+    // Aufloesungs-Reihenfolge: gleiche Tiebreaks wie in `choose_winner`.
+    matched.sort_by(|a, b| {
+        // hoehere Spezifitaet zuerst
+        b.specificity
+            .cmp(&a.specificity)
+            // Deny vor Allow
+            .then_with(|| match (a.effect, b.effect) {
+                (Effect::Deny, Effect::Allow) => std::cmp::Ordering::Less,
+                (Effect::Allow, Effect::Deny) => std::cmp::Ordering::Greater,
+                _ => std::cmp::Ordering::Equal,
+            })
+            // hoehere Priority zuerst
+            .then_with(|| b.priority.cmp(&a.priority))
+            // subject_id lexikographisch (stabil)
+            .then_with(|| a.subject_id.cmp(&b.subject_id))
+    });
+
+    let final_effect = matched.first().map(|r| r.effect).unwrap_or(Effect::Deny);
+
+    Ok(Trace {
+        final_effect,
+        rules: matched,
+        note: row_level_note,
+    })
 }
 
 // =============================================================================

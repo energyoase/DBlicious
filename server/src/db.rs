@@ -93,6 +93,8 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::permissions::Entity),
         schema.create_table_from_entity(entity::roles::Entity),
         schema.create_table_from_entity(entity::role_assignments::Entity),
+        // Phase 0.7.6: Audit-Log.
+        schema.create_table_from_entity(entity::audit_log::Entity),
     ];
     for t in &mut tables {
         t.if_not_exists();

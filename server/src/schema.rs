@@ -96,6 +96,48 @@ pub struct SecurityGroup {
     pub permissions: Vec<Permission>,
 }
 
+// ---------- Permissions (Phase 0.7) ----------
+
+/// Projizierte Sicht einer einzelnen Permission-Regel.
+///
+/// Im Gegensatz zu `shared::auth::Permission` ist das ein flacher, GraphQL-
+/// freundlicher Typ — die Resource wird in ihrer kanonischen String-Form
+/// transportiert (siehe `shared::auth::Resource::storage_id`). Der Client
+/// kann mit `parse_resource(kind, id)` zurueck in die typisierte Form.
+#[derive(Clone, SimpleObject)]
+pub struct MyPermissionView {
+    pub subject_kind: String,
+    pub subject_id: String,
+    pub resource_kind: String,
+    pub resource_id: String,
+    pub op: String,
+    pub effect: String,
+    pub priority: i32,
+}
+
+/// Trace-Eintrag fuer den `whyAllowed`-Debug-Endpoint (Phase 0.7.7).
+#[derive(Clone, SimpleObject)]
+pub struct WhyAllowedRule {
+    pub subject_kind: String,
+    pub subject_id: String,
+    pub resource_kind: String,
+    pub resource_id: String,
+    pub op: String,
+    pub effect: String,
+    pub specificity: i32,
+    pub priority: i32,
+}
+
+#[derive(Clone, SimpleObject)]
+pub struct WhyAllowedTrace {
+    /// Endergebnis (`"allow"` oder `"deny"`).
+    pub final_effect: String,
+    /// Sortierte Regelliste — erstes Element ist der Gewinner.
+    pub rules: Vec<WhyAllowedRule>,
+    /// Hinweis, wenn die Auswertung Sonderfall (z.B. row-level deaktiviert).
+    pub note: Option<String>,
+}
+
 // ---------- Translatable ----------
 
 #[derive(Clone, SimpleObject)]
@@ -392,19 +434,81 @@ fn failure_str(f: shared::AuthFailure) -> &'static str {
 }
 
 /// Pruefe, ob der aktuelle User eine bestimmte Operation auf einem Entity-Typ
-/// darf. `async`, weil `data::groups()` jetzt die DB anfragt.
+/// darf.
+///
+/// Enforcement-Pfad (Phase 0.7.4):
+/// 1. Wenn die neue `permissions`-Tabelle nicht leer ist, ist sie
+///    authoritative — der Resolver aus `auth::resolver::effective`
+///    entscheidet. Der Wildcard `entity_type = "*"` faellt nicht ins neue
+///    Modell und nutzt weiterhin den Legacy-Pfad (admin-Shortcut).
+/// 2. Sonst: alte Logik (Groups + can_*-Flags). Solange ein Example wie
+///    `examples/shop/` keine `security/permissions.{toml,json}` mitbringt,
+///    bleibt der Server damit kompatibel.
 async fn require_permission(
     ctx: &Context<'_>,
     entity_type: &str,
     op: shared::PermissionOp,
 ) -> async_graphql::Result<shared::SecurityUser> {
-    let auth = ctx.data::<AuthContext>()?.clone();
-    let user = auth.user.ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+    let auth_ctx = ctx.data::<AuthContext>()?.clone();
+    let user = auth_ctx.user.ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+
+    // Helfer: Deny ins Audit-Log schreiben, dann Error-Token bauen.
+    async fn forbid(user_id: &str, entity_type: &str, op_str: &str) -> async_graphql::Error {
+        crate::audit::record_deny(user_id, entity_type, op_str).await;
+        async_graphql::Error::new("forbidden")
+    }
+    let op_str = map_permission_op(op).as_str();
+
+    // Neue Schicht aktiv, sobald irgendeine permission persistiert ist.
+    if entity_type != "*" && data::permissions_count().await > 0 {
+        use shared::auth::{Effect, Resource};
+        let resource = Resource::entity_type(entity_type);
+        let new_op = map_permission_op(op);
+        match crate::auth::resolver::effective(&user.id, &resource, new_op).await {
+            Ok(Effect::Allow) => return Ok(user),
+            Ok(Effect::Deny) => return Err(forbid(&user.id, entity_type, op_str).await),
+            Err(crate::auth::resolver::ResolveError::NotImplemented(_)) => {
+                // Row-Level kommt erst spaeter — sollte hier nicht auftreten,
+                // weil wir mit `Resource::EntityType` arbeiten.
+                return Err(forbid(&user.id, entity_type, op_str).await);
+            }
+            Err(e) => {
+                tracing::warn!(target: "server::auth", "resolver error: {e}");
+                return Err(forbid(&user.id, entity_type, op_str).await);
+            }
+        }
+    }
+
+    // Legacy-Pfad (Groups + can_*-Flags).
     let groups = data::groups().await;
     if !shared::is_allowed(&user, &groups, entity_type, op) {
-        return Err(async_graphql::Error::new("forbidden"));
+        return Err(forbid(&user.id, entity_type, op_str).await);
     }
     Ok(user)
+}
+
+/// Mappt die Legacy-CRUD-Op auf die neue, breitere `Op`-Aufzaehlung.
+fn map_permission_op(op: shared::PermissionOp) -> shared::auth::Op {
+    match op {
+        shared::PermissionOp::Read => shared::auth::Op::Read,
+        shared::PermissionOp::Create => shared::auth::Op::Create,
+        shared::PermissionOp::Update => shared::auth::Op::Update,
+        shared::PermissionOp::Delete => shared::auth::Op::Delete,
+    }
+}
+
+/// Auch der bestehende `audit_log`-Lookup wird vom Server exportiert, damit
+/// kuenftige `auditLog`-GraphQL-Queries oder Admin-UIs ohne Re-Implementation
+/// auskommen. Heute nur fuer Tests benutzt.
+#[doc(hidden)]
+pub async fn recent_audit_entries(limit: u64) -> Vec<crate::entity::audit_log::Model> {
+    use sea_orm::{EntityTrait, QueryOrder, QuerySelect};
+    crate::entity::audit_log::Entity::find()
+        .order_by_desc(crate::entity::audit_log::Column::Id)
+        .limit(limit)
+        .all(&crate::db::conn())
+        .await
+        .unwrap_or_default()
 }
 
 fn map_settings(s: shared::EntitySettings) -> EntitySettings {
@@ -453,6 +557,109 @@ impl QueryRoot {
             .into_iter()
             .cloned()
             .map(map_perm)
+            .collect()
+    }
+
+    /// Projizierte Liste aller `permissions`-Eintraege, die fuer den
+    /// eingeloggten User wirksam sind (Phase 0.7.4).
+    ///
+    /// Die Liste enthaelt sowohl `Allow` als auch `Deny`-Regeln — der
+    /// Client muss die Spezifitaets-Regel (`auth::resolver::effective`-
+    /// Logik) anwenden, wenn er ohne weitere Server-Anfrage UI-Hints
+    /// ableiten will. Fuer harte Permission-Checks ist und bleibt der
+    /// Server authoritative.
+    ///
+    /// Debug-Endpoint (Phase 0.7.7): liefert die Aufloesungs-Reihenfolge des
+    /// Resolvers fuer ein konkretes `(user, resource, op)`-Tupel.
+    ///
+    /// Zugriff: aktuell jeder eingeloggte User darf nur fuer sich selbst
+    /// abfragen. Cross-User-Anfragen erfordern den Wildcard-Admin-Check
+    /// (alte Logik `require_permission("*", Update)`). Damit ist der Endpoint
+    /// fuer Endusers fuer Selbstdiagnose nutzbar; Admins koennen Permissions
+    /// fremder User analysieren.
+    ///
+    /// `resourceKind` und `resourceId` haben die kanonische String-Form (siehe
+    /// `shared::auth::Resource::storage_id`).
+    async fn why_allowed(
+        &self,
+        ctx: &Context<'_>,
+        user_id: String,
+        resource_kind: String,
+        resource_id: String,
+        op: String,
+    ) -> async_graphql::Result<WhyAllowedTrace> {
+        let auth_ctx = ctx.data::<AuthContext>()?.clone();
+        let me = auth_ctx
+            .user
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+
+        if me.id != user_id {
+            // Wildcard-Admin-Check (legacy oder neue Schicht — beide moeglich).
+            let _ = require_permission(ctx, "*", shared::PermissionOp::Update).await?;
+        }
+
+        let resource = shared::auth::Resource::from_storage(&resource_kind, &resource_id)
+            .ok_or_else(|| async_graphql::Error::new("invalid_resource"))?;
+        let parsed_op = shared::auth::Op::from_str(&op)
+            .ok_or_else(|| async_graphql::Error::new("invalid_op"))?;
+
+        let trace = crate::auth::resolver::trace_effective(&user_id, &resource, parsed_op)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+
+        Ok(WhyAllowedTrace {
+            final_effect: trace.final_effect.as_str().to_string(),
+            rules: trace
+                .rules
+                .into_iter()
+                .map(|r| WhyAllowedRule {
+                    subject_kind: r.subject_kind,
+                    subject_id: r.subject_id,
+                    resource_kind: r.resource_kind,
+                    resource_id: r.resource_id,
+                    op: r.op,
+                    effect: r.effect.as_str().to_string(),
+                    specificity: r.specificity as i32,
+                    priority: r.priority,
+                })
+                .collect(),
+            note: trace.note,
+        })
+    }
+
+    /// Anonyme Anfragen liefern eine leere Liste.
+    async fn my_permissions(&self, ctx: &Context<'_>) -> Vec<MyPermissionView> {
+        let Some(auth_ctx) = ctx.data::<AuthContext>().ok() else { return vec![] };
+        let Some(user) = &auth_ctx.user else { return vec![] };
+
+        let db = crate::db::conn();
+        let Ok(subjects) = crate::auth::resolver::subjects_for_user(&db, &user.id).await
+        else {
+            return vec![];
+        };
+        let Ok(perms) = <crate::entity::permissions::Entity as sea_orm::EntityTrait>::find()
+            .all(&db)
+            .await
+        else {
+            return vec![];
+        };
+
+        perms
+            .into_iter()
+            .filter(|p| {
+                shared::auth::Subject::from_storage(&p.subject_kind, &p.subject_id)
+                    .map(|s| subjects.contains(&s))
+                    .unwrap_or(false)
+            })
+            .map(|p| MyPermissionView {
+                subject_kind: p.subject_kind,
+                subject_id: p.subject_id,
+                resource_kind: p.resource_kind,
+                resource_id: p.resource_id,
+                op: p.op,
+                effect: p.effect,
+                priority: p.priority,
+            })
             .collect()
     }
 

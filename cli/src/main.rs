@@ -48,6 +48,25 @@ enum Top {
         #[command(subcommand)]
         cmd: GroupCmd,
     },
+    /// Security-Format migrieren: konvertiert das alte
+    /// `security/{users,groups}.{json,toml}`-Format in das Phase-0.7-Format
+    /// (`permissions.json`, `roles.json`, `role_assignments.json`).
+    MigrateSecurity(MigrateSecurityArgs),
+}
+
+#[derive(clap::Args)]
+struct MigrateSecurityArgs {
+    /// Pfad zum Example-Verzeichnis (enthaelt `security/users.*` und
+    /// `security/groups.*` sowie `entities/<type>/...`). Default: aktuelles
+    /// Arbeitsverzeichnis.
+    #[arg(long, default_value = ".")]
+    data_dir: String,
+    /// Nicht schreiben — nur ausgeben, was geschrieben werden wuerde.
+    #[arg(long)]
+    dry_run: bool,
+    /// Bestehende Ziel-Dateien ueberschreiben statt ablehnen.
+    #[arg(long)]
+    force: bool,
 }
 
 #[derive(Subcommand)]
@@ -121,6 +140,12 @@ async fn main() -> Result<()> {
         std::env::set_var("DBLICIOUS_DATABASE_URL", DEFAULT_DB_URL);
     }
 
+    // Migrate-security braucht keine DB — es ist ein reiner Datei-Konverter.
+    // Wir behandeln es darum *vor* dem DB-Init.
+    if let Top::MigrateSecurity(args) = &cli.cmd {
+        return run_migrate_security(args);
+    }
+
     db::init()
         .await
         .map_err(|e| anyhow!("DB-Init fehlgeschlagen: {e}"))?;
@@ -131,7 +156,243 @@ async fn main() -> Result<()> {
     match cli.cmd {
         Top::User { cmd } => handle_user(cmd).await,
         Top::Group { cmd } => handle_group(cmd).await,
+        Top::MigrateSecurity(_) => unreachable!("migrate-security wurde oben behandelt"),
     }
+}
+
+// =============================================================================
+// migrate-security
+// =============================================================================
+//
+// Konvertiert das alte security/-Format in das Phase-0.7-Format:
+//   - 1 SecurityGroup -> 1 Role (gleiche ID, name_key, description_key)
+//   - 1 (group, can_*, entity_type)-Tupel -> n Permissions
+//     (subject = Role(group.id), resource = EntityType(name), op = …, Allow)
+//   - 1 (user, group_id)-Mitgliedschaft -> 1 RoleAssignment
+//     (subject = User(user.id), role_id = group.id)
+//
+// `entity_type = "*"` aus dem alten Format wird zu einer expliziten
+// Permission pro tatsaechlichem Entity-Typ aus `entities/` expandiert,
+// damit die neue Resource-Form (kein Wildcard) korrekt funktioniert.
+
+fn run_migrate_security(args: &MigrateSecurityArgs) -> Result<()> {
+    let data_dir = std::path::Path::new(&args.data_dir).to_path_buf();
+    let security_dir = data_dir.join("security");
+    if !security_dir.is_dir() {
+        return Err(anyhow!(
+            "security/-Verzeichnis nicht gefunden unter '{}'",
+            data_dir.display()
+        ));
+    }
+
+    let groups = read_existing_groups(&security_dir)?;
+    let users = read_existing_users(&security_dir)?;
+    let entity_types = list_entity_types(&data_dir);
+    if entity_types.is_empty() {
+        eprintln!(
+            "WARN: keine entity-Typen unter '{}' gefunden — Wildcard-Permissions ('*') koennen nicht expandiert werden.",
+            data_dir.join("entities").display()
+        );
+    }
+
+    let mut roles: Vec<shared::auth::Role> = Vec::new();
+    let mut permissions: Vec<shared::auth::Permission> = Vec::new();
+    let mut role_assignments: Vec<shared::auth::RoleAssignment> = Vec::new();
+
+    for g in &groups {
+        roles.push(shared::auth::Role {
+            id: g.id.clone(),
+            name_key: g.name_key.clone(),
+            description_key: g.description_key.clone(),
+        });
+        for perm in &g.permissions {
+            // Welche Entity-Typen sind betroffen?
+            let targets: Vec<String> = if perm.entity_type == "*" {
+                entity_types.clone()
+            } else {
+                vec![perm.entity_type.clone()]
+            };
+            // Welche Ops sind erlaubt?
+            let mut ops: Vec<shared::auth::Op> = Vec::new();
+            if perm.can_read {
+                ops.push(shared::auth::Op::Read);
+            }
+            if perm.can_create {
+                ops.push(shared::auth::Op::Create);
+            }
+            if perm.can_update {
+                ops.push(shared::auth::Op::Update);
+            }
+            if perm.can_delete {
+                ops.push(shared::auth::Op::Delete);
+            }
+            for target in &targets {
+                for &op in &ops {
+                    permissions.push(shared::auth::Permission {
+                        subject: shared::auth::Subject::Role { id: g.id.clone() },
+                        resource: shared::auth::Resource::EntityType { name: target.clone() },
+                        op,
+                        effect: shared::auth::Effect::Allow,
+                        priority: 0,
+                        tenant_id: None,
+                    });
+                }
+            }
+        }
+    }
+
+    for u in &users {
+        for gid in &u.group_ids {
+            role_assignments.push(shared::auth::RoleAssignment {
+                subject: shared::auth::Subject::User { id: u.id.clone() },
+                role_id: gid.clone(),
+            });
+        }
+    }
+
+    let perm_json = serde_json::to_string_pretty(&permissions)?;
+    let roles_json = serde_json::to_string_pretty(&roles)?;
+    let ra_json = serde_json::to_string_pretty(&role_assignments)?;
+
+    let perm_target = security_dir.join("permissions.json");
+    let roles_target = security_dir.join("roles.json");
+    let ra_target = security_dir.join("role_assignments.json");
+
+    if args.dry_run {
+        println!("== dry-run — keine Dateien werden geaendert ==");
+        println!("\n# {} ({} Eintraege)", perm_target.display(), permissions.len());
+        println!("{perm_json}");
+        println!("\n# {} ({} Eintraege)", roles_target.display(), roles.len());
+        println!("{roles_json}");
+        println!(
+            "\n# {} ({} Eintraege)",
+            ra_target.display(),
+            role_assignments.len()
+        );
+        println!("{ra_json}");
+        return Ok(());
+    }
+
+    for path in [&perm_target, &roles_target, &ra_target] {
+        if path.exists() && !args.force {
+            return Err(anyhow!(
+                "'{}' existiert bereits — --force benutzen, um zu ueberschreiben",
+                path.display()
+            ));
+        }
+    }
+
+    std::fs::write(&perm_target, &perm_json)
+        .with_context(|| format!("schreiben {}", perm_target.display()))?;
+    std::fs::write(&roles_target, &roles_json)
+        .with_context(|| format!("schreiben {}", roles_target.display()))?;
+    std::fs::write(&ra_target, &ra_json)
+        .with_context(|| format!("schreiben {}", ra_target.display()))?;
+
+    println!(
+        "OK: {} Permissions, {} Rollen, {} Zuweisungen geschrieben.",
+        permissions.len(),
+        roles.len(),
+        role_assignments.len()
+    );
+    Ok(())
+}
+
+fn read_existing_groups(security_dir: &std::path::Path) -> Result<Vec<shared::SecurityGroup>> {
+    let path = pick_existing(security_dir, "groups")
+        .ok_or_else(|| anyhow!("groups.{{json,toml}} nicht in {} gefunden", security_dir.display()))?;
+    parse_file(&path)
+}
+
+fn read_existing_users(security_dir: &std::path::Path) -> Result<Vec<shared::SecurityUser>> {
+    // SecurityUser fehlt einige Felder, die im Loader-UserSeed sind —
+    // wir akzeptieren das einfache Format. Falls keine users-Datei existiert,
+    // ist die Mitgliedschafts-Konvertierung leer.
+    let Some(path) = pick_existing(security_dir, "users") else {
+        return Ok(Vec::new());
+    };
+    // Datei kann das `UserSeed`-Format haben (password_plain etc.). Wir
+    // mappen nur die Felder, die fuer RoleAssignment relevant sind.
+    let value: serde_json::Value = parse_file(&path)?;
+    let Some(arr) = value.as_array() else {
+        return Err(anyhow!("erwartete eine Liste in {}", path.display()));
+    };
+    let mut out = Vec::new();
+    for raw in arr {
+        let id = raw
+            .get("id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow!("user-Eintrag ohne 'id' in {}", path.display()))?
+            .to_string();
+        let group_ids = raw
+            .get("groupIds")
+            .or_else(|| raw.get("group_ids"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        out.push(shared::SecurityUser {
+            id,
+            username: String::new(),
+            display_name: String::new(),
+            locale: None,
+            group_ids,
+            active: true,
+            password_hash: None,
+        });
+    }
+    Ok(out)
+}
+
+fn pick_existing(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf> {
+    for ext in ["json", "toml"] {
+        let p = dir.join(format!("{stem}.{ext}"));
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+fn parse_file<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<T> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("lesen {}", path.display()))?;
+    let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+    match ext {
+        "json" => serde_json::from_str(&raw)
+            .with_context(|| format!("parsen JSON {}", path.display())),
+        "toml" => toml_to_t::<T>(&raw)
+            .with_context(|| format!("parsen TOML {}", path.display())),
+        _ => Err(anyhow!("unbekannte Erweiterung: {}", path.display())),
+    }
+}
+
+fn toml_to_t<T: serde::de::DeserializeOwned>(s: &str) -> Result<T> {
+    // toml::from_str gibt es; wir nutzen aber serde_json als Brueckenformat,
+    // um Vec-of-Top-Level zu erlauben (TOML kann das nicht direkt — wir
+    // erwarten dort einen Wrapper-Object-Style; fuers Migrations-Skript ist
+    // JSON der primaere Pfad).
+    Err(anyhow!("TOML-Input fuer migrate-security wird heute nicht unterstuetzt; bitte als JSON liefern. (Input: {} bytes)", s.len()))
+}
+
+fn list_entity_types(data_dir: &std::path::Path) -> Vec<String> {
+    let entities = data_dir.join("entities");
+    let Ok(read) = std::fs::read_dir(&entities) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for entry in read.flatten() {
+        if entry.path().is_dir() {
+            if let Some(name) = entry.file_name().to_str() {
+                out.push(name.to_string());
+            }
+        }
+    }
+    out.sort();
+    out
 }
 
 async fn handle_user(cmd: UserCmd) -> Result<()> {

@@ -1101,6 +1101,19 @@ pub async fn seed_groups(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> 
 // Phase 0.7 — Permissions / Roles / Role-Assignments
 // =============================================================================
 
+/// Anzahl der Eintraege in der `permissions`-Tabelle. Wird vom
+/// Enforcement-Pfad in `schema.rs::require_permission` als Schalter benutzt:
+/// > 0 ⇒ neuer Resolver authoritative; = 0 ⇒ alte Logik (Groups +
+/// can_*-Flags) bleibt aktiv. So bleiben Bestands-Examples ohne explizite
+/// Phase-0.7-Konfiguration weiterhin nutzbar.
+pub async fn permissions_count() -> u64 {
+    use sea_orm::PaginatorTrait;
+    entity::permissions::Entity::find()
+        .count(&conn())
+        .await
+        .unwrap_or(0)
+}
+
 pub async fn seed_permissions(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     let Some(set) = crate::example::current() else {
         return Ok(());

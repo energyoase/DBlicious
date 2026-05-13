@@ -4,6 +4,7 @@
 //! die innere Modul-Struktur fuer `tests/`-Verzeichnisse erreichbar und
 //! exponiert eine `build_schema()`-Funktion plus die DB-Init.
 
+pub mod audit;
 pub mod auth;
 pub mod data;
 pub mod db;
