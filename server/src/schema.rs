@@ -1328,7 +1328,41 @@ impl MutationRoot {
                 validation: Json(serde_json::to_value(&validation).unwrap()),
             });
         }
-        let entity = data::create_entity(&entity_type, id, fields.0, Some(&actor.id)).await;
+        // Phase 2.3: beforeSave-Trigger — Plugins koennen Felder mutieren oder
+        // den Save mit Validation-Fehlern abbrechen.
+        let fields_map = match crate::plugins::run_before_save(
+            &entity_type,
+            None,
+            fields_map,
+            &actor.id,
+        )
+        .await
+        {
+            Ok(updated) => updated,
+            Err(errors) => {
+                return Ok(EntityChangeResult {
+                    ok: false,
+                    entity: None,
+                    validation: Json(plugin_errors_to_validation(&errors)),
+                });
+            }
+        };
+        let entity = data::create_entity(
+            &entity_type,
+            id,
+            serde_json::Value::Object(fields_map.clone()),
+            Some(&actor.id),
+        )
+        .await;
+        // afterSave fire-and-forget (Audit-Log haelt die Spur).
+        crate::plugins::run_after_save(
+            &entity_type,
+            &entity.id,
+            &fields_map,
+            "create",
+            &actor.id,
+        )
+        .await;
         Ok(EntityChangeResult {
             ok: true,
             entity: Some(entity),
@@ -1373,12 +1407,51 @@ impl MutationRoot {
                 validation: Json(serde_json::to_value(&validation).unwrap()),
             });
         }
-        match data::update_entity(&entity_type, &id, fields.0, Some(&actor.id)).await {
-            Some(entity) => Ok(EntityChangeResult {
-                ok: true,
-                entity: Some(entity),
-                validation: Json(serde_json::to_value(&validation).unwrap()),
-            }),
+        // Phase 2.3: beforeSave mit fields_before = aktueller DB-Stand, falls
+        // vorhanden. Plugins koennen `merged` mutieren oder ablehnen.
+        let fields_before = data::entity_by_id(&entity_type, &id)
+            .await
+            .and_then(|e| e.fields.0.as_object().cloned());
+        let merged = match crate::plugins::run_before_save(
+            &entity_type,
+            fields_before.as_ref(),
+            merged,
+            &actor.id,
+        )
+        .await
+        {
+            Ok(updated) => updated,
+            Err(errors) => {
+                return Ok(EntityChangeResult {
+                    ok: false,
+                    entity: data::entity_by_id(&entity_type, &id).await,
+                    validation: Json(plugin_errors_to_validation(&errors)),
+                });
+            }
+        };
+        match data::update_entity(
+            &entity_type,
+            &id,
+            serde_json::Value::Object(merged.clone()),
+            Some(&actor.id),
+        )
+        .await
+        {
+            Some(entity) => {
+                crate::plugins::run_after_save(
+                    &entity_type,
+                    &entity.id,
+                    &merged,
+                    "update",
+                    &actor.id,
+                )
+                .await;
+                Ok(EntityChangeResult {
+                    ok: true,
+                    entity: Some(entity),
+                    validation: Json(serde_json::to_value(&validation).unwrap()),
+                })
+            }
             None => Ok(EntityChangeResult {
                 ok: false,
                 entity: None,
@@ -1487,6 +1560,27 @@ impl MutationRoot {
                 }
             }
         }
+        // Phase 2.3: beforeDelete-Trigger — Plugins koennen ablehnen.
+        let fields_before = data::entity_by_id(&entity_type, &id)
+            .await
+            .and_then(|e| e.fields.0.as_object().cloned())
+            .unwrap_or_default();
+        let actor_id = ctx
+            .data::<AuthContext>()?
+            .user
+            .as_ref()
+            .map(|u| u.id.clone())
+            .unwrap_or_default();
+        if let Err(errors) =
+            crate::plugins::run_before_delete(&entity_type, &id, &fields_before, &actor_id).await
+        {
+            return Ok(EntityChangeResult {
+                ok: false,
+                entity: data::entity_by_id(&entity_type, &id).await,
+                validation: Json(plugin_errors_to_validation(&errors)),
+            });
+        }
+
         let ok = data::delete_entity(&entity_type, &id).await;
         Ok(EntityChangeResult {
             ok,
@@ -1505,4 +1599,23 @@ impl MutationRoot {
             }),
         })
     }
+}
+
+/// Hilfsfunktion: Plugin-Validation-Fehler in das ValidationResult-Wire-
+/// Format konvertieren, das EntityChangeResult erwartet.
+fn plugin_errors_to_validation(
+    errors: &[shared::plugin::ValidationErrorFromPlugin],
+) -> serde_json::Value {
+    let messages: Vec<serde_json::Value> = errors
+        .iter()
+        .map(|e| {
+            serde_json::json!({
+                "severity": "error",
+                "messageKey": e.message.clone().unwrap_or_else(|| format!("plugin.{}", e.code)),
+                "target": e.field,
+                "args": { "code": e.code }
+            })
+        })
+        .collect();
+    serde_json::json!({ "messages": messages })
 }

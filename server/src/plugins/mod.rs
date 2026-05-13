@@ -248,3 +248,198 @@ pub fn parse_manifest(model: &entity::plugins::Model) -> Result<PluginManifest, 
     serde_json::from_str(&model.manifest_json)
         .map_err(|e| PluginError::InvalidManifest(e.to_string()))
 }
+
+// =============================================================================
+// Trigger-Dispatch (Phase 2.3)
+// =============================================================================
+
+/// Liste (plugin_id, function_name) aller aktiven Plugins, deren Manifest
+/// `trigger` fuer `entity_type` exportiert.
+///
+/// Match-Regel:
+///   - Plugin muss `enabled = true` sein.
+///   - Capabilities.triggers muss `trigger` enthalten (sonst Manifest-Bug,
+///     die Funktion wird ignoriert).
+///   - FunctionDef.trigger == trigger.
+///   - FunctionDef.entity_types leer ODER enthaelt `entity_type`.
+pub async fn find_functions_for_trigger(
+    trigger: shared::plugin::TriggerKind,
+    entity_type: &str,
+) -> Vec<(String, String)> {
+    let Ok(plugins) = list_plugins().await else { return Vec::new() };
+    let mut out = Vec::new();
+    for p in plugins {
+        if !p.enabled {
+            continue;
+        }
+        let Ok(manifest) = parse_manifest(&p) else { continue };
+        if !manifest.capabilities.triggers.contains(&trigger) {
+            continue;
+        }
+        for (fname, fdef) in &manifest.functions {
+            if fdef.trigger != trigger {
+                continue;
+            }
+            if !fdef.entity_types.is_empty()
+                && !fdef.entity_types.iter().any(|et| et == entity_type)
+            {
+                continue;
+            }
+            out.push((p.id.clone(), fname.clone()));
+        }
+    }
+    out
+}
+
+/// Ruft alle passenden BeforeSave-Funktionen sequenziell. Jedes Plugin
+/// bekommt den **aktuellen** `fields_after`-Stand und kann ihn mutieren
+/// (kaskadierend), oder Validation-Fehler werfen.
+///
+/// Liefert
+///   - `Ok(fields_after)` mit (ggf. mutiertem) Final-Stand → CRUD fortsetzen.
+///   - `Err(Vec<ValidationErrorFromPlugin>)` → Save abbrechen, Fehler an
+///     den Client.
+pub async fn run_before_save(
+    entity_type: &str,
+    fields_before: Option<&serde_json::Map<String, serde_json::Value>>,
+    fields_after: serde_json::Map<String, serde_json::Value>,
+    user_id: &str,
+) -> Result<
+    serde_json::Map<String, serde_json::Value>,
+    Vec<shared::plugin::ValidationErrorFromPlugin>,
+> {
+    let targets =
+        find_functions_for_trigger(shared::plugin::TriggerKind::BeforeSave, entity_type).await;
+    let mut current = fields_after;
+    for (plugin_id, function_name) in targets {
+        let input = shared::plugin::BeforeSaveInput {
+            entity_type: entity_type.to_string(),
+            fields_before: fields_before.cloned(),
+            fields_after: current.clone(),
+            user: user_id.to_string(),
+        };
+        let json_input = serde_json::to_value(&input).unwrap_or(serde_json::Value::Null);
+        match call_with_audit(
+            &plugin_id,
+            &function_name,
+            "beforeSave",
+            Some(entity_type),
+            Some(user_id),
+            &json_input,
+        )
+        .await
+        {
+            Ok(raw) => {
+                let parsed: Result<shared::plugin::BeforeSaveOutput, _> =
+                    serde_json::from_value(raw);
+                match parsed {
+                    Ok(out) => {
+                        if let Some(validation) = out.validation {
+                            if !validation.errors.is_empty() {
+                                return Err(validation.errors);
+                            }
+                        }
+                        if let Some(updated) = out.fields_after {
+                            current = updated;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "server::plugins", "beforeSave decode err in {plugin_id}/{function_name}: {e}");
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!(target: "server::plugins", "beforeSave call err in {plugin_id}/{function_name}: {e}");
+                // Konservativ: bei Plugin-Fehlern den Save abbrechen, damit
+                // ein kaputtes Plugin Daten nicht ungeprueft durchwinken kann.
+                return Err(vec![shared::plugin::ValidationErrorFromPlugin {
+                    field: None,
+                    code: "plugin_error".to_string(),
+                    message: Some(format!("{plugin_id}/{function_name}: {e}")),
+                }]);
+            }
+        }
+    }
+    Ok(current)
+}
+
+/// Ruft alle AfterSave-Funktionen. Fire-and-forget — Resultat wird ignoriert
+/// (Audit-Log haelt die Spur). Im Gegensatz zu BeforeSave sind Fehler hier
+/// nicht-blockend.
+pub async fn run_after_save(
+    entity_type: &str,
+    entity_id: &str,
+    fields: &serde_json::Map<String, serde_json::Value>,
+    op: &str, // "create" | "update"
+    user_id: &str,
+) {
+    let targets =
+        find_functions_for_trigger(shared::plugin::TriggerKind::AfterSave, entity_type).await;
+    for (plugin_id, function_name) in targets {
+        let input = serde_json::json!({
+            "entityType": entity_type,
+            "entity": { "id": entity_id, "fields": fields },
+            "op": op,
+            "user": user_id,
+        });
+        let _ = call_with_audit(
+            &plugin_id,
+            &function_name,
+            "afterSave",
+            Some(entity_type),
+            Some(user_id),
+            &input,
+        )
+        .await;
+    }
+}
+
+/// BeforeDelete: kann den Delete blockieren mit `validation.errors`.
+pub async fn run_before_delete(
+    entity_type: &str,
+    entity_id: &str,
+    fields: &serde_json::Map<String, serde_json::Value>,
+    user_id: &str,
+) -> Result<(), Vec<shared::plugin::ValidationErrorFromPlugin>> {
+    let targets =
+        find_functions_for_trigger(shared::plugin::TriggerKind::BeforeDelete, entity_type).await;
+    for (plugin_id, function_name) in targets {
+        let input = serde_json::json!({
+            "entityType": entity_type,
+            "entity": { "id": entity_id, "fields": fields },
+            "user": user_id,
+        });
+        match call_with_audit(
+            &plugin_id,
+            &function_name,
+            "beforeDelete",
+            Some(entity_type),
+            Some(user_id),
+            &input,
+        )
+        .await
+        {
+            Ok(raw) => {
+                if let Some(validation) = raw.get("validation") {
+                    if let Some(errors) = validation.get("errors").and_then(|e| e.as_array()) {
+                        let parsed: Vec<shared::plugin::ValidationErrorFromPlugin> = errors
+                            .iter()
+                            .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                            .collect();
+                        if !parsed.is_empty() {
+                            return Err(parsed);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(vec![shared::plugin::ValidationErrorFromPlugin {
+                    field: None,
+                    code: "plugin_error".to_string(),
+                    message: Some(format!("{plugin_id}/{function_name}: {e}")),
+                }]);
+            }
+        }
+    }
+    Ok(())
+}
