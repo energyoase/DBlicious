@@ -1,0 +1,10 @@
+{
+  "entityType": "order",
+  "properties": [
+    { "key": "id",          "labelKey": "field.id",           "fieldType": { "kind": "text" },                                                  "required": true,  "readonly": true,  "visibility": "readOnly", "order": 0,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "orderNumber", "labelKey": "field.order_number", "fieldType": { "kind": "text" },                                                  "required": true,  "readonly": false, "visibility": "visible",  "order": 10, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "total",       "labelKey": "field.total",        "fieldType": { "kind": "money", "currencyCodeField": "currency" },                "required": true,  "readonly": false, "visibility": "visible",  "order": 20, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "currency",    "labelKey": "field.currency",     "fieldType": { "kind": "text" },                                                  "required": false, "readonly": false, "visibility": "visible",  "order": 30, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "status",      "labelKey": "field.status",       "fieldType": { "kind": "enum", "values": ["new","paid","shipped","cancelled"] },  "required": true,  "readonly": false, "visibility": "visible",  "order": 40, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}

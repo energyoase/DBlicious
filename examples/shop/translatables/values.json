@@ -1,0 +1,16 @@
+[
+  { "entryId": "security-group-admin",       "languageId": "de", "ftlSource": "Administratoren" },
+  { "entryId": "security-group-admin",       "languageId": "en", "ftlSource": "Administrators" },
+  { "entryId": "security-group-admin-desc",  "languageId": "de", "ftlSource": "Volle Rechte auf alle Entitäten." },
+  { "entryId": "security-group-admin-desc",  "languageId": "en", "ftlSource": "Full access to every entity." },
+  { "entryId": "security-group-editor",      "languageId": "de", "ftlSource": "Redaktion" },
+  { "entryId": "security-group-editor",      "languageId": "en", "ftlSource": "Editors" },
+  { "entryId": "security-group-editor-desc", "languageId": "de", "ftlSource": "Darf Daten erstellen und ändern, aber nicht löschen." },
+  { "entryId": "security-group-editor-desc", "languageId": "en", "ftlSource": "May create and update, but not delete." },
+  { "entryId": "security-group-viewer",      "languageId": "de", "ftlSource": "Leser" },
+  { "entryId": "security-group-viewer",      "languageId": "en", "ftlSource": "Viewers" },
+  { "entryId": "security-group-viewer-desc", "languageId": "de", "ftlSource": "Reiner Lesezugriff." },
+  { "entryId": "security-group-viewer-desc", "languageId": "en", "ftlSource": "Read-only access." },
+  { "entryId": "editor-section-master",      "languageId": "de", "ftlSource": "Stammdaten" },
+  { "entryId": "editor-section-master",      "languageId": "en", "ftlSource": "Master data" }
+]

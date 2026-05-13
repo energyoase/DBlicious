@@ -1,0 +1,452 @@
+[
+  {
+    "id": "o-0001",
+    "fields": {
+      "id": "o-0001",
+      "orderNumber": "ORD-2025-0001",
+      "total": 23.45,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "paid",
+      "customer": {
+        "id": "cu-2",
+        "displayName": "Kunde 2"
+      }
+    }
+  },
+  {
+    "id": "o-0002",
+    "fields": {
+      "id": "o-0002",
+      "orderNumber": "ORD-2025-0002",
+      "total": 46.9,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "shipped",
+      "customer": {
+        "id": "cu-3",
+        "displayName": "Kunde 3"
+      }
+    }
+  },
+  {
+    "id": "o-0003",
+    "fields": {
+      "id": "o-0003",
+      "orderNumber": "ORD-2025-0003",
+      "total": 70.35,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "cancelled",
+      "customer": {
+        "id": "cu-4",
+        "displayName": "Kunde 4"
+      }
+    }
+  },
+  {
+    "id": "o-0004",
+    "fields": {
+      "id": "o-0004",
+      "orderNumber": "ORD-2025-0004",
+      "total": 93.8,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "new",
+      "customer": {
+        "id": "cu-5",
+        "displayName": "Kunde 5"
+      }
+    }
+  },
+  {
+    "id": "o-0005",
+    "fields": {
+      "id": "o-0005",
+      "orderNumber": "ORD-2025-0005",
+      "total": 117.25,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "paid",
+      "customer": {
+        "id": "cu-6",
+        "displayName": "Kunde 6"
+      }
+    }
+  },
+  {
+    "id": "o-0006",
+    "fields": {
+      "id": "o-0006",
+      "orderNumber": "ORD-2025-0006",
+      "total": 140.7,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "shipped",
+      "customer": {
+        "id": "cu-7",
+        "displayName": "Kunde 7"
+      }
+    }
+  },
+  {
+    "id": "o-0007",
+    "fields": {
+      "id": "o-0007",
+      "orderNumber": "ORD-2025-0007",
+      "total": 164.15,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "cancelled",
+      "customer": {
+        "id": "cu-8",
+        "displayName": "Kunde 8"
+      }
+    }
+  },
+  {
+    "id": "o-0008",
+    "fields": {
+      "id": "o-0008",
+      "orderNumber": "ORD-2025-0008",
+      "total": 187.6,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "new",
+      "customer": {
+        "id": "cu-1",
+        "displayName": "Kunde 1"
+      }
+    }
+  },
+  {
+    "id": "o-0009",
+    "fields": {
+      "id": "o-0009",
+      "orderNumber": "ORD-2025-0009",
+      "total": 211.04999999999998,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "paid",
+      "customer": {
+        "id": "cu-2",
+        "displayName": "Kunde 2"
+      }
+    }
+  },
+  {
+    "id": "o-0010",
+    "fields": {
+      "id": "o-0010",
+      "orderNumber": "ORD-2025-0010",
+      "total": 234.5,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "shipped",
+      "customer": {
+        "id": "cu-3",
+        "displayName": "Kunde 3"
+      }
+    }
+  },
+  {
+    "id": "o-0011",
+    "fields": {
+      "id": "o-0011",
+      "orderNumber": "ORD-2025-0011",
+      "total": 257.95,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "cancelled",
+      "customer": {
+        "id": "cu-4",
+        "displayName": "Kunde 4"
+      }
+    }
+  },
+  {
+    "id": "o-0012",
+    "fields": {
+      "id": "o-0012",
+      "orderNumber": "ORD-2025-0012",
+      "total": 281.4,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "new",
+      "customer": {
+        "id": "cu-5",
+        "displayName": "Kunde 5"
+      }
+    }
+  },
+  {
+    "id": "o-0013",
+    "fields": {
+      "id": "o-0013",
+      "orderNumber": "ORD-2025-0013",
+      "total": 304.84999999999997,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "paid",
+      "customer": {
+        "id": "cu-6",
+        "displayName": "Kunde 6"
+      }
+    }
+  },
+  {
+    "id": "o-0014",
+    "fields": {
+      "id": "o-0014",
+      "orderNumber": "ORD-2025-0014",
+      "total": 328.3,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "shipped",
+      "customer": {
+        "id": "cu-7",
+        "displayName": "Kunde 7"
+      }
+    }
+  },
+  {
+    "id": "o-0015",
+    "fields": {
+      "id": "o-0015",
+      "orderNumber": "ORD-2025-0015",
+      "total": 351.75,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "cancelled",
+      "customer": {
+        "id": "cu-8",
+        "displayName": "Kunde 8"
+      }
+    }
+  },
+  {
+    "id": "o-0016",
+    "fields": {
+      "id": "o-0016",
+      "orderNumber": "ORD-2025-0016",
+      "total": 375.2,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "new",
+      "customer": {
+        "id": "cu-1",
+        "displayName": "Kunde 1"
+      }
+    }
+  },
+  {
+    "id": "o-0017",
+    "fields": {
+      "id": "o-0017",
+      "orderNumber": "ORD-2025-0017",
+      "total": 398.65,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "paid",
+      "customer": {
+        "id": "cu-2",
+        "displayName": "Kunde 2"
+      }
+    }
+  },
+  {
+    "id": "o-0018",
+    "fields": {
+      "id": "o-0018",
+      "orderNumber": "ORD-2025-0018",
+      "total": 422.09999999999997,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "shipped",
+      "customer": {
+        "id": "cu-3",
+        "displayName": "Kunde 3"
+      }
+    }
+  },
+  {
+    "id": "o-0019",
+    "fields": {
+      "id": "o-0019",
+      "orderNumber": "ORD-2025-0019",
+      "total": 445.55,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "cancelled",
+      "customer": {
+        "id": "cu-4",
+        "displayName": "Kunde 4"
+      }
+    }
+  },
+  {
+    "id": "o-0020",
+    "fields": {
+      "id": "o-0020",
+      "orderNumber": "ORD-2025-0020",
+      "total": 469.0,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "new",
+      "customer": {
+        "id": "cu-5",
+        "displayName": "Kunde 5"
+      }
+    }
+  },
+  {
+    "id": "o-0021",
+    "fields": {
+      "id": "o-0021",
+      "orderNumber": "ORD-2025-0021",
+      "total": 492.45,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "paid",
+      "customer": {
+        "id": "cu-6",
+        "displayName": "Kunde 6"
+      }
+    }
+  },
+  {
+    "id": "o-0022",
+    "fields": {
+      "id": "o-0022",
+      "orderNumber": "ORD-2025-0022",
+      "total": 515.9,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "shipped",
+      "customer": {
+        "id": "cu-7",
+        "displayName": "Kunde 7"
+      }
+    }
+  },
+  {
+    "id": "o-0023",
+    "fields": {
+      "id": "o-0023",
+      "orderNumber": "ORD-2025-0023",
+      "total": 539.35,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "cancelled",
+      "customer": {
+        "id": "cu-8",
+        "displayName": "Kunde 8"
+      }
+    }
+  },
+  {
+    "id": "o-0024",
+    "fields": {
+      "id": "o-0024",
+      "orderNumber": "ORD-2025-0024",
+      "total": 562.8,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "new",
+      "customer": {
+        "id": "cu-1",
+        "displayName": "Kunde 1"
+      }
+    }
+  },
+  {
+    "id": "o-0025",
+    "fields": {
+      "id": "o-0025",
+      "orderNumber": "ORD-2025-0025",
+      "total": 586.25,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "paid",
+      "customer": {
+        "id": "cu-2",
+        "displayName": "Kunde 2"
+      }
+    }
+  },
+  {
+    "id": "o-0026",
+    "fields": {
+      "id": "o-0026",
+      "orderNumber": "ORD-2025-0026",
+      "total": 609.6999999999999,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "shipped",
+      "customer": {
+        "id": "cu-3",
+        "displayName": "Kunde 3"
+      }
+    }
+  },
+  {
+    "id": "o-0027",
+    "fields": {
+      "id": "o-0027",
+      "orderNumber": "ORD-2025-0027",
+      "total": 633.15,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "cancelled",
+      "customer": {
+        "id": "cu-4",
+        "displayName": "Kunde 4"
+      }
+    }
+  },
+  {
+    "id": "o-0028",
+    "fields": {
+      "id": "o-0028",
+      "orderNumber": "ORD-2025-0028",
+      "total": 656.6,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "new",
+      "customer": {
+        "id": "cu-5",
+        "displayName": "Kunde 5"
+      }
+    }
+  },
+  {
+    "id": "o-0029",
+    "fields": {
+      "id": "o-0029",
+      "orderNumber": "ORD-2025-0029",
+      "total": 680.05,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "paid",
+      "customer": {
+        "id": "cu-6",
+        "displayName": "Kunde 6"
+      }
+    }
+  },
+  {
+    "id": "o-0030",
+    "fields": {
+      "id": "o-0030",
+      "orderNumber": "ORD-2025-0030",
+      "total": 703.5,
+      "currency": "EUR",
+      "placedAt": "2025-03-20T14:15:00Z",
+      "status": "shipped",
+      "customer": {
+        "id": "cu-7",
+        "displayName": "Kunde 7"
+      }
+    }
+  }
+]

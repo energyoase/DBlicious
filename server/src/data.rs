@@ -1,0 +1,1177 @@
+//! Daten-Schicht (SeaORM-backed).
+//!
+//! Alle Zugriffe sind `async fn` und sprechen `DatabaseConnection` aus
+//! [`crate::db`] an. *Demo-Inhalte* (Navigation, Spalten-/Editor-/Settings-
+//! Metadaten, Seed-User/-Gruppen/-Translatables/-Entities) sind im Server-Code
+//! **nicht** mehr hartkodiert — sie kommen aus dem installierten
+//! [`crate::example::ExampleSet`] (siehe `--data-dir`). Ist kein Beispiel
+//! installiert (z.B. CLI-Lauf gegen Bestands-DB), sind die Lese-Pfade leer
+//! und die Seed-Pfade no-op.
+//!
+//! `editor_for`/`settings_for` bleiben **synchron**, damit die Validation
+//! ohne `.await` auskommt. `editor_for_async`/`settings_for_async` fragt
+//! zuerst die `metadata_*`-Tabellen ab (Designer-Override) und faellt sonst
+//! auf das Beispiel zurueck.
+
+use std::sync::{Mutex, OnceLock};
+
+use async_graphql::Json;
+use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+};
+use shared::{
+    EditorMeta, EntitySettings, SecurityGroup, SecurityUser, TranslatableBundle,
+    TranslatableEntry, TranslatableLanguage, TranslatableValue,
+};
+
+use crate::db::conn;
+use crate::entity;
+use crate::schema::{ColumnMeta, Entity, EntityPage, NavigationNode};
+
+// =============================================================================
+// Navigation (static)
+// =============================================================================
+
+/// Navigation aus dem installierten Beispiel. Ohne Beispiel: leere Liste.
+pub fn navigation_tree() -> Vec<NavigationNode> {
+    let Some(set) = crate::example::current() else {
+        return Vec::new();
+    };
+    set.navigation.into_iter().map(convert_nav_node).collect()
+}
+
+fn convert_nav_node(n: shared::NavigationNode) -> NavigationNode {
+    NavigationNode {
+        id: n.id,
+        label_key: n.label_key,
+        route: n.route,
+        icon: n.icon,
+        action: n
+            .action
+            .map(|a| Json(serde_json::to_value(a).unwrap_or_default())),
+        children: n.children.into_iter().map(convert_nav_node).collect(),
+    }
+}
+
+// =============================================================================
+// Spalten-Metadaten (aus Beispiel-Set)
+// =============================================================================
+
+pub fn columns_for(entity_type: &str) -> Vec<ColumnMeta> {
+    let Some(set) = crate::example::current() else {
+        return Vec::new();
+    };
+    let Some(et) = set.entities.get(entity_type) else {
+        return Vec::new();
+    };
+    et.columns.iter().cloned().map(convert_column).collect()
+}
+
+fn convert_column(c: shared::ColumnMeta) -> ColumnMeta {
+    ColumnMeta {
+        key: c.key,
+        label_key: c.label_key,
+        field_type: Json(serde_json::to_value(c.field_type).unwrap_or_default()),
+        sortable: c.sortable,
+        filterable: c.filterable,
+        comparator_id: c.comparator_id,
+        filter_id: c.filter_id,
+    }
+}
+
+// =============================================================================
+// Entity-CRUD (DB-backed)
+// =============================================================================
+
+fn next_id_prefix(entity_type: &str) -> String {
+    use rand::Rng;
+    let n: u64 = rand::thread_rng().gen_range(1_000..1_000_000);
+    format!("{}-{:04}", entity_type.chars().next().unwrap_or('x'), n)
+}
+
+fn fields_from_model(model: entity::entities::Model) -> Entity {
+    let parsed: serde_json::Value =
+        serde_json::from_str(&model.fields_json).unwrap_or(serde_json::Value::Null);
+    Entity { id: model.id, fields: Json(parsed) }
+}
+
+fn fields_obj_from_value(v: &serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
+    match v {
+        serde_json::Value::Object(m) => m.clone(),
+        _ => serde_json::Map::new(),
+    }
+}
+
+fn hash_for_entity(id: &str, fields: &serde_json::Map<String, serde_json::Value>) -> String {
+    let s = shared::Entity { id: id.to_string(), fields: fields.clone() };
+    shared::compute_hash(&s).to_string()
+}
+
+pub async fn entities_page(entity_type: &str, page: i32, page_size: i32) -> EntityPage {
+    use sea_orm::PaginatorTrait;
+    let db = &conn();
+    let base = entity::entities::Entity::find()
+        .filter(entity::entities::Column::EntityType.eq(entity_type));
+    let total = base
+        .clone()
+        .count(db)
+        .await
+        .unwrap_or(0) as i64;
+    let page_idx = (page.max(1) - 1) as u64;
+    let take = page_size.max(1) as u64;
+    let items = base
+        .paginate(db, take)
+        .fetch_page(page_idx)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(fields_from_model)
+        .collect();
+    EntityPage {
+        items,
+        total_count: total,
+        page,
+        page_size,
+    }
+}
+
+pub async fn entity_by_id(entity_type: &str, id: &str) -> Option<Entity> {
+    let db = &conn();
+    entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
+        .one(db)
+        .await
+        .ok()
+        .flatten()
+        .map(fields_from_model)
+}
+
+pub async fn current_hash(entity_type: &str, id: &str) -> Option<u64> {
+    let db = &conn();
+    let row = entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
+        .one(db)
+        .await
+        .ok()
+        .flatten()?;
+    row.hash.parse().ok()
+}
+
+pub async fn merged_fields(
+    entity_type: &str,
+    id: &str,
+    patch: &serde_json::Value,
+) -> serde_json::Map<String, serde_json::Value> {
+    let mut base = entity_by_id(entity_type, id)
+        .await
+        .map(|e| fields_obj_from_value(&e.fields.0))
+        .unwrap_or_default();
+    if let serde_json::Value::Object(p) = patch {
+        for (k, v) in p {
+            base.insert(k.clone(), v.clone());
+        }
+    }
+    base
+}
+
+pub async fn create_entity(
+    entity_type: &str,
+    id: Option<String>,
+    fields: serde_json::Value,
+    actor_user_id: Option<&str>,
+) -> Entity {
+    let db = &conn();
+    let id = id.unwrap_or_else(|| next_id_prefix(entity_type));
+    let mut fields_map = fields_obj_from_value(&fields);
+    fields_map.insert("id".into(), serde_json::Value::String(id.clone()));
+    apply_audit_columns(entity_type, &mut fields_map, actor_user_id, AuditPhase::Create);
+    let value = serde_json::Value::Object(fields_map.clone());
+    let hash = hash_for_entity(&id, &fields_map);
+
+    let model = entity::entities::ActiveModel {
+        entity_type: ActiveValue::Set(entity_type.to_string()),
+        id: ActiveValue::Set(id.clone()),
+        fields_json: ActiveValue::Set(value.to_string()),
+        hash: ActiveValue::Set(hash),
+    };
+    let _ = model.insert(db).await;
+    Entity { id, fields: Json(value) }
+}
+
+pub async fn update_entity(
+    entity_type: &str,
+    id: &str,
+    field_patch: serde_json::Value,
+    actor_user_id: Option<&str>,
+) -> Option<Entity> {
+    let db = &conn();
+    let existing = entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
+        .one(db)
+        .await
+        .ok()
+        .flatten()?;
+    let mut current: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(&existing.fields_json).unwrap_or_default();
+    if let serde_json::Value::Object(patch) = field_patch {
+        for (k, v) in patch {
+            current.insert(k, v);
+        }
+    }
+    apply_audit_columns(entity_type, &mut current, actor_user_id, AuditPhase::Update);
+    let value = serde_json::Value::Object(current.clone());
+    let hash = hash_for_entity(id, &current);
+    let am = entity::entities::ActiveModel {
+        entity_type: ActiveValue::Set(entity_type.to_string()),
+        id: ActiveValue::Set(id.to_string()),
+        fields_json: ActiveValue::Set(value.to_string()),
+        hash: ActiveValue::Set(hash),
+    };
+    let _ = am.update(db).await;
+    Some(Entity { id: id.to_string(), fields: Json(value) })
+}
+
+pub async fn delete_entity(entity_type: &str, id: &str) -> bool {
+    let db = &conn();
+    let res = entity::entities::Entity::delete_by_id((entity_type.to_string(), id.to_string()))
+        .exec(db)
+        .await;
+    matches!(res, Ok(r) if r.rows_affected > 0)
+}
+
+// =============================================================================
+// Audit
+// =============================================================================
+
+#[derive(Clone, Copy)]
+enum AuditPhase {
+    Create,
+    Update,
+}
+
+fn apply_audit_columns(
+    entity_type: &str,
+    fields: &mut serde_json::Map<String, serde_json::Value>,
+    actor_user_id: Option<&str>,
+    phase: AuditPhase,
+) {
+    let Some(schema) = current_db_schema() else { return };
+    let Some(table) = schema.tables.iter().find(|t| t.name == entity_type) else { return };
+    let now = Utc::now().to_rfc3339();
+    for col in &table.columns {
+        let role = col.audit_role;
+        let fill = match phase {
+            AuditPhase::Create => role.fills_on_create(),
+            AuditPhase::Update => role.fills_on_update(),
+        };
+        if !fill {
+            continue;
+        }
+        let value = match role {
+            shared::AuditRole::CreatedAt | shared::AuditRole::UpdatedAt => {
+                serde_json::Value::String(now.clone())
+            }
+            shared::AuditRole::CreatedBy | shared::AuditRole::UpdatedBy => actor_user_id
+                .map(|s| serde_json::Value::String(s.into()))
+                .unwrap_or(serde_json::Value::Null),
+            shared::AuditRole::None => continue,
+        };
+        fields.insert(col.name.clone(), value);
+    }
+}
+
+// =============================================================================
+// Designer-Schema (in-memory Cache + DB persistiert)
+// =============================================================================
+
+fn db_schema_cell() -> &'static Mutex<Option<shared::DbSchema>> {
+    static C: OnceLock<Mutex<Option<shared::DbSchema>>> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(None))
+}
+
+pub fn current_db_schema() -> Option<shared::DbSchema> {
+    db_schema_cell().lock().unwrap().clone()
+}
+
+pub fn install_db_schema(schema: shared::DbSchema) {
+    *db_schema_cell().lock().unwrap() = Some(schema);
+}
+
+pub async fn persist_db_schema(schema: &shared::DbSchema) -> Result<(), sea_orm::DbErr> {
+    let db = &conn();
+    let name = if schema.name.is_empty() {
+        "default".to_string()
+    } else {
+        schema.name.clone()
+    };
+    let json = serde_json::to_string(schema).map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+    let am = entity::db_schemas::ActiveModel {
+        name: ActiveValue::Set(name.clone()),
+        schema_json: ActiveValue::Set(json),
+        updated_at: ActiveValue::Set(Utc::now()),
+    };
+    if entity::db_schemas::Entity::find_by_id(name.clone())
+        .one(db)
+        .await?
+        .is_some()
+    {
+        am.update(db).await?;
+    } else {
+        am.insert(db).await?;
+    }
+    Ok(())
+}
+
+/// Laed beim Server-Start (oder Test-Setup) den zuletzt persistierten
+/// Designer-Stand in den In-Memory-Cache.
+pub async fn rehydrate_db_schema() -> Result<(), sea_orm::DbErr> {
+    use sea_orm::QueryOrder;
+    let db = &conn();
+    if let Some(row) = entity::db_schemas::Entity::find()
+        .order_by_desc(entity::db_schemas::Column::UpdatedAt)
+        .one(db)
+        .await?
+    {
+        if let Ok(schema) = serde_json::from_str::<shared::DbSchema>(&row.schema_json) {
+            install_db_schema(schema);
+        }
+    }
+    Ok(())
+}
+
+// =============================================================================
+// Users / Groups (DB-backed)
+// =============================================================================
+
+pub async fn users() -> Vec<SecurityUser> {
+    let db = &conn();
+    let mut out = Vec::new();
+    let user_rows = entity::users::Entity::find()
+        .all(db)
+        .await
+        .unwrap_or_default();
+    for u in user_rows {
+        let groups = entity::user_groups::Entity::find()
+            .filter(entity::user_groups::Column::UserId.eq(u.id.clone()))
+            .all(db)
+            .await
+            .unwrap_or_default();
+        out.push(SecurityUser {
+            id: u.id,
+            username: u.username,
+            display_name: u.display_name,
+            locale: u.locale,
+            group_ids: groups.into_iter().map(|g| g.group_id).collect(),
+            active: u.active,
+            password_hash: u.password_hash,
+        });
+    }
+    out
+}
+
+pub async fn user_by_username(username: &str) -> Option<SecurityUser> {
+    let db = &conn();
+    let row = entity::users::Entity::find()
+        .filter(entity::users::Column::Username.eq(username))
+        .one(db)
+        .await
+        .ok()
+        .flatten()?;
+    let groups = entity::user_groups::Entity::find()
+        .filter(entity::user_groups::Column::UserId.eq(row.id.clone()))
+        .all(db)
+        .await
+        .unwrap_or_default();
+    Some(SecurityUser {
+        id: row.id,
+        username: row.username,
+        display_name: row.display_name,
+        locale: row.locale,
+        group_ids: groups.into_iter().map(|g| g.group_id).collect(),
+        active: row.active,
+        password_hash: row.password_hash,
+    })
+}
+
+pub async fn user_by_id(id: &str) -> Option<SecurityUser> {
+    let db = &conn();
+    let row = entity::users::Entity::find_by_id(id.to_string())
+        .one(db)
+        .await
+        .ok()
+        .flatten()?;
+    let groups = entity::user_groups::Entity::find()
+        .filter(entity::user_groups::Column::UserId.eq(row.id.clone()))
+        .all(db)
+        .await
+        .unwrap_or_default();
+    Some(SecurityUser {
+        id: row.id,
+        username: row.username,
+        display_name: row.display_name,
+        locale: row.locale,
+        group_ids: groups.into_iter().map(|g| g.group_id).collect(),
+        active: row.active,
+        password_hash: row.password_hash,
+    })
+}
+
+pub async fn groups() -> Vec<SecurityGroup> {
+    let db = &conn();
+    entity::groups::Entity::find()
+        .all(db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|g| SecurityGroup {
+            id: g.id,
+            name_key: g.name_key,
+            description_key: g.description_key,
+            permissions: serde_json::from_str(&g.permissions_json).unwrap_or_default(),
+        })
+        .collect()
+}
+
+// =============================================================================
+// Users / Groups – Verwaltung (CLI/Admin)
+// =============================================================================
+
+fn random_id_suffix() -> String {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let mut s = String::with_capacity(8);
+    for _ in 0..8 {
+        let c = rng.gen_range(0u8..36);
+        s.push(if c < 10 {
+            (b'0' + c) as char
+        } else {
+            (b'a' + c - 10) as char
+        });
+    }
+    s
+}
+
+pub async fn create_user(
+    username: &str,
+    display_name: Option<&str>,
+    locale: Option<&str>,
+    password: Option<&str>,
+) -> Result<SecurityUser, String> {
+    let db = &conn();
+    let exists = entity::users::Entity::find()
+        .filter(entity::users::Column::Username.eq(username))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    if exists.is_some() {
+        return Err(format!("Nutzer '{username}' existiert bereits"));
+    }
+    let id = format!("u-{}", random_id_suffix());
+    let display = display_name.unwrap_or(username).to_string();
+    let password_hash = match password {
+        Some(p) => Some(crate::auth::hash_password(p)?),
+        None => None,
+    };
+    entity::users::ActiveModel {
+        id: ActiveValue::Set(id.clone()),
+        username: ActiveValue::Set(username.to_string()),
+        display_name: ActiveValue::Set(display.clone()),
+        locale: ActiveValue::Set(locale.map(|s| s.to_string())),
+        active: ActiveValue::Set(true),
+        password_hash: ActiveValue::Set(password_hash.clone()),
+    }
+    .insert(db)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(SecurityUser {
+        id,
+        username: username.to_string(),
+        display_name: display,
+        locale: locale.map(|s| s.to_string()),
+        group_ids: vec![],
+        active: true,
+        password_hash,
+    })
+}
+
+pub async fn delete_user_by_username(username: &str) -> Result<bool, String> {
+    let db = &conn();
+    let row = entity::users::Entity::find()
+        .filter(entity::users::Column::Username.eq(username))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(user) = row else {
+        return Ok(false);
+    };
+    entity::user_groups::Entity::delete_many()
+        .filter(entity::user_groups::Column::UserId.eq(user.id.clone()))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    entity::sessions::Entity::delete_many()
+        .filter(entity::sessions::Column::UserId.eq(user.id.clone()))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    let res = entity::users::Entity::delete_by_id(user.id)
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(res.rows_affected > 0)
+}
+
+pub async fn set_user_password(username: &str, password: &str) -> Result<(), String> {
+    let db = &conn();
+    let row = entity::users::Entity::find()
+        .filter(entity::users::Column::Username.eq(username))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nutzer '{username}' nicht gefunden"))?;
+    let hash = crate::auth::hash_password(password)?;
+    let user_id = row.id.clone();
+    let mut am: entity::users::ActiveModel = row.into();
+    am.password_hash = ActiveValue::Set(Some(hash));
+    am.update(db).await.map_err(|e| e.to_string())?;
+    // Bestehende Sessions des Nutzers entwerten — Passwort wurde rotiert.
+    entity::sessions::Entity::delete_many()
+        .filter(entity::sessions::Column::UserId.eq(user_id))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub async fn add_user_to_group(username: &str, group_id: &str) -> Result<bool, String> {
+    let db = &conn();
+    let user = entity::users::Entity::find()
+        .filter(entity::users::Column::Username.eq(username))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nutzer '{username}' nicht gefunden"))?;
+    let group = entity::groups::Entity::find_by_id(group_id.to_string())
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Gruppe '{group_id}' nicht gefunden"))?;
+    let already = entity::user_groups::Entity::find_by_id((user.id.clone(), group.id.clone()))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    if already.is_some() {
+        return Ok(false);
+    }
+    entity::user_groups::ActiveModel {
+        user_id: ActiveValue::Set(user.id),
+        group_id: ActiveValue::Set(group.id),
+    }
+    .insert(db)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+pub async fn remove_user_from_group(username: &str, group_id: &str) -> Result<bool, String> {
+    let db = &conn();
+    let user = entity::users::Entity::find()
+        .filter(entity::users::Column::Username.eq(username))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Nutzer '{username}' nicht gefunden"))?;
+    let res = entity::user_groups::Entity::delete_by_id((user.id, group_id.to_string()))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(res.rows_affected > 0)
+}
+
+pub async fn create_group(
+    id: &str,
+    name_key: &str,
+    description_key: Option<&str>,
+) -> Result<SecurityGroup, String> {
+    let db = &conn();
+    if entity::groups::Entity::find_by_id(id.to_string())
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?
+        .is_some()
+    {
+        return Err(format!("Gruppe '{id}' existiert bereits"));
+    }
+    let perms: Vec<shared::Permission> = vec![];
+    let perms_json = serde_json::to_string(&perms).map_err(|e| e.to_string())?;
+    entity::groups::ActiveModel {
+        id: ActiveValue::Set(id.to_string()),
+        name_key: ActiveValue::Set(name_key.to_string()),
+        description_key: ActiveValue::Set(description_key.map(|s| s.to_string())),
+        permissions_json: ActiveValue::Set(perms_json),
+    }
+    .insert(db)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(SecurityGroup {
+        id: id.to_string(),
+        name_key: name_key.to_string(),
+        description_key: description_key.map(|s| s.to_string()),
+        permissions: perms,
+    })
+}
+
+pub async fn delete_group(id: &str) -> Result<bool, String> {
+    let db = &conn();
+    entity::user_groups::Entity::delete_many()
+        .filter(entity::user_groups::Column::GroupId.eq(id))
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    let res = entity::groups::Entity::delete_by_id(id.to_string())
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(res.rows_affected > 0)
+}
+
+/// Idempotent: legt fehlende Standard-Gruppen (`g-admin`, `g-users`) an.
+/// Wird vom CLI bei jedem Start aufgerufen, damit der Admin auf jedem
+/// Bestands-DB die erwarteten Gruppen vorfindet.
+pub async fn ensure_default_groups() -> Result<(), String> {
+    let db = &conn();
+    let admin_perms = serde_json::to_string(&vec![shared::Permission {
+        entity_type: "*".into(),
+        can_read: true,
+        can_create: true,
+        can_update: true,
+        can_delete: true,
+        min_access: shared::Access::Admin,
+        property_overrides: vec![],
+    }])
+    .map_err(|e| e.to_string())?;
+    let defaults: [(&str, &str, Option<&str>, &str); 2] = [
+        (
+            "g-admin",
+            "security.group.admin",
+            Some("security.group.admin.desc"),
+            admin_perms.as_str(),
+        ),
+        (
+            "g-users",
+            "security.group.users",
+            Some("security.group.users.desc"),
+            "[]",
+        ),
+    ];
+    for (id, name_key, desc_key, perms_json) in defaults {
+        if entity::groups::Entity::find_by_id(id.to_string())
+            .one(db)
+            .await
+            .map_err(|e| e.to_string())?
+            .is_some()
+        {
+            continue;
+        }
+        entity::groups::ActiveModel {
+            id: ActiveValue::Set(id.to_string()),
+            name_key: ActiveValue::Set(name_key.to_string()),
+            description_key: ActiveValue::Set(desc_key.map(|s| s.to_string())),
+            permissions_json: ActiveValue::Set(perms_json.to_string()),
+        }
+        .insert(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// =============================================================================
+// Translatables
+// =============================================================================
+
+pub async fn translatable_bundle() -> TranslatableBundle {
+    let db = &conn();
+    let langs: Vec<TranslatableLanguage> = entity::translatable_languages::Entity::find()
+        .all(db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|l| TranslatableLanguage {
+            id: l.id,
+            code: l.code,
+            name_key: l.name_key,
+            fallback_id: l.fallback_id,
+            active: l.active,
+        })
+        .collect();
+    let entries: Vec<TranslatableEntry> = entity::translatable_entries::Entity::find()
+        .all(db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|e| TranslatableEntry {
+            id: e.id,
+            category: e.category,
+            description: e.description,
+        })
+        .collect();
+    let values: Vec<TranslatableValue> = entity::translatable_values::Entity::find()
+        .all(db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|v| TranslatableValue {
+            entry_id: v.entry_id,
+            language_id: v.language_id,
+            ftl_source: v.ftl_source,
+            updated_at: v.updated_at,
+        })
+        .collect();
+    TranslatableBundle { languages: langs, entries, values }
+}
+
+// =============================================================================
+// Editor / Settings (in-Memory-Defaults, optional via DB)
+// =============================================================================
+
+pub async fn editor_for_async(entity_type: &str) -> Option<EditorMeta> {
+    let db = &conn();
+    if let Ok(Some(row)) =
+        entity::metadata_editor::Entity::find_by_id(entity_type.to_string())
+            .one(db)
+            .await
+    {
+        if let Ok(meta) = serde_json::from_str::<EditorMeta>(&row.meta_json) {
+            return Some(meta);
+        }
+    }
+    editor_for(entity_type)
+}
+
+pub async fn settings_for_async(entity_type: &str) -> Option<EntitySettings> {
+    let db = &conn();
+    if let Ok(Some(row)) =
+        entity::metadata_settings::Entity::find_by_id(entity_type.to_string())
+            .one(db)
+            .await
+    {
+        if let Ok(settings) = serde_json::from_str::<EntitySettings>(&row.settings_json) {
+            return Some(settings);
+        }
+    }
+    settings_for(entity_type)
+}
+
+/// Editor-Metadaten aus dem installierten Beispiel.
+pub fn editor_for(entity_type: &str) -> Option<EditorMeta> {
+    let set = crate::example::current()?;
+    set.entities.get(entity_type)?.editor.clone()
+}
+
+/// Entity-Settings aus dem installierten Beispiel.
+pub fn settings_for(entity_type: &str) -> Option<EntitySettings> {
+    let set = crate::example::current()?;
+    set.entities.get(entity_type)?.settings.clone()
+}
+
+// =============================================================================
+// Validation gegen EditorMeta
+// =============================================================================
+
+pub fn validate_against_editor(
+    entity_type: &str,
+    fields: &serde_json::Map<String, serde_json::Value>,
+) -> shared::ValidationResult {
+    use shared::ValidationMessage;
+
+    let mut result = shared::ValidationResult::default();
+    let Some(meta) = editor_for(entity_type) else { return result };
+    for prop in &meta.properties {
+        let value = fields.get(&prop.key);
+
+        let is_empty = match value {
+            None | Some(serde_json::Value::Null) => true,
+            Some(serde_json::Value::String(s)) => s.is_empty(),
+            _ => false,
+        };
+
+        if prop.readonly {
+            continue;
+        }
+
+        if prop.required && is_empty {
+            result.push(ValidationMessage::error(
+                prop.key.clone(),
+                "validation.required",
+            ));
+            continue;
+        }
+
+        if is_empty {
+            continue;
+        }
+
+        if let Some(serde_json::Value::String(s)) = value {
+            let len = s.chars().count() as u32;
+            if let Some(min) = prop.min_length {
+                if len < min {
+                    result.push(
+                        ValidationMessage::error(prop.key.clone(), "validation.min_length")
+                            .with_arg("min", min as i64),
+                    );
+                }
+            }
+            if let Some(max) = prop.max_length {
+                if len > max {
+                    result.push(
+                        ValidationMessage::error(prop.key.clone(), "validation.max_length")
+                            .with_arg("max", max as i64),
+                    );
+                }
+            }
+            if let Some(pat) = &prop.pattern {
+                match regex::Regex::new(pat) {
+                    Ok(re) => {
+                        if !re.is_match(s) {
+                            result.push(ValidationMessage::error(
+                                prop.key.clone(),
+                                "validation.pattern",
+                            ));
+                        }
+                    }
+                    Err(_) => {
+                        result.push(ValidationMessage {
+                            severity: shared::Severity::Error,
+                            message_key: "validation.pattern.invalid_definition".into(),
+                            target: Some(prop.key.clone()),
+                            args: serde_json::Map::new(),
+                        });
+                    }
+                }
+            }
+        }
+
+        if let Some(n) = value.and_then(json_to_f64) {
+            if let Some(min) = prop.min {
+                if n < min {
+                    result.push(
+                        ValidationMessage::error(prop.key.clone(), "validation.number_range")
+                            .with_arg("min", min)
+                            .with_arg("max", prop.max.unwrap_or(f64::INFINITY)),
+                    );
+                }
+            }
+            if let Some(max) = prop.max {
+                if n > max {
+                    result.push(
+                        ValidationMessage::error(prop.key.clone(), "validation.number_range")
+                            .with_arg("min", prop.min.unwrap_or(f64::NEG_INFINITY))
+                            .with_arg("max", max),
+                    );
+                }
+            }
+        }
+    }
+    result
+}
+
+fn json_to_f64(v: &serde_json::Value) -> Option<f64> {
+    match v {
+        serde_json::Value::Number(n) => n.as_f64(),
+        serde_json::Value::String(s) => s.parse().ok(),
+        _ => None,
+    }
+}
+
+// =============================================================================
+// Property-Filter
+// =============================================================================
+
+pub async fn filter_properties_for_user(
+    entity_type: &str,
+    fields: &mut serde_json::Map<String, serde_json::Value>,
+    user: &shared::SecurityUser,
+    groups: &[shared::SecurityGroup],
+) {
+    let Some(meta) = editor_for_async(entity_type).await else { return };
+    let drop_keys: Vec<String> = meta
+        .properties
+        .iter()
+        .filter(|p| {
+            matches!(
+                shared::property_access_for(user, groups, entity_type, &p.key),
+                shared::PropertyAccessLevel::NoAccess
+            )
+        })
+        .map(|p| p.key.clone())
+        .collect();
+    for k in drop_keys {
+        fields.remove(&k);
+    }
+}
+
+// =============================================================================
+// DB-Seed aus installiertem Beispiel
+// =============================================================================
+//
+// Wird ausschliesslich aus `db::seed_if_empty` aufgerufen — d.h. nur, wenn
+// die jeweilige Tabelle leer ist. Wenn kein Beispiel installiert ist (z.B.
+// CLI-Lauf gegen Bestands-DB), tut die jeweilige Funktion nichts.
+
+pub async fn seed_users(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
+    for u in set.users {
+        let hash = u
+            .password_plain
+            .as_deref()
+            .map(|p| crate::auth::hash_password(p).expect("argon2"));
+        entity::users::ActiveModel {
+            id: ActiveValue::Set(u.id.clone()),
+            username: ActiveValue::Set(u.username),
+            display_name: ActiveValue::Set(u.display_name),
+            locale: ActiveValue::Set(u.locale),
+            active: ActiveValue::Set(u.active),
+            password_hash: ActiveValue::Set(hash),
+        }
+        .insert(db)
+        .await?;
+        for g in u.group_ids {
+            entity::user_groups::ActiveModel {
+                user_id: ActiveValue::Set(u.id.clone()),
+                group_id: ActiveValue::Set(g),
+            }
+            .insert(db)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+pub async fn seed_groups(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
+    for g in set.groups {
+        let perms_json = serde_json::to_string(&g.permissions)
+            .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+        entity::groups::ActiveModel {
+            id: ActiveValue::Set(g.id),
+            name_key: ActiveValue::Set(g.name_key),
+            description_key: ActiveValue::Set(g.description_key),
+            permissions_json: ActiveValue::Set(perms_json),
+        }
+        .insert(db)
+        .await?;
+    }
+    Ok(())
+}
+
+pub async fn seed_translatables(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
+    let bundle = set.translatables;
+    for l in bundle.languages {
+        entity::translatable_languages::ActiveModel {
+            id: ActiveValue::Set(l.id),
+            code: ActiveValue::Set(l.code),
+            name_key: ActiveValue::Set(l.name_key),
+            fallback_id: ActiveValue::Set(l.fallback_id),
+            active: ActiveValue::Set(l.active),
+        }
+        .insert(db)
+        .await?;
+    }
+    for e in bundle.entries {
+        entity::translatable_entries::ActiveModel {
+            id: ActiveValue::Set(e.id),
+            category: ActiveValue::Set(e.category),
+            description: ActiveValue::Set(e.description),
+        }
+        .insert(db)
+        .await?;
+    }
+    for v in bundle.values {
+        entity::translatable_values::ActiveModel {
+            entry_id: ActiveValue::Set(v.entry_id),
+            language_id: ActiveValue::Set(v.language_id),
+            ftl_source: ActiveValue::Set(v.ftl_source),
+            updated_at: ActiveValue::Set(v.updated_at),
+        }
+        .insert(db)
+        .await?;
+    }
+    Ok(())
+}
+
+/// Spiegelt alle Entity-Seeds aus dem Beispiel in die `entities`-Tabelle.
+/// Ersetzt das fruehere hartkodierte `mock_*`-Set.
+pub async fn seed_entities_from_example(
+    db: &DatabaseConnection,
+) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
+    for (entity_type, type_set) in &set.entities {
+        for e in &type_set.seeds {
+            insert_seed_entity(db, entity_type, e).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn insert_seed_entity(
+    db: &DatabaseConnection,
+    entity_type: &str,
+    e: &shared::Entity,
+) -> Result<(), sea_orm::DbErr> {
+    let fields_value = serde_json::Value::Object(e.fields.clone());
+    let hash = hash_for_entity(&e.id, &e.fields);
+    entity::entities::ActiveModel {
+        entity_type: ActiveValue::Set(entity_type.to_string()),
+        id: ActiveValue::Set(e.id.clone()),
+        fields_json: ActiveValue::Set(fields_value.to_string()),
+        hash: ActiveValue::Set(hash),
+    }
+    .insert(db)
+    .await?;
+    Ok(())
+}
+
+// =============================================================================
+// Tests
+// =============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn ensure_example() {
+        if crate::example::current().is_some() {
+            return;
+        }
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("examples")
+            .join("shop");
+        let set = crate::example::load(&dir).expect("examples/shop fuer Tests laden");
+        crate::example::install(set);
+    }
+
+    async fn setup() {
+        ensure_example();
+        crate::db::reset();
+        crate::db::init().await.expect("db::init() failed");
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn create_then_read_back_persists_id_and_fields() {
+        setup().await;
+        let entity = create_entity(
+            "product",
+            Some("p-test-1".into()),
+            json!({"name": "Probe"}),
+            None,
+        )
+        .await;
+        assert_eq!(entity.id, "p-test-1");
+        let back = entity_by_id("product", "p-test-1").await.expect("created");
+        let fields = back.fields.0.as_object().unwrap().clone();
+        assert_eq!(fields.get("name").unwrap().as_str(), Some("Probe"));
+        assert!(delete_entity("product", "p-test-1").await);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn update_merges_patch_into_existing_fields() {
+        setup().await;
+        create_entity(
+            "product",
+            Some("p-test-2".into()),
+            json!({"name": "A", "price": 10}),
+            None,
+        )
+        .await;
+        let updated = update_entity("product", "p-test-2", json!({"price": 20}), None)
+            .await
+            .expect("updated");
+        let fields = updated.fields.0.as_object().unwrap().clone();
+        assert_eq!(fields.get("name").unwrap().as_str(), Some("A"));
+        assert_eq!(fields.get("price").unwrap().as_i64(), Some(20));
+        delete_entity("product", "p-test-2").await;
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn current_hash_changes_when_fields_change() {
+        setup().await;
+        create_entity(
+            "product",
+            Some("p-test-3".into()),
+            json!({"name": "A"}),
+            None,
+        )
+        .await;
+        let h1 = current_hash("product", "p-test-3").await.expect("hash");
+        update_entity("product", "p-test-3", json!({"name": "B"}), None)
+            .await
+            .unwrap();
+        let h2 = current_hash("product", "p-test-3").await.expect("hash");
+        assert_ne!(h1, h2);
+        delete_entity("product", "p-test-3").await;
+    }
+
+    #[tokio::test]
+    async fn validate_against_editor_flags_missing_required_field() {
+        // Synchron — keine DB noetig, aber das Beispiel muss geladen sein,
+        // damit `editor_for("product")` Meta liefert.
+        ensure_example();
+        let fields = serde_json::Map::new();
+        let r = validate_against_editor("product", &fields);
+        assert!(r.has_blocking());
+        assert!(r
+            .messages
+            .iter()
+            .any(|m| m.target.as_deref() == Some("name")));
+    }
+
+    #[tokio::test]
+    async fn validate_against_editor_passes_when_required_set() {
+        ensure_example();
+        let mut fields = serde_json::Map::new();
+        fields.insert("name".into(), serde_json::Value::String("Foo".into()));
+        let r = validate_against_editor("product", &fields);
+        assert!(!r
+            .for_target("name")
+            .any(|m| m.severity == shared::Severity::Error));
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn user_by_username_finds_admin_with_hashed_password() {
+        setup().await;
+        let u = user_by_username("admin").await.expect("admin existiert");
+        let hash = u.password_hash.expect("Hash muss vorhanden sein");
+        assert!(crate::auth::verify_password("admin", &hash));
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn db_schema_round_trip_via_db() {
+        setup().await;
+        let schema = shared::DbSchema {
+            id: "s-1".into(),
+            name: "demo".into(),
+            tables: vec![],
+            relations: vec![],
+            keys: vec![],
+            indices: vec![],
+        };
+        persist_db_schema(&schema).await.expect("persist");
+        rehydrate_db_schema().await.expect("rehydrate");
+        assert_eq!(current_db_schema().unwrap().name, "demo");
+    }
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "u-1",
+    "username": "admin",
+    "displayName": "Administrator",
+    "locale": "de",
+    "groupIds": ["g-admin"],
+    "active": true,
+    "passwordPlain": "admin"
+  },
+  {
+    "id": "u-2",
+    "username": "editor",
+    "displayName": "Editor One",
+    "locale": "de",
+    "groupIds": ["g-editor"],
+    "active": true,
+    "passwordPlain": "editor"
+  },
+  {
+    "id": "u-3",
+    "username": "viewer",
+    "displayName": "Read-only User",
+    "locale": "en",
+    "groupIds": ["g-viewer"],
+    "active": true,
+    "passwordPlain": "viewer"
+  },
+  {
+    "id": "u-4",
+    "username": "alice",
+    "displayName": "Alice Müller",
+    "locale": "de",
+    "groupIds": ["g-editor", "g-viewer"],
+    "active": true,
+    "passwordPlain": "alice"
+  }
+]

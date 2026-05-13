@@ -1,0 +1,11 @@
+{
+  "entityType": "product",
+  "properties": [
+    { "key": "id",        "labelKey": "field.id",         "fieldType": { "kind": "text" },                                          "required": true,  "readonly": true,  "visibility": "readOnly", "order": 0,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "name",      "labelKey": "field.name",       "fieldType": { "kind": "text" },                                          "required": true,  "readonly": false, "visibility": "visible",  "order": 10, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "price",     "labelKey": "field.price",      "fieldType": { "kind": "money", "currencyCodeField": "currency" },        "required": true,  "readonly": false, "visibility": "visible",  "order": 20, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "currency",  "labelKey": "field.currency",   "fieldType": { "kind": "text" },                                          "required": false, "readonly": false, "visibility": "visible",  "order": 30, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "inStock",   "labelKey": "field.in_stock",   "fieldType": { "kind": "boolean" },                                       "required": false, "readonly": false, "visibility": "visible",  "order": 40, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "createdAt", "labelKey": "field.created_at", "fieldType": { "kind": "dateTime" },                                      "required": false, "readonly": true,  "visibility": "readOnly", "order": 50, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}

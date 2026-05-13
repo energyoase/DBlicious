@@ -1,0 +1,800 @@
+[
+  {
+    "id": "p-001",
+    "fields": {
+      "id": "p-001",
+      "name": "Produkt Nr. 1",
+      "price": 9.99,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-1",
+        "tag-2"
+      ]
+    }
+  },
+  {
+    "id": "p-002",
+    "fields": {
+      "id": "p-002",
+      "name": "Produkt Nr. 2",
+      "price": 19.98,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-2",
+        "tag-3"
+      ]
+    }
+  },
+  {
+    "id": "p-003",
+    "fields": {
+      "id": "p-003",
+      "name": "Produkt Nr. 3",
+      "price": 29.97,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-4",
+        "name": "Kategorie 4"
+      },
+      "tags": [
+        "tag-3",
+        "tag-4"
+      ]
+    }
+  },
+  {
+    "id": "p-004",
+    "fields": {
+      "id": "p-004",
+      "name": "Produkt Nr. 4",
+      "price": 39.96,
+      "currency": "EUR",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-5",
+        "name": "Kategorie 5"
+      },
+      "tags": [
+        "tag-4",
+        "tag-5"
+      ]
+    }
+  },
+  {
+    "id": "p-005",
+    "fields": {
+      "id": "p-005",
+      "name": "Produkt Nr. 5",
+      "price": 49.95,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-1",
+        "name": "Kategorie 1"
+      },
+      "tags": [
+        "tag-5",
+        "tag-6"
+      ]
+    }
+  },
+  {
+    "id": "p-006",
+    "fields": {
+      "id": "p-006",
+      "name": "Produkt Nr. 6",
+      "price": 59.94,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-6",
+        "tag-0"
+      ]
+    }
+  },
+  {
+    "id": "p-007",
+    "fields": {
+      "id": "p-007",
+      "name": "Produkt Nr. 7",
+      "price": 69.93,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-0",
+        "tag-1"
+      ]
+    }
+  },
+  {
+    "id": "p-008",
+    "fields": {
+      "id": "p-008",
+      "name": "Produkt Nr. 8",
+      "price": 79.92,
+      "currency": "EUR",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-4",
+        "name": "Kategorie 4"
+      },
+      "tags": [
+        "tag-1",
+        "tag-2"
+      ]
+    }
+  },
+  {
+    "id": "p-009",
+    "fields": {
+      "id": "p-009",
+      "name": "Produkt Nr. 9",
+      "price": 89.91,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-5",
+        "name": "Kategorie 5"
+      },
+      "tags": [
+        "tag-2",
+        "tag-3"
+      ]
+    }
+  },
+  {
+    "id": "p-010",
+    "fields": {
+      "id": "p-010",
+      "name": "Produkt Nr. 10",
+      "price": 99.9,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-1",
+        "name": "Kategorie 1"
+      },
+      "tags": [
+        "tag-3",
+        "tag-4"
+      ]
+    }
+  },
+  {
+    "id": "p-011",
+    "fields": {
+      "id": "p-011",
+      "name": "Produkt Nr. 11",
+      "price": 109.89,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-4",
+        "tag-5"
+      ]
+    }
+  },
+  {
+    "id": "p-012",
+    "fields": {
+      "id": "p-012",
+      "name": "Produkt Nr. 12",
+      "price": 119.88,
+      "currency": "USD",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-5",
+        "tag-6"
+      ]
+    }
+  },
+  {
+    "id": "p-013",
+    "fields": {
+      "id": "p-013",
+      "name": "Produkt Nr. 13",
+      "price": 129.87,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-4",
+        "name": "Kategorie 4"
+      },
+      "tags": [
+        "tag-6",
+        "tag-0"
+      ]
+    }
+  },
+  {
+    "id": "p-014",
+    "fields": {
+      "id": "p-014",
+      "name": "Produkt Nr. 14",
+      "price": 139.86,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-5",
+        "name": "Kategorie 5"
+      },
+      "tags": [
+        "tag-0",
+        "tag-1"
+      ]
+    }
+  },
+  {
+    "id": "p-015",
+    "fields": {
+      "id": "p-015",
+      "name": "Produkt Nr. 15",
+      "price": 149.85,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-1",
+        "name": "Kategorie 1"
+      },
+      "tags": [
+        "tag-1",
+        "tag-2"
+      ]
+    }
+  },
+  {
+    "id": "p-016",
+    "fields": {
+      "id": "p-016",
+      "name": "Produkt Nr. 16",
+      "price": 159.84,
+      "currency": "EUR",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-2",
+        "tag-3"
+      ]
+    }
+  },
+  {
+    "id": "p-017",
+    "fields": {
+      "id": "p-017",
+      "name": "Produkt Nr. 17",
+      "price": 169.83,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-3",
+        "tag-4"
+      ]
+    }
+  },
+  {
+    "id": "p-018",
+    "fields": {
+      "id": "p-018",
+      "name": "Produkt Nr. 18",
+      "price": 179.82,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-4",
+        "name": "Kategorie 4"
+      },
+      "tags": [
+        "tag-4",
+        "tag-5"
+      ]
+    }
+  },
+  {
+    "id": "p-019",
+    "fields": {
+      "id": "p-019",
+      "name": "Produkt Nr. 19",
+      "price": 189.81,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-5",
+        "name": "Kategorie 5"
+      },
+      "tags": [
+        "tag-5",
+        "tag-6"
+      ]
+    }
+  },
+  {
+    "id": "p-020",
+    "fields": {
+      "id": "p-020",
+      "name": "Produkt Nr. 20",
+      "price": 199.8,
+      "currency": "EUR",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-1",
+        "name": "Kategorie 1"
+      },
+      "tags": [
+        "tag-6",
+        "tag-0"
+      ]
+    }
+  },
+  {
+    "id": "p-021",
+    "fields": {
+      "id": "p-021",
+      "name": "Produkt Nr. 21",
+      "price": 209.79,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-0",
+        "tag-1"
+      ]
+    }
+  },
+  {
+    "id": "p-022",
+    "fields": {
+      "id": "p-022",
+      "name": "Produkt Nr. 22",
+      "price": 219.78,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-1",
+        "tag-2"
+      ]
+    }
+  },
+  {
+    "id": "p-023",
+    "fields": {
+      "id": "p-023",
+      "name": "Produkt Nr. 23",
+      "price": 229.77,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-4",
+        "name": "Kategorie 4"
+      },
+      "tags": [
+        "tag-2",
+        "tag-3"
+      ]
+    }
+  },
+  {
+    "id": "p-024",
+    "fields": {
+      "id": "p-024",
+      "name": "Produkt Nr. 24",
+      "price": 239.76,
+      "currency": "USD",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-5",
+        "name": "Kategorie 5"
+      },
+      "tags": [
+        "tag-3",
+        "tag-4"
+      ]
+    }
+  },
+  {
+    "id": "p-025",
+    "fields": {
+      "id": "p-025",
+      "name": "Produkt Nr. 25",
+      "price": 249.75,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-1",
+        "name": "Kategorie 1"
+      },
+      "tags": [
+        "tag-4",
+        "tag-5"
+      ]
+    }
+  },
+  {
+    "id": "p-026",
+    "fields": {
+      "id": "p-026",
+      "name": "Produkt Nr. 26",
+      "price": 259.74,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-5",
+        "tag-6"
+      ]
+    }
+  },
+  {
+    "id": "p-027",
+    "fields": {
+      "id": "p-027",
+      "name": "Produkt Nr. 27",
+      "price": 269.73,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-6",
+        "tag-0"
+      ]
+    }
+  },
+  {
+    "id": "p-028",
+    "fields": {
+      "id": "p-028",
+      "name": "Produkt Nr. 28",
+      "price": 279.72,
+      "currency": "EUR",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-4",
+        "name": "Kategorie 4"
+      },
+      "tags": [
+        "tag-0",
+        "tag-1"
+      ]
+    }
+  },
+  {
+    "id": "p-029",
+    "fields": {
+      "id": "p-029",
+      "name": "Produkt Nr. 29",
+      "price": 289.71,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-5",
+        "name": "Kategorie 5"
+      },
+      "tags": [
+        "tag-1",
+        "tag-2"
+      ]
+    }
+  },
+  {
+    "id": "p-030",
+    "fields": {
+      "id": "p-030",
+      "name": "Produkt Nr. 30",
+      "price": 299.7,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-1",
+        "name": "Kategorie 1"
+      },
+      "tags": [
+        "tag-2",
+        "tag-3"
+      ]
+    }
+  },
+  {
+    "id": "p-031",
+    "fields": {
+      "id": "p-031",
+      "name": "Produkt Nr. 31",
+      "price": 309.69,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-3",
+        "tag-4"
+      ]
+    }
+  },
+  {
+    "id": "p-032",
+    "fields": {
+      "id": "p-032",
+      "name": "Produkt Nr. 32",
+      "price": 319.68,
+      "currency": "EUR",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-4",
+        "tag-5"
+      ]
+    }
+  },
+  {
+    "id": "p-033",
+    "fields": {
+      "id": "p-033",
+      "name": "Produkt Nr. 33",
+      "price": 329.67,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-4",
+        "name": "Kategorie 4"
+      },
+      "tags": [
+        "tag-5",
+        "tag-6"
+      ]
+    }
+  },
+  {
+    "id": "p-034",
+    "fields": {
+      "id": "p-034",
+      "name": "Produkt Nr. 34",
+      "price": 339.66,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-5",
+        "name": "Kategorie 5"
+      },
+      "tags": [
+        "tag-6",
+        "tag-0"
+      ]
+    }
+  },
+  {
+    "id": "p-035",
+    "fields": {
+      "id": "p-035",
+      "name": "Produkt Nr. 35",
+      "price": 349.65000000000003,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-1",
+        "name": "Kategorie 1"
+      },
+      "tags": [
+        "tag-0",
+        "tag-1"
+      ]
+    }
+  },
+  {
+    "id": "p-036",
+    "fields": {
+      "id": "p-036",
+      "name": "Produkt Nr. 36",
+      "price": 359.64,
+      "currency": "USD",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-1",
+        "tag-2"
+      ]
+    }
+  },
+  {
+    "id": "p-037",
+    "fields": {
+      "id": "p-037",
+      "name": "Produkt Nr. 37",
+      "price": 369.63,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-2",
+        "tag-3"
+      ]
+    }
+  },
+  {
+    "id": "p-038",
+    "fields": {
+      "id": "p-038",
+      "name": "Produkt Nr. 38",
+      "price": 379.62,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-4",
+        "name": "Kategorie 4"
+      },
+      "tags": [
+        "tag-3",
+        "tag-4"
+      ]
+    }
+  },
+  {
+    "id": "p-039",
+    "fields": {
+      "id": "p-039",
+      "name": "Produkt Nr. 39",
+      "price": 389.61,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-5",
+        "name": "Kategorie 5"
+      },
+      "tags": [
+        "tag-4",
+        "tag-5"
+      ]
+    }
+  },
+  {
+    "id": "p-040",
+    "fields": {
+      "id": "p-040",
+      "name": "Produkt Nr. 40",
+      "price": 399.6,
+      "currency": "EUR",
+      "inStock": false,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-1",
+        "name": "Kategorie 1"
+      },
+      "tags": [
+        "tag-5",
+        "tag-6"
+      ]
+    }
+  },
+  {
+    "id": "p-041",
+    "fields": {
+      "id": "p-041",
+      "name": "Produkt Nr. 41",
+      "price": 409.59000000000003,
+      "currency": "EUR",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-2",
+        "name": "Kategorie 2"
+      },
+      "tags": [
+        "tag-6",
+        "tag-0"
+      ]
+    }
+  },
+  {
+    "id": "p-042",
+    "fields": {
+      "id": "p-042",
+      "name": "Produkt Nr. 42",
+      "price": 419.58,
+      "currency": "USD",
+      "inStock": true,
+      "createdAt": "2025-01-15T10:30:00Z",
+      "category": {
+        "id": "c-3",
+        "name": "Kategorie 3"
+      },
+      "tags": [
+        "tag-0",
+        "tag-1"
+      ]
+    }
+  }
+]

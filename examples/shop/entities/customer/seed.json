@@ -1,0 +1,182 @@
+[
+  {
+    "id": "cu-1",
+    "fields": {
+      "id": "cu-1",
+      "displayName": "Kunde 1",
+      "email": "kunde1@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 3
+    }
+  },
+  {
+    "id": "cu-2",
+    "fields": {
+      "id": "cu-2",
+      "displayName": "Kunde 2",
+      "email": "kunde2@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 6
+    }
+  },
+  {
+    "id": "cu-3",
+    "fields": {
+      "id": "cu-3",
+      "displayName": "Kunde 3",
+      "email": "kunde3@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 9
+    }
+  },
+  {
+    "id": "cu-4",
+    "fields": {
+      "id": "cu-4",
+      "displayName": "Kunde 4",
+      "email": "kunde4@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 12
+    }
+  },
+  {
+    "id": "cu-5",
+    "fields": {
+      "id": "cu-5",
+      "displayName": "Kunde 5",
+      "email": "kunde5@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 15
+    }
+  },
+  {
+    "id": "cu-6",
+    "fields": {
+      "id": "cu-6",
+      "displayName": "Kunde 6",
+      "email": "kunde6@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 1
+    }
+  },
+  {
+    "id": "cu-7",
+    "fields": {
+      "id": "cu-7",
+      "displayName": "Kunde 7",
+      "email": "kunde7@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 4
+    }
+  },
+  {
+    "id": "cu-8",
+    "fields": {
+      "id": "cu-8",
+      "displayName": "Kunde 8",
+      "email": "kunde8@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 7
+    }
+  },
+  {
+    "id": "cu-9",
+    "fields": {
+      "id": "cu-9",
+      "displayName": "Kunde 9",
+      "email": "kunde9@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 10
+    }
+  },
+  {
+    "id": "cu-10",
+    "fields": {
+      "id": "cu-10",
+      "displayName": "Kunde 10",
+      "email": "kunde10@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 13
+    }
+  },
+  {
+    "id": "cu-11",
+    "fields": {
+      "id": "cu-11",
+      "displayName": "Kunde 11",
+      "email": "kunde11@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 16
+    }
+  },
+  {
+    "id": "cu-12",
+    "fields": {
+      "id": "cu-12",
+      "displayName": "Kunde 12",
+      "email": "kunde12@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 2
+    }
+  },
+  {
+    "id": "cu-13",
+    "fields": {
+      "id": "cu-13",
+      "displayName": "Kunde 13",
+      "email": "kunde13@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 5
+    }
+  },
+  {
+    "id": "cu-14",
+    "fields": {
+      "id": "cu-14",
+      "displayName": "Kunde 14",
+      "email": "kunde14@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 8
+    }
+  },
+  {
+    "id": "cu-15",
+    "fields": {
+      "id": "cu-15",
+      "displayName": "Kunde 15",
+      "email": "kunde15@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 11
+    }
+  },
+  {
+    "id": "cu-16",
+    "fields": {
+      "id": "cu-16",
+      "displayName": "Kunde 16",
+      "email": "kunde16@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 14
+    }
+  },
+  {
+    "id": "cu-17",
+    "fields": {
+      "id": "cu-17",
+      "displayName": "Kunde 17",
+      "email": "kunde17@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 0
+    }
+  },
+  {
+    "id": "cu-18",
+    "fields": {
+      "id": "cu-18",
+      "displayName": "Kunde 18",
+      "email": "kunde18@example.org",
+      "memberSince": "2024-06-01",
+      "orderCount": 3
+    }
+  }
+]

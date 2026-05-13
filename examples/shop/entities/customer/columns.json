@@ -1,0 +1,7 @@
+[
+  { "key": "id",          "labelKey": "field.id",           "fieldType": { "kind": "text" },    "sortable": true,  "filterable": false },
+  { "key": "displayName", "labelKey": "field.display_name", "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "email",       "labelKey": "field.email",        "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "memberSince", "labelKey": "field.member_since", "fieldType": { "kind": "date" },    "sortable": true,  "filterable": false },
+  { "key": "orderCount",  "labelKey": "field.order_count",  "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  }
+]

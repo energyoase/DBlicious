@@ -1,0 +1,12 @@
+[build]
+target = "index.html"
+
+[serve]
+address = "127.0.0.1"
+port = 8080
+open = false
+
+# Proxy auf den Rust-Mock-Server, damit der Client unter /graphql denselben Ursprung sieht.
+[[proxy]]
+backend = "http://127.0.0.1:8000/graphql"
+rewrite = "/graphql"

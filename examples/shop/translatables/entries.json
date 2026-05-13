@@ -1,0 +1,9 @@
+[
+  { "id": "security-group-admin",      "category": "security", "description": "Bezeichnung der Admin-Gruppe" },
+  { "id": "security-group-admin-desc", "category": "security", "description": null },
+  { "id": "security-group-editor",     "category": "security", "description": "Bezeichnung der Editor-Gruppe" },
+  { "id": "security-group-editor-desc","category": "security", "description": null },
+  { "id": "security-group-viewer",     "category": "security", "description": "Bezeichnung der Viewer-Gruppe" },
+  { "id": "security-group-viewer-desc","category": "security", "description": null },
+  { "id": "editor-section-master",     "category": "editor",   "description": "Tab-Titel im Editor" }
+]

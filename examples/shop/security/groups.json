@@ -1,0 +1,43 @@
+[
+  {
+    "id": "g-admin",
+    "nameKey": "security.group.admin",
+    "descriptionKey": "security.group.admin.desc",
+    "permissions": [
+      {
+        "entityType": "*",
+        "canRead": true,
+        "canCreate": true,
+        "canUpdate": true,
+        "canDelete": true,
+        "minAccess": "admin"
+      }
+    ]
+  },
+  {
+    "id": "g-editor",
+    "nameKey": "security.group.editor",
+    "descriptionKey": "security.group.editor.desc",
+    "permissions": [
+      { "entityType": "product",  "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": false, "minAccess": "internal" },
+      { "entityType": "order",    "canRead": true, "canCreate": false, "canUpdate": true,  "canDelete": false, "minAccess": "internal" },
+      { "entityType": "customer", "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": false, "minAccess": "internal" }
+    ]
+  },
+  {
+    "id": "g-viewer",
+    "nameKey": "security.group.viewer",
+    "descriptionKey": "security.group.viewer.desc",
+    "permissions": [
+      { "entityType": "product",  "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "public" },
+      { "entityType": "order",    "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "public" },
+      { "entityType": "customer", "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "public" }
+    ]
+  },
+  {
+    "id": "g-users",
+    "nameKey": "security.group.users",
+    "descriptionKey": "security.group.users.desc",
+    "permissions": []
+  }
+]

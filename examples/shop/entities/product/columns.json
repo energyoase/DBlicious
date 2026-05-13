@@ -1,0 +1,9 @@
+[
+  { "key": "id",        "labelKey": "field.id",         "fieldType": { "kind": "text" },                                                  "sortable": true,  "filterable": false },
+  { "key": "name",      "labelKey": "field.name",       "fieldType": { "kind": "text" },                                                  "sortable": true,  "filterable": true  },
+  { "key": "price",     "labelKey": "field.price",      "fieldType": { "kind": "money", "currencyCodeField": "currency" },                "sortable": true,  "filterable": true  },
+  { "key": "inStock",   "labelKey": "field.in_stock",   "fieldType": { "kind": "boolean" },                                               "sortable": true,  "filterable": true  },
+  { "key": "createdAt", "labelKey": "field.created_at", "fieldType": { "kind": "dateTime" },                                              "sortable": true,  "filterable": false },
+  { "key": "category",  "labelKey": "field.category",   "fieldType": { "kind": "reference", "entity": "category" },                       "sortable": false, "filterable": true  },
+  { "key": "tags",      "labelKey": "field.tags",       "fieldType": { "kind": "collection", "entity": "tag" },                           "sortable": false, "filterable": false }
+]

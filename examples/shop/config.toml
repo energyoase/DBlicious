@@ -1,0 +1,12 @@
+# Konfiguration des "shop"-Beispiels.
+#
+# Format: TOML. Optionale Datei — wenn sie fehlt, gelten die Defaults
+# aus `server::example::ExampleConfig`. Spaeter koennen weitere Sektionen
+# (z.B. Auth-TTL, Feature-Flags) ergaenzt werden, ohne den Vertrag zu
+# brechen.
+
+[server]
+# Anzeigename, der in Logs erscheint.
+name = "shop"
+# HTTP-Bind-Adresse fuer den GraphQL-Endpunkt.
+bind = "127.0.0.1:8000"

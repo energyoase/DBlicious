@@ -1,0 +1,8 @@
+{
+  "entityType": "order",
+  "access": "public",
+  "defaultPageSize": 10,
+  "defaultSort": null,
+  "defaultFilter": null,
+  "properties": []
+}

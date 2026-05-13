@@ -1,0 +1,9 @@
+{
+  "entityType": "customer",
+  "properties": [
+    { "key": "id",          "labelKey": "field.id",           "fieldType": { "kind": "text" }, "required": true,  "readonly": true,  "visibility": "readOnly", "order": 0,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "displayName", "labelKey": "field.display_name", "fieldType": { "kind": "text" }, "required": true,  "readonly": false, "visibility": "visible",  "order": 10, "groupKey": "editor.section.master", "control": "auto", "minLength": 2, "maxLength": 80 },
+    { "key": "email",       "labelKey": "field.email",        "fieldType": { "kind": "text" }, "required": true,  "readonly": false, "visibility": "visible",  "order": 20, "groupKey": "editor.section.master", "control": "auto", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+    { "key": "memberSince", "labelKey": "field.member_since", "fieldType": { "kind": "date" }, "required": false, "readonly": false, "visibility": "visible",  "order": 30, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}

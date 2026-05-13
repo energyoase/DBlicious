@@ -1,0 +1,8 @@
+[
+  { "key": "id",          "labelKey": "field.id",           "fieldType": { "kind": "text" },                                                        "sortable": true,  "filterable": false },
+  { "key": "orderNumber", "labelKey": "field.order_number", "fieldType": { "kind": "text" },                                                        "sortable": true,  "filterable": true  },
+  { "key": "total",       "labelKey": "field.total",        "fieldType": { "kind": "money", "currencyCodeField": "currency" },                      "sortable": true,  "filterable": true  },
+  { "key": "placedAt",    "labelKey": "field.placed_at",    "fieldType": { "kind": "dateTime" },                                                    "sortable": true,  "filterable": false },
+  { "key": "status",      "labelKey": "field.status",       "fieldType": { "kind": "enum", "values": ["new","paid","shipped","cancelled"] },        "sortable": true,  "filterable": true  },
+  { "key": "customer",    "labelKey": "field.customer",     "fieldType": { "kind": "reference", "entity": "customer" },                             "sortable": false, "filterable": true  }
+]

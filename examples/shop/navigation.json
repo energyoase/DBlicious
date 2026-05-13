@@ -1,0 +1,83 @@
+[
+  {
+    "id": "dashboard",
+    "labelKey": "nav.dashboard",
+    "route": "/",
+    "icon": "home",
+    "children": []
+  },
+  {
+    "id": "catalog",
+    "labelKey": "nav.catalog",
+    "route": null,
+    "icon": "book",
+    "children": [
+      {
+        "id": "products",
+        "labelKey": "nav.products",
+        "route": "/entities/product",
+        "icon": null,
+        "children": []
+      },
+      {
+        "id": "categories",
+        "labelKey": "nav.categories",
+        "route": null,
+        "icon": null,
+        "children": [
+          {
+            "id": "categories-active",
+            "labelKey": "nav.categories.active",
+            "route": "/entities/category",
+            "icon": null,
+            "children": []
+          },
+          {
+            "id": "categories-archived",
+            "labelKey": "nav.categories.archived",
+            "route": "/entities/category-archived",
+            "icon": null,
+            "children": [
+              {
+                "id": "categories-archived-2024",
+                "labelKey": "nav.categories.archived.2024",
+                "route": "/entities/category-archived?year=2024",
+                "icon": null,
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "designer",
+    "labelKey": "nav.designer",
+    "route": "/designer",
+    "icon": "schema",
+    "children": []
+  },
+  {
+    "id": "sales",
+    "labelKey": "nav.sales",
+    "route": null,
+    "icon": "cart",
+    "children": [
+      {
+        "id": "orders",
+        "labelKey": "nav.orders",
+        "route": "/entities/order",
+        "icon": null,
+        "children": []
+      },
+      {
+        "id": "customers",
+        "labelKey": "nav.customers",
+        "route": "/entities/customer",
+        "icon": null,
+        "children": []
+      }
+    ]
+  }
+]

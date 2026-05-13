@@ -1,0 +1,55 @@
+[package]
+name = "client"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "client-app"
+path = "src/main.rs"
+
+[dependencies]
+shared = { path = "../shared" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Leptos (Client-Side-Rendering)
+leptos = { version = "0.7", features = ["csr"] }
+leptos_router = { version = "0.7" }
+leptos_meta = { version = "0.7" }
+
+# HTTP / GraphQL
+gloo-net = { version = "0.6", features = ["http"] }
+
+# WASM-Bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Window", "Navigator", "Storage",
+    "Event", "EventTarget", "MouseEvent", "PointerEvent",
+    "HtmlInputElement", "HtmlSelectElement",
+] }
+
+# Logging im Browser
+console_error_panic_hook = "0.1"
+console_log = "1"
+log = "0.4"
+
+# Internationalisierung mit Project Fluent
+fluent = "0.16"
+fluent-langneg = "0.13"
+unic-langid = { version = "0.9", features = ["macros"] }
+
+# Hilfen
+once_cell = "1"
+thiserror = "1"
+send_wrapper = "0.6"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[package.metadata.leptos]
+output-name = "client"

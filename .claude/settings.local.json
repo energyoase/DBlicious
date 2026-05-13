@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tasklist *)",
+      "Bash(cmd *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\jz\\\\source\\\\repos\\\\JezitLibrary*\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\jz\\\\source\\\\repos\\\\JezitLib\" -Recurse -Filter \"*.csproj\")",
+      "Bash(Select-Object FullName)",
+      "Bash(xargs grep -h \"^namespace\")",
+      "Bash(xargs grep -h \"^namespace\\\\|^public class\\\\|^public interface\\\\|^public record\")",
+      "Bash(xargs grep -l \"^public class\\\\|^public interface\")",
+      "Bash(xargs grep -h \"^public class\\\\|^public interface\")",
+      "Bash(CARGO_TARGET_DIR=target-test cargo test -p server --test e2e)",
+      "Bash(CARGO_TARGET_DIR=../target-test cargo check --target wasm32-unknown-unknown)",
+      "Bash(CARGO_TARGET_DIR=target-test cargo test -p server --lib)",
+      "Bash(CARGO_TARGET_DIR=target-test cargo test -p shared)",
+      "Bash(CARGO_TARGET_DIR=target-test cargo check -p server)",
+      "Bash(CARGO_TARGET_DIR=target-test cargo test -p server --lib auth::tests::session_open_and_resolve)",
+      "Bash(CARGO_TARGET_DIR=target-test cargo test -p server)",
+      "Bash(DBLICIOUS_DATABASE_URL=\"sqlite://./.cli-smoke.db?mode=rwc\" ./target/debug/dblicious.exe --help)",
+      "Bash(DBLICIOUS_DATABASE_URL=\"sqlite://./.cli-smoke.db?mode=rwc\" ./target/debug/dblicious.exe group *)",
+      "Bash(export DBLICIOUS_DATABASE_URL=\"sqlite://./.cli-smoke.db?mode=rwc\")",
+      "Bash(./target/debug/dblicious.exe user *)",
+      "Bash(./target/debug/dblicious.exe group *)",
+      "Bash(wmic process *)",
+      "Bash(CARGO_TARGET_DIR=target-test cargo build -p server)",
+      "Bash(CARGO_TARGET_DIR=target-test cargo build -p cli)",
+      "Bash(./target-test/debug/server.exe *)",
+      "Bash(CARGO_TARGET_DIR=target-test cargo clippy --workspace --no-deps -- -A clippy::doc_overindented_list_items -A clippy::too_many_arguments)"
+    ]
+  }
+}

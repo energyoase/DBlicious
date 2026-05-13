@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build *)",
+      "Bash(cargo check *)",
+      "Bash(cargo test *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo run *)",
+      "Bash(trunk *)",
+      "Bash(rustup *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Read(**/.env)",
+      "Read(**/*.pfx)",
+      "Read(**/appsettings.Production.json)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\jz\\source\\repos\\JezitLib",
+      "C:\\Users\\jz\\source\\repos\\JezitLibrary",
+      "C:\\Users\\jz\\source\\repos\\ProjectOverview"
+    ]
+  }
+}

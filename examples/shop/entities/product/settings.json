@@ -1,0 +1,18 @@
+{
+  "entityType": "product",
+  "access": "public",
+  "defaultPageSize": 10,
+  "defaultSort": null,
+  "defaultFilter": null,
+  "properties": [
+    {
+      "key": "id",
+      "visibility": "visible",
+      "access": "readOnly",
+      "loadMethod": "eager",
+      "order": 0,
+      "labelOverrideKey": null,
+      "minWidth": 80
+    }
+  ]
+}
