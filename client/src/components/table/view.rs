@@ -1,10 +1,12 @@
-//! Die eigentliche `<EntityTable>`-Komponente.
+//! Convenience-Wrapper um die dekomponierten Bausteine.
 //!
-//! Sie ist generisch: sie erhaelt nur `Vec<ColumnMeta>` und eine `DataSource`
-//! und kennt weder einen konkreten Entity-Typ noch ein Datenbank-Schema.
-//! Das Verhalten der Sort-/Filter-/Pagination-UI ist bereits korrekt
-//! verdrahtet; die Wirkung haengt davon ab, was die `DataSource`
-//! implementiert.
+//! Phase 0.5.7 hat die Tabelle in einen Shell- + Baustein-Baum zerlegt
+//! (siehe `mod.rs`). Diese Komponente bleibt fuer Bestandsaufrufer als
+//! one-shot Wrapper bestehen und stellt die alte Default-Komposition
+//! (Toolbar mit Search + New-Button, Sortierung, Edit/Delete-Aktionen,
+//! Pagination) bereit.
+//!
+//! Neue Aufrufer sollten `<EntityTableShell>` + Bausteine direkt benutzen.
 
 use std::rc::Rc;
 
@@ -20,6 +22,7 @@ use crate::header::use_header_registry;
 use crate::i18n::t;
 use crate::styling::{styled, use_design, ButtonVariant};
 
+#[deprecated(note = "use EntityTableShell + composable blocks (TopMenu, TableView, BottomMenu, …)")]
 #[component]
 pub fn EntityTable(
     columns: Vec<ColumnMeta>,

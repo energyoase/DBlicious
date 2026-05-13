@@ -15,7 +15,10 @@ use leptos_router::hooks::use_params_map;
 
 use crate::auth::AuthContext;
 use crate::components::designer::Designer;
-use crate::components::table::{EntityTable, RemoteSource};
+use crate::components::table::{
+    BottomMenu, DeleteAction, EditAction, EntityTableShell, GlobalFilter, PageSize, Pager,
+    RemoteSource, RowActions, SelectionColumn, SelectionMode, TableView, TopMenu,
+};
 use crate::i18n::t;
 use crate::styling::{use_design, SurfaceLevel, TextVariant};
 
@@ -119,15 +122,37 @@ pub fn EntityListPage() -> impl IntoView {
                     }.into_any()
                 } else {
                     let settings_for_table = settings.clone();
+                    let can_create = auth.is_allowed(&entity_type, shared::PermissionOp::Create);
+                    let new_href = format!("/entities/{}/new", entity_type_for_table);
+                    let primary_btn = use_design().button(crate::styling::ButtonVariant::Primary).inline.clone();
                     view! {
                         <div>
                             <h1 style=h1>{entity_type.clone()}</h1>
-                            <EntityTable
+                            <EntityTableShell
                                 columns=columns
                                 source=source
                                 entity_type=entity_type_for_table
                                 settings=settings_for_table
-                            />
+                            >
+                                <TopMenu>
+                                    <GlobalFilter/>
+                                    {can_create.then(|| view! {
+                                        <a href=new_href style=primary_btn>
+                                            {move || t("table.actions.new")}
+                                        </a>
+                                    })}
+                                </TopMenu>
+                                <SelectionColumn mode=SelectionMode::Multi/>
+                                <RowActions>
+                                    <EditAction/>
+                                    <DeleteAction/>
+                                </RowActions>
+                                <TableView/>
+                                <BottomMenu>
+                                    <Pager/>
+                                    <PageSize/>
+                                </BottomMenu>
+                            </EntityTableShell>
                         </div>
                     }.into_any()
                 }

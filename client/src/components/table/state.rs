@@ -12,7 +12,7 @@
 use leptos::prelude::*;
 use shared::{EntitySettings, FilterCriteria, Sort, SortDirection};
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct TableState {
     pub page: RwSignal<u32>,
     pub page_size: RwSignal<u32>,
