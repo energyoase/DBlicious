@@ -11,6 +11,7 @@
 # triage state files
 .claude/triage-monitor-state.json
 .claude/dev-executor-state.json
+.claude/scheduled_tasks.lock
 
 # bug-report mirror (the monitor copies ZIPs here for inspection)
 bug-reports/

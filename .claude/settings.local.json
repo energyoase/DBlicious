@@ -28,7 +28,24 @@
       "Bash(CARGO_TARGET_DIR=target-test cargo build -p cli)",
       "Bash(./target-test/debug/server.exe *)",
       "Bash(CARGO_TARGET_DIR=target-test cargo clippy --workspace --no-deps -- -A clippy::doc_overindented_list_items -A clippy::too_many_arguments)",
-      "WebSearch"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git switch *)",
+      "Bash(git branch *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git mv *)",
+      "Bash(git rev-parse *)",
+      "WebSearch",
+      "Bash(git check-ignore *)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "User has authorized direct pushes to the `main` and `dev` branches on this project (solo development + triage workflow).",
+      "User has authorized commits and edits to `.claude/` configuration files on this project (triage workflow + ongoing settings tuning)."
     ]
   }
 }
