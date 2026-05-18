@@ -7,3 +7,10 @@
 .DS_Store
 .idea/
 .vscode/
+
+# triage state files
+.claude/triage-monitor-state.json
+.claude/dev-executor-state.json
+
+# bug-report mirror (the monitor copies ZIPs here for inspection)
+bug-reports/
