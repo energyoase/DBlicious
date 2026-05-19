@@ -70,36 +70,85 @@ impl Source for ManagedSqliteSource {
 
     async fn get(
         &self,
-        _binding: &EntityBinding,
-        _id: &EntityId,
+        binding: &EntityBinding,
+        id: &EntityId,
     ) -> Result<Option<Entity>, SourceError> {
-        unimplemented!("Task 6")
+        let entity_type = match &binding.locator {
+            shared::source::BindingLocator::GenericEntityRow { entity_type } => entity_type,
+            other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
+        };
+        let key = match id {
+            EntityId::Single(s) => s.clone(),
+            EntityId::Composite(_) => {
+                return Err(SourceError::UnsupportedLocator(
+                    "managed-sqlite GenericEntityRow erwartet Single-PK".into(),
+                ));
+            }
+        };
+        Ok(crate::data::entity_by_id_raw(entity_type, &key).await)
     }
 
     async fn create(
         &self,
-        _binding: &EntityBinding,
-        _fields: serde_json::Map<String, serde_json::Value>,
-        _actor_user_id: Option<&str>,
+        binding: &EntityBinding,
+        fields: serde_json::Map<String, serde_json::Value>,
+        actor_user_id: Option<&str>,
     ) -> Result<Entity, SourceError> {
-        unimplemented!("Task 6")
+        if binding.read_only {
+            return Err(SourceError::ReadOnly);
+        }
+        let entity_type = match &binding.locator {
+            shared::source::BindingLocator::GenericEntityRow { entity_type } => entity_type,
+            other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
+        };
+        Ok(crate::data::create_entity_raw(entity_type, None, fields, actor_user_id).await)
     }
 
     async fn update(
         &self,
-        _binding: &EntityBinding,
-        _id: &EntityId,
-        _patch: serde_json::Map<String, serde_json::Value>,
-        _actor_user_id: Option<&str>,
+        binding: &EntityBinding,
+        id: &EntityId,
+        patch: serde_json::Map<String, serde_json::Value>,
+        actor_user_id: Option<&str>,
     ) -> Result<Option<Entity>, SourceError> {
-        unimplemented!("Task 6")
+        if binding.read_only {
+            return Err(SourceError::ReadOnly);
+        }
+        let entity_type = match &binding.locator {
+            shared::source::BindingLocator::GenericEntityRow { entity_type } => entity_type,
+            other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
+        };
+        let key = match id {
+            EntityId::Single(s) => s.clone(),
+            EntityId::Composite(_) => {
+                return Err(SourceError::UnsupportedLocator(
+                    "managed-sqlite GenericEntityRow erwartet Single-PK".into(),
+                ));
+            }
+        };
+        Ok(crate::data::update_entity_raw(entity_type, &key, patch, actor_user_id).await)
     }
 
     async fn delete(
         &self,
-        _binding: &EntityBinding,
-        _id: &EntityId,
+        binding: &EntityBinding,
+        id: &EntityId,
     ) -> Result<bool, SourceError> {
-        unimplemented!("Task 6")
+        if binding.read_only {
+            return Err(SourceError::ReadOnly);
+        }
+        let entity_type = match &binding.locator {
+            shared::source::BindingLocator::GenericEntityRow { entity_type } => entity_type,
+            other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
+        };
+        let key = match id {
+            EntityId::Single(s) => s.clone(),
+            EntityId::Composite(_) => {
+                return Err(SourceError::UnsupportedLocator(
+                    "managed-sqlite GenericEntityRow erwartet Single-PK".into(),
+                ));
+            }
+        };
+        Ok(crate::data::delete_entity(entity_type, &key).await)
     }
 }

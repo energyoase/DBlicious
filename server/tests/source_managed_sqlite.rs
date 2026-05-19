@@ -62,3 +62,50 @@ async fn managed_sqlite_list_page_returns_seeded_shop_products() {
     assert_eq!(page.page, 1);
     assert_eq!(page.page_size, 10);
 }
+
+use shared::source::EntityId;
+
+#[tokio::test]
+#[serial_test::serial]
+async fn managed_sqlite_get_returns_seeded_product() {
+    server::fresh_test_setup().await;
+    let src = ManagedSqliteSource::new("local".into());
+    let binding = shop_product_binding();
+
+    let page = src
+        .list_page(&binding, &PageQuery {
+            page: 1, page_size: 1, sort: None, filter: FilterCriteria::default(),
+        })
+        .await
+        .unwrap();
+    let id = page.items.first().expect("at least one product").id.clone();
+
+    let one = src.get(&binding, &EntityId::Single(id.clone())).await.unwrap();
+    assert!(one.is_some());
+    assert_eq!(one.unwrap().id, id);
+}
+
+#[tokio::test]
+#[serial_test::serial]
+async fn managed_sqlite_create_update_delete_roundtrips() {
+    server::fresh_test_setup().await;
+    let src = ManagedSqliteSource::new("local".into());
+    let binding = shop_product_binding();
+
+    let mut fields = serde_json::Map::new();
+    fields.insert("name".into(), serde_json::json!("Test Product"));
+    fields.insert("price".into(), serde_json::json!(9.99));
+
+    let created = src.create(&binding, fields, None).await.unwrap();
+    let id = EntityId::Single(created.id.clone());
+
+    let mut patch = serde_json::Map::new();
+    patch.insert("name".into(), serde_json::json!("Renamed"));
+    let updated = src.update(&binding, &id, patch, None).await.unwrap().unwrap();
+    assert_eq!(updated.fields.get("name").and_then(|v| v.as_str()), Some("Renamed"));
+
+    let removed = src.delete(&binding, &id).await.unwrap();
+    assert!(removed);
+    let after = src.get(&binding, &id).await.unwrap();
+    assert!(after.is_none());
+}

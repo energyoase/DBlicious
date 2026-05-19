@@ -258,6 +258,63 @@ pub(crate) async fn entities_page_raw(
     }
 }
 
+pub(crate) async fn entity_by_id_raw(entity_type: &str, id: &str) -> Option<shared::Entity> {
+    let db = &conn();
+    entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
+        .one(db).await.ok().flatten().map(shared_entity_from_model)
+}
+
+pub(crate) async fn create_entity_raw(
+    entity_type: &str,
+    id: Option<String>,
+    fields: serde_json::Map<String, serde_json::Value>,
+    actor_user_id: Option<&str>,
+) -> shared::Entity {
+    let db = &conn();
+    let id = id.unwrap_or_else(|| next_id_prefix(entity_type));
+    let mut fields_map = fields;
+    fields_map.insert("id".into(), serde_json::Value::String(id.clone()));
+    apply_audit_columns(entity_type, &mut fields_map, actor_user_id, AuditPhase::Create);
+    let value = serde_json::Value::Object(fields_map.clone());
+    let hash = hash_for_entity(&id, &fields_map);
+
+    let model = entity::entities::ActiveModel {
+        entity_type: ActiveValue::Set(entity_type.to_string()),
+        id: ActiveValue::Set(id.clone()),
+        fields_json: ActiveValue::Set(value.to_string()),
+        hash: ActiveValue::Set(hash),
+    };
+    let _ = model.insert(db).await;
+    shared::Entity { id, fields: fields_map }
+}
+
+pub(crate) async fn update_entity_raw(
+    entity_type: &str,
+    id: &str,
+    field_patch: serde_json::Map<String, serde_json::Value>,
+    actor_user_id: Option<&str>,
+) -> Option<shared::Entity> {
+    let db = &conn();
+    let existing = entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
+        .one(db).await.ok().flatten()?;
+    let mut current: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(&existing.fields_json).unwrap_or_default();
+    for (k, v) in field_patch {
+        current.insert(k, v);
+    }
+    apply_audit_columns(entity_type, &mut current, actor_user_id, AuditPhase::Update);
+    let value = serde_json::Value::Object(current.clone());
+    let hash = hash_for_entity(id, &current);
+    let am = entity::entities::ActiveModel {
+        entity_type: ActiveValue::Set(entity_type.to_string()),
+        id: ActiveValue::Set(id.to_string()),
+        fields_json: ActiveValue::Set(value.to_string()),
+        hash: ActiveValue::Set(hash),
+    };
+    let _ = am.update(db).await;
+    Some(shared::Entity { id: id.to_string(), fields: current })
+}
+
 pub async fn entities_page(
     entity_type: &str,
     page: i32,
