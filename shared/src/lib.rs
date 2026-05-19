@@ -17,6 +17,7 @@ pub mod ops;
 pub mod plugin;
 pub mod security;
 pub mod settings;
+pub mod source;
 pub mod tabs;
 pub mod translatable;
 pub mod validation;
@@ -37,6 +38,7 @@ pub use security::{
     PermissionOp, PropertyAccessLevel, PropertyPermission, SecurityGroup, SecurityUser,
     SecurityUser2Group,
 };
+pub use source::{BindingLocator, EntityBinding, EntityId, COMPOSITE_KEY_SEPARATOR};
 pub use settings::{
     Access, EntitySettings, FieldTypeDefaults, LoadMethod, PropertyAccess, PropertySettings,
     SettingsBundle, Visibility,
