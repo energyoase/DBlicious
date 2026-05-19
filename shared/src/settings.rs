@@ -119,6 +119,7 @@ pub struct PropertySettings {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct EntitySettings {
+    #[serde(default)]
     pub entity_type: String,
     #[serde(default)]
     pub access: Access,
@@ -138,6 +139,10 @@ pub struct EntitySettings {
     /// Stufe 2 nach `ColumnMeta.X_id`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub field_type_defaults: BTreeMap<String, FieldTypeDefaults>,
+    /// Phase 0.6: Source-Binding fuer diesen Entity-Type. `None` => Default-
+    /// Binding (managed-sqlite, generische entities-Tabelle).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub binding: Option<crate::source::EntityBinding>,
 }
 
 impl EntitySettings {

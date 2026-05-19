@@ -38,7 +38,9 @@ pub use security::{
     PermissionOp, PropertyAccessLevel, PropertyPermission, SecurityGroup, SecurityUser,
     SecurityUser2Group,
 };
-pub use source::{BindingLocator, EntityBinding, EntityId, COMPOSITE_KEY_SEPARATOR};
+pub use source::{
+    default_binding_for, BindingLocator, EntityBinding, EntityId, COMPOSITE_KEY_SEPARATOR,
+};
 pub use settings::{
     Access, EntitySettings, FieldTypeDefaults, LoadMethod, PropertyAccess, PropertySettings,
     SettingsBundle, Visibility,

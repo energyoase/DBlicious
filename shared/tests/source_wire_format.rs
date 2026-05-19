@@ -149,3 +149,41 @@ fn entity_binding_preserves_column_map_and_camel_case_primary_key() {
     let back: EntityBinding = serde_json::from_str(&json).unwrap();
     assert_eq!(back, b);
 }
+
+use shared::source::default_binding_for;
+
+#[test]
+fn default_binding_uses_local_managed_sqlite_with_entity_type() {
+    let b = default_binding_for("product");
+    assert_eq!(b.source, "local");
+    assert!(matches!(
+        b.locator,
+        BindingLocator::GenericEntityRow { ref entity_type } if entity_type == "product"
+    ));
+    assert_eq!(b.primary_key, vec!["id".to_string()]);
+    assert!(!b.read_only);
+    assert!(b.column_map.is_empty());
+}
+
+#[test]
+fn entity_settings_serializes_without_binding_when_none() {
+    let s = shared::EntitySettings::default();
+    let json = serde_json::to_string(&s).unwrap();
+    assert!(!json.contains("\"binding\""), "binding should be omitted when None, got {json}");
+}
+
+#[test]
+fn entity_settings_deserializes_with_binding() {
+    let json = r#"{
+        "binding": {
+            "source": "d2v_legacy",
+            "locator": { "kind": "table", "table": "DatevAccounts" },
+            "primaryKey": ["Number"]
+        }
+    }"#;
+    let s: shared::EntitySettings = serde_json::from_str(json).unwrap();
+    assert!(s.binding.is_some());
+    let b = s.binding.unwrap();
+    assert_eq!(b.source, "d2v_legacy");
+    assert_eq!(b.primary_key, vec!["Number".to_string()]);
+}

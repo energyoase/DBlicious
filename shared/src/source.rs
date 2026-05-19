@@ -120,3 +120,18 @@ pub enum BindingLocator {
     /// REST-Endpunkt (Phase B3 — Trait kennt es, Implementation folgt).
     RestEndpoint { path: String },
 }
+
+/// Default-Binding fuer Entity-Types, die keine eigene `binding.toml`
+/// haben. Zeigt auf die `local`-Source (managed-sqlite, gemeinsame
+/// `entities`-Tabelle) mit `id` als Single-PK.
+pub fn default_binding_for(entity_type: &str) -> EntityBinding {
+    EntityBinding {
+        source: "local".into(),
+        locator: BindingLocator::GenericEntityRow {
+            entity_type: entity_type.to_string(),
+        },
+        primary_key: vec!["id".into()],
+        read_only: false,
+        column_map: BTreeMap::new(),
+    }
+}
