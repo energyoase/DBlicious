@@ -453,6 +453,77 @@ Liefert der Server fuer ein Property mehrere erlaubte Varianten zurueck, darf de
 
 ---
 
+## Phase 1.8 — UI-Patterns (Wiederverwendbare Anwendungs-Muster)
+
+**Ziel**: Wiederkehrende UI-Patterns, die echte ERP-Anwendungen brauchen und in der heutigen `EntityTable`-orientierten Architektur kein Pendant haben. Erkannt beim Inventar von D2V2019 (UWP `*Controls/`-Ordner) und konsolidiert in [`docs/superpowers/specs/2026-05-20-d2v-on-dblicious-gap-analysis.md`](./docs/superpowers/specs/2026-05-20-d2v-on-dblicious-gap-analysis.md) §4.1+4.2. Die Patterns sind **nicht D2V-spezifisch** — jede ernsthafte ERP-Anwendung braucht sie.
+
+**Begruendung**: Track-C-Funktions-Ports (T1-T23 aus dem D2V-Datenport-Spec) sind ohne diese Patterns nicht umsetzbar — `T5 GenerateAccountEntries` braucht U2 (Save-Report), `T7 Calculations` braucht U3 (Report-View), `T16 Reconciliation` braucht U4 (Wizard) + U6 (Long-Running-Action).
+
+### Arbeitspakete
+
+| # | Paket | Groesse | Trigger | Status |
+|---|---|---|---|---|
+| U1 | **Reference-Picker** mit `display_template` + `search_columns` + Autocomplete; ersetzt heutiges ID-als-Text-Rendering von `FieldType::Reference` | M | jede D2V-Form (T3, T11–T12); plus Phase 1.5 Picker-Registry | Plan da: [`docs/superpowers/plans/2026-05-20-u1-reference-picker.md`](./docs/superpowers/plans/2026-05-20-u1-reference-picker.md) — empfohlen in Phase 0.6 ziehbar |
+| U2 | **Save-Report / Preview-vor-Commit**: `previewSave` GraphQL-Mutation liefert Diff aller Aenderungen inkl. abgeleiteter Berechnungen; Client-Modal zur Bestaetigung | M-L | T5/T6 (`GenerateAccountEntries`), T15 (Bulk-Import) | offen |
+| U3 | **Report-View-Component**: deklarative Cross-Table-Sicht (Tree/Pivot/Linear) auf Basis von Phase 1.7.12 Aggregationen | L | T6 (Account-View), T7 (Calculations), T17 (SuSa) | offen |
+| U4 | **Multi-Step-Wizard**: `wizard.json` deklariert Schritte + Validatoren + Computed-Inputs; Server-State pro Wizard-Session | M | T16 (Reconciliation), T13 (CSV-Import-Mapping), T18 (Jahresabschluss-Setup) | offen |
+| U5 | **App-Context-Channel**: `shared::AppContext { active_year, … }` als reaktiver Client-Signal + Server-Header; Entity-Settings koennen Context-Filter referenzieren | S-M | T20 (YearSelector), alle Buchungs-Listen | offen |
+| U6 | **Long-Running-Action-Pipeline**: Action-Registry + Server-`Stream<ActionEvent>` + Client-Progress-Modal + Final-Report | M | T5 (Regenerate), T10 (Invert), T16 (Reconciliation) | offen |
+| U7 | **Filter-Builder + Saved-Filters**: boolsche Kombinatoren in `FilterCriteria`, Drag&Drop-Builder, Per-User-Persistenz | M | T3 (Buchungs-Suche), generisch fuer alle Listen | offen, koennte in Phase 1 (Builder-Canvas) integriert werden |
+| F1 | **Operations-Resource**: neue GraphQL-Resource `operations` neben `entities`; `OperationDefinition` als Top-Level-Konzept; verbindet sich mit U6 + Phase-2-Plugin-Triggers | M-L | T1, T10, T13, T16 — Cross-Entity-Operationen aus `FunctionControls/` | offen |
+| F2 | **Single-Entity-Excel-Template**: pro Buchungs-Zeile XLSX-Export mit gestaltetem Layout (Voucher) | S | T19 (Voucher) | offen |
+
+### Dependencies
+
+- **U1** ist die hoechste Hebelwirkung mit kleinster Groesse — Empfehlung: in Phase 0.6 mitziehen (Plan existiert). Verbindet sich mit Phase 1.5 (Picker-Registry).
+- **U5** ist klein und wirkt auf alle Listen — kann parallel zu Phase 0.7 laufen.
+- **U2** ist Vorbedingung fuer T5/T6 (`GenerateAccountEntries`-Funktions-Port).
+- **U3** baut auf Phase 1.7.12 (Aggregation-Queries).
+- **U6** verbindet sich mit Phase 2 (Plugin-Triggers liefern Long-Running-Actions).
+- **F1** Operations sind eine alternative Resource-Achse zu `entities`; eigentliche Wirkung erst mit Plugins.
+
+### Empfohlene Reihenfolge
+
+**MVP-Pfad — D2V-Editor-Erfahrung**: U1 (Phase-0.6-Anhaengsel) → U5 (parallel) → U2 → U6 → U3 → U4 → F1 → F2 → U7.
+
+Pakete sind groesstenteils unabhaengig; mehrere parallel moeglich.
+
+### Deliverable
+
+- Echte ERP-UI-Patterns als wiederverwendbare Bausteine in dblicious.
+- Track-C-Funktions-Ports werden umsetzbar, ohne pro Funktion Patterns neu zu erfinden.
+- Quelle: Gap-Analyse [`2026-05-20-d2v-on-dblicious-gap-analysis.md`](./docs/superpowers/specs/2026-05-20-d2v-on-dblicious-gap-analysis.md) §4-§6.
+
+### Risiken
+
+- **Scope-Explosion**: 9 Pakete. Mitigation: U1+U5 zuerst (klein, hoher Hebel), Rest schrittweise getrieben von Track-C-Bedarf.
+- **Patterns sind generisch — sollen sie wirklich heute spezifiziert werden?** Argument dafuer: ohne sie ist Track C blockiert. Argument dagegen: vorausgreifende Generalisierung kann zu falschen Abstraktionen fuehren. Mitigation: U2/U3/U4/U6 erst dann committen, wenn das erste Track-C-Item sie braucht (Pull statt Push).
+
+---
+
+## Schema-Sprache-Backlog (G1-G7)
+
+**Quelle**: [`docs/superpowers/specs/2026-05-20-dblicious-schema-language-gaps.md`](./docs/superpowers/specs/2026-05-20-dblicious-schema-language-gaps.md). Sieben Konzept-Luecken in `shared::DbSchema`, gesammelt beim D2V-Ziel-Schema-Design. **Kein eigenständiger Phasenplatz** — Items werden gepullt, wenn ein konkreter Trigger (Domain-Anwendung) sie braucht.
+
+| ID | Paket | Groesse | Default-Prioritaet | Plan |
+|---|---|---|---|---|
+| G1 | **Soft-Delete** als first-class (`AuditRole::DeletedAt`, `EntitySettings.soft_delete`, `restore`/`purge` Mutationen, Permission `Restore`) | M | **mittel** (hoch sobald Phase 1.7.4 GoBD trigert) | [g1-soft-delete-first-class.md](./docs/superpowers/plans/2026-05-20-g1-soft-delete-first-class.md) |
+| G2 | **CHECK-Constraints**: `DbColumn.check` + `DbTable.checks` als typisierter Mini-AST (`Compare`, `In`, `Between`, `IsNull`, And/Or/Not) | L | **niedrig** (hoch sobald Plugin-/Source-Layer ohne Domain-Service Tabellen schreibt) | [g2-check-constraints.md](./docs/superpowers/plans/2026-05-20-g2-check-constraints.md) |
+| G3 | **Bitflags-FieldType**: `FieldType::Bitflags { values: Vec<BitflagValue> }` + Standard-Editor `bitflags-checkbox-group` | M | **niedrig** (hoch sobald D2V's `account_type` portiert wird) | [g3-bitflags-field-type.md](./docs/superpowers/plans/2026-05-20-g3-bitflags-field-type.md) |
+| G4 | **Computed Spalten**: `DbColumn.compute` + AST mit Op/Refs/Literale; SQL-Generierung fuer Postgres/SQLite GENERATED | L | **niedrig** (Domain-Service-Berechnung reicht meist) | [g4-computed-columns.md](./docs/superpowers/plans/2026-05-20-g4-computed-columns.md) |
+| G5 | **Materialized Views**: `DbView` als Top-Level-Entitaet mit `ViewDefinition`-Query-DSL + `RefreshStrategy` | L-XL | **niedrig** (Session-Cache reicht heute, eigene Query-DSL ist hoher Aufwand) | [g5-materialized-views.md](./docs/superpowers/plans/2026-05-20-g5-materialized-views.md) |
+| G6 | **Partial Indexes**: `DbIndex.where_clause` (gleiche AST wie G2) | S | **mittel** (direkter Folgeschritt von G1 fuer UNIQUE-mit-Soft-Delete-Filter) | [g6-partial-indexes.md](./docs/superpowers/plans/2026-05-20-g6-partial-indexes.md) |
+| G7 | **IntEnum-FieldType**: `FieldType::IntEnum { values: Vec<IntEnumValue> }` mit Integer-DB-Speicherung + Wire-String-Mapping | S | **mittel** (klein, direkter Wert fuer jede Status-Spalte) | [g7-int-enum-field-type.md](./docs/superpowers/plans/2026-05-20-g7-int-enum-field-type.md) |
+
+**Default-Reihenfolge** (wenn kein konkreter Trigger hochpriorisiert): **G1 → G6 → G7 → G2 → G3 → G4 → G5**.
+
+**Lessons learned aus dem Backlog-Stand**:
+- G1 + G6 + G7 sind kleine, hochgehebelte Items — koennen jederzeit gezogen werden.
+- G2 + G4 brauchen eine konsistente Mini-DSL (analog zu `shared::builder::GuardExpr`). Wenn eines dran kommt, lohnt es sich, Bausteine fuer das andere mitzunehmen.
+- G5 ist die teuerste Lücke. Bis das relevant wird, reicht eine Server-Session-Cache-Strategie.
+
+---
+
 ## Phase 2 — WASM-Plugin-Sandbox (Extism)
 
 **Ziel**: User-Logic (Validierungen, Hooks, abgeleitete Felder) laeuft als sandboxed WASM-Plugin. Mehrsprachig (Rust/TS/Python/Go) ueber Extism-PDKs.
