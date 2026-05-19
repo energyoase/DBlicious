@@ -82,6 +82,48 @@ Beschreibt den vorhandenen Stand zur Kalibrierung der Folge-Phasen. Siehe `CLAUD
 
 ---
 
+## Phase 0.6 — Source-Architektur
+
+**Ziel**: Datenzugriff als austauschbare `Source`-Trait. DBlicious wird vom "Framework mit eingebauter SQLite" zum "Framework ueber beliebige Datenquellen". `managed-sqlite` (heutiges Verhalten) und `foreign-sqlite` (fremde Bestands-DB lesen/schreiben) sind die ersten zwei Implementierungen; PostgreSQL/MySQL/REST/Datei/In-Memory folgen als weitere Trait-Impls ohne Architektur-Bruch.
+
+**Begruendung**: heute ist der Datenzugriff hart an *eine* SQLite-Datei gebunden, mit JSON-Blob-Storage in einer `entities`-Tabelle, ohne Composite-PKs und ohne SQL-Pushdown. Das blockiert (a) D2V2019-Bestandsdaten-Integration (Track A), (b) andere Engines, (c) Nicht-DB-Quellen. Source-Pluggability ist Voraussetzung fuer alle drei.
+
+**Schluesseltechnologie**: ein schmaler `Source`-Trait (`init`, `list_page`, `get`, `create`, `update`, `delete`) plus ein `EntityBinding`-Datentyp (Source-Name, Locator, Composite-PK-Spalten, optionales Column-Mapping). `SourceRegistry` routet pro Entity-Type. Detail-Spec: [`docs/superpowers/specs/2026-05-19-dblicious-source-architecture-design.md`](./docs/superpowers/specs/2026-05-19-dblicious-source-architecture-design.md).
+
+### Arbeitspakete
+
+| # | Paket | Groesse | Bezug | Akzeptanz | Status |
+|---|---|---|---|---|---|
+| 0.6.B0 | `Source`-Trait, `EntityBinding`, `SourceRegistry`, Config-Loader `sources.toml`. Heutiges Verhalten als `managed-sqlite`-Source refaktoriert. `shop` migriert (eine neue Datei `sources.toml`, keine Aenderung an Entity-Layouts). | M | neu: `server/src/source/{mod,managed_sqlite}.rs`, `shared/src/source.rs`; refaktoriert: `server/src/data.rs`, `server/src/schema.rs`, `server/src/db.rs` | `cargo test --workspace` gruen ohne Test-Aenderung; `shop` verhaelt sich identisch zu vorher | offen |
+| 0.6.B1 | `foreign-sqlite` Source-Implementierung: `sqlite_master`/`PRAGMA`-Introspektion beim Boot, Composite-PK-Support, SQL-Pushdown von Filter/Sort/Pagination, Read-only-Bindings, Column-Name-Mapping (PascalCase ↔ camelCase). | M | neu: `server/src/source/foreign_sqlite.rs`; Fixture `server/tests/foreign_d2v.rs` | `examples/d2v/` mit Fixture-DB bootet; alle 17 D2V-Entity-Types laden; Composite-PK-Editor-Roundtrip; `EXPLAIN QUERY PLAN` zeigt Index-Use bei vorhandenen Indizes | offen |
+| 0.6.B2 | Weitere relationale Engines: `postgres`, `mysql` (jeweils via `sqlx` oder SeaORM-Backend). Trait-Impl, kein Architektur-Eingriff. | M-L | neu: `server/src/source/postgres.rs`, `…/mysql.rs` | Smoke-Test gegen lokale Container; Akzeptanzkriterien analog zu B1 | offen, eigene Spec |
+| 0.6.B3 | Nicht-DB-Quellen: `rest` (HTTP-API hinter generischem JSON-CRUD-Vertrag), `file` (statisches JSON/TOML), `memory` (Mock fuer Tests/Demos). | L | neu: `server/src/source/{rest,file,memory}.rs` | Beispiel-Quelle pro Kind dokumentiert; FilterCriteria-Pushdown wo moeglich, sonst Fallback in Rust | offen, eigene Spec |
+| 0.6.B4 | `shop` (oder weitere Examples) auf echte SQL-Spalten umgestellt statt JSON-Blob — innerhalb `managed-sqlite` ein zweiter Locator-Modus `Table`. Kein Bedarf fuer die Architektur, optional. | M | `server/src/source/managed_sqlite.rs` (neuer Locator-Pfad) | Mindestens ein Entity-Type von `shop` mit echten Spalten lebt; Verhalten verifiziert | offen, optional |
+| 0.6.B5 | Designer (`saveDbSchema` / `try_apply_schema`) erzeugt Schemas via `Source::supports_ddl`-Capability; jede Source kann DDL anbieten oder ablehnen. | M | `server/src/ddl.rs`, `server/src/source/mod.rs` | Designer schreibt auf `managed-sqlite`; foreign-sqlite lehnt mit `read_only` ab; Konzept dokumentiert | offen, eigene Spec |
+
+### Dependencies
+
+- Keine harten Vorbedingungen — die Phase ist ein Refactoring plus eine neue Source-Implementierung.
+- Phase 0.5 (Konsolidierung) ist Voraussetzung fuer ruhige Refactoring-Arbeit (kein laufender Umbau parallel).
+- **Phase 0.6.B0+B1 ist Vorbedingung fuer Track A** (`examples/d2v`-Datenport, siehe `docs/superpowers/specs/2026-05-19-d2v-data-port-design.md` §3).
+
+### Deliverable
+
+- `Source`-Trait mit zwei Implementierungen produktiv.
+- `examples/shop` laeuft ueber `managed-sqlite`-Source (Bestandsschutz).
+- `examples/d2v` laeuft ueber `foreign-sqlite`-Source gegen eine Fixture-`d2v.db`.
+- Composite-PKs als Encoded-Strings im Wire-Format dokumentiert und property-getestet.
+- VISION.md gibt Source-Pluggability als Architektur-Leitsatz wieder.
+
+### Risiken
+
+- **Boot-Reihenfolge**: Auth/Audit/Plugin/Translatable/Builder-Tabellen brauchen `managed-sqlite` *vor* dem Source-Routing. Mitigation: zwei-phasiger Boot (interne Tabellen zuerst, dann andere Sources, dann Bindings).
+- **Plugin-Host-Functions** (`host.db.query` aus Phase 2.4) sind heute hart auf den einen Pool gebunden. Bei Phase-2-Arbeit muss `host.db.query(source_name, …)` werden — Notiz fuer Phase 2, hier kein Umbau.
+- **Performance-Regression im Refactoring**: zusaetzlicher Trait-Dispatch pro CRUD. Im us-Bereich, vernachlaessigbar — gemessen wird trotzdem.
+- **Schema-Drift bei Foreign-DBs**: introspizierter Cache veraltet, wenn externe Tools die DB aendern. Out-of-scope hier; Refresh-Mechanismus optional in B2+.
+
+---
+
 ## Phase 0.7 — Auth- & Permission-Modell
 
 **Ziel**: Konsolidiertes, in `shared` definiertes Permission-Modell mit dem Server als Single Source of Truth. Client-seitige Auswertung ist projiziertes Spiegelbild, niemals Autoritaet.

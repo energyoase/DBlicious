@@ -88,21 +88,30 @@ examples/d2v/
 
 ## 5. `config.toml`
 
-```toml
-# Path is resolved by DBlicious — provide it via DBLICIOUS_DATABASE_URL env var
-# at server start so this example does not hardcode a developer-specific path.
-# Example: DBLICIOUS_DATABASE_URL="sqlite:///C:/Users/jz/source/DBlicious/examples/d2v/d2v.db"
-[database]
-mode = "foreign"   # contract item 3.1 — do not impose DBlicious internal schema
+Source-Konfiguration via `examples/d2v/sources.toml` (Track-B-Form, siehe [`2026-05-19-dblicious-source-architecture-design.md`](./2026-05-19-dblicious-source-architecture-design.md)):
 
+```toml
+# Default managed-sqlite-Source für DBlicious-eigene Tabellen
+# (Auth, Audit, Plugin, Translatables, Builder-Designs).
+[sources.local]
+kind = "managed-sqlite"
+url  = "${DBLICIOUS_DATABASE_URL:-sqlite://./dblicious-d2v.db}"
+
+# Fremde D2V-DB als read/write-Source. Pfad wird per Env überschrieben.
+[sources.d2v_legacy]
+kind = "foreign-sqlite"
+url  = "${D2V_LEGACY_URL:-sqlite:///pfad/zu/d2v.db}"
+```
+
+`examples/d2v/config.toml` bleibt schmal:
+
+```toml
 [locale]
 default = "de"
 
 [ui]
 title = "D2V 2019 — Daten-Port"
 ```
-
-The `mode = "foreign"` flag is the toggle for Track B's foreign-DB mode (final flag name negotiable with Track B's design).
 
 **DB-Datei-Konvention** (siehe auch §12): the `d2v.db` file is **not committed** to the DBlicious repo and **not bundled** with `examples/d2v/`. Each developer places a copy at a path of their choice and points `DBLICIOUS_DATABASE_URL` at it. `examples/d2v/` ships only the metadata (columns, navigation, translatables, security). A `README.md` under `examples/d2v/` documents this.
 

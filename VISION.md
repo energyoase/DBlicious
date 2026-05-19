@@ -25,7 +25,7 @@ Bereits vorhanden im Repo:
 
 - **Workspace** `shared` / `server` / `client` / `cli` mit `wasm32-unknown-unknown`-Pin und Release-Profil fuer WASM-Size.
 - **Server**: axum + async-graphql, GraphiQL unter `/`, GraphQL POST `/graphql`. CORS offen fuer Dev.
-- **Persistenz**: SeaORM + SQLite (in-memory oder Datei via `DBLICIOUS_DATABASE_URL`). Generische `entities`-Tabelle als universeller Speicher; optionale typisierte Tabellen ueber den Designer (`saveDbSchema` → `ddl::try_apply_schema`).
+- **Persistenz**: SeaORM + SQLite (in-memory oder Datei via `DBLICIOUS_DATABASE_URL`). Generische `entities`-Tabelle als universeller Speicher; optionale typisierte Tabellen ueber den Designer (`saveDbSchema` → `ddl::try_apply_schema`). Diese Persistenz wird in Phase 0.6 auf eine `Source`-Trait gehoben — sie bleibt der Default, ist aber dann eine austauschbare Implementierung neben `foreign-sqlite`/`postgres`/`rest`/usw.
 - **Daten-Loader**: `--data-dir`-basiert, Format-Dispatch fuer `.json`/`.toml`, erweiterbar (YAML, Skripte).
 - **Client**: Leptos CSR/WASM mit `trunk`, fine-grained signals, kein Virtual DOM, Project-Fluent-i18n.
 - **Generische `EntityTable`** auf `ColumnMeta` + `Rc<dyn DataSource>`. Sort/Filter/Pagination signal-verdrahtet (Server ignoriert die Args heute).
@@ -39,6 +39,7 @@ Was **fehlt** gegenueber der Vision:
 - Keine AI-gestuetzte Schema-Ingestion.
 - Keine zweiphasige Migration (Expansion/Contract).
 - Kein Codegen-Pfad zu einer eigenstaendigen Production-Binary.
+- Persistenz ist hart an die mitgelieferte SQLite-Konfiguration gekoppelt — keine austauschbaren Sources (fremde DBs, REST-APIs, Datei-Quellen). Wird in Phase 0.6 aufgeloest.
 
 ---
 
@@ -49,7 +50,7 @@ Was **fehlt** gegenueber der Vision:
 | **Loco** (Rails-artiges Full-Stack-MVC) | **axum + async-graphql** beibehalten | Loco zwingt MVC-Konventionen, die nicht zum GraphQL-zentrierten Modell passen. axum ist bereits produktiv, schlanker, und die `shared`-Typen sind direkt in async-graphql verdrahtet. Migrationsaufwand stuende in keinem Verhaeltnis zum Nutzen. |
 | **Leptos** fuer den Visual Builder | **uebernommen** | Bereits im Einsatz. Fine-grained Signals + direktes DOM-Manipulieren passen perfekt fuer den geplanten Drag&Drop-Editor. |
 | **Bevy ECS** als Metadaten-Engine | **verworfen, Konzept ohne Framework adaptiert** | Komposition-statt-Vererbung wird mit einer simplen `UiNode`-Struktur in Plain Rust + Leptos-Signals erreicht. Performance-Vorteile von ECS (kolumnarer Memory, tausende Knoten pro Frame) sind im Builder-Kontext irrelevant: eine Designer-Session zeigt 5–50 Elemente, und das Endprodukt entsteht via Codegen als fixierte Komponenten-Crate (Phase 4) — zur Laufzeit gibt es keine generische UI-Engine. Siehe Architektur-Leitprinzip "Dev/Prod-Asymmetrie" in `ROADMAP.md`. |
-| **SurrealDB** (SCHEMALESS↔SCHEMAFULL toggle) | **SeaORM + SQLite** beibehalten, Konzept adaptieren | Das Dual-Mode-Konzept existiert bei uns bereits: generische `entities`-Tabelle (schemaless) vs. Designer-erzeugte typisierte Tabellen (schemafull). DB-Wechsel ist unverhaeltnismaessig; Konzept wird durch Tooling/Workflow umgesetzt, nicht durch DB-Wechsel. |
+| **SurrealDB** (SCHEMALESS↔SCHEMAFULL toggle) | **Source-Pluggability**, SeaORM+SQLite als Default-Source | Phase 0.6 (siehe `ROADMAP.md`) hebt den DB-Layer auf eine `Source`-Trait — `managed-sqlite` (heutiges Verhalten), `foreign-sqlite` (fremde Bestands-DB), spaeter `postgres`/`mysql`/`rest`/`file`/`memory` sind austauschbare Implementierungen. Damit ist nicht das DB-Produkt fixiert, sondern das Konzept: jede Source kann mit der `entities`-Tabelle (schemaless) oder mit echten typisierten Tabellen (schemafull) arbeiten. Der DB-Wechsel ist nicht mehr Voraussetzung, sondern eine Implementierungs-Wahl pro Source. |
 | **Extism** fuer WASM-Plugin-Sandbox | **uebernehmen** (Phase 3) | Extism abstrahiert wasmtime/Component-Model/WIT weg und liefert Manifest-basierte Security (`max_pages`, `allowed_hosts`, `allowed_paths`) sowie Host-Functions. Mehrsprachige Guest-PDKs (TS, Python, Go, Rust). |
 | **WASI-NN** via WasmEdge | **optional, spaeter** (Phase 4+) | Lokale ML-Inference im Plugin (PyTorch/TFLite/OpenVINO). Erst sinnvoll, wenn die Plugin-Schicht steht. |
 | **AI-Schema-Resolution** mit `rusty_schema_diff` | **uebernehmen** (Phase 3) | Schema-first Function Calling + deterministische Diff-Validierung. Loest das heutige manuelle Mapping bei JSON-Imports und ergaenzt den Designer-Pfad um einen AI-Assist. |
