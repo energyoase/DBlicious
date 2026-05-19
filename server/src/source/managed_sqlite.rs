@@ -48,10 +48,24 @@ impl Source for ManagedSqliteSource {
 
     async fn list_page(
         &self,
-        _binding: &EntityBinding,
-        _query: &PageQuery,
+        binding: &EntityBinding,
+        query: &PageQuery,
     ) -> Result<EntityPage, SourceError> {
-        unimplemented!("Task 5")
+        let entity_type = match &binding.locator {
+            shared::source::BindingLocator::GenericEntityRow { entity_type } => entity_type,
+            other => {
+                return Err(SourceError::UnsupportedLocator(format!("{other:?}")));
+            }
+        };
+        let page = crate::data::entities_page_raw(
+            entity_type,
+            query.page,
+            query.page_size,
+            query.sort.clone(),
+            query.filter.clone(),
+        )
+        .await;
+        Ok(page)
     }
 
     async fn get(

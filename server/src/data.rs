@@ -207,6 +207,57 @@ fn shared_entity_from_model(model: entity::entities::Model) -> shared::Entity {
     shared::Entity { id: model.id, fields }
 }
 
+/// Interne Variante, die das `shared::EntityPage` liefert.
+/// Wird von der Source-Schicht aufgerufen; die alte `entities_page`
+/// (Async-GraphQL-Json-Wrap) ruft sie ihrerseits auf.
+pub(crate) async fn entities_page_raw(
+    entity_type: &str,
+    page: i32,
+    page_size: i32,
+    sort: Option<shared::Sort>,
+    filter: shared::FilterCriteria,
+) -> shared::EntityPage {
+    let db = &conn();
+
+    let rows = entity::entities::Entity::find()
+        .filter(entity::entities::Column::EntityType.eq(entity_type))
+        .all(db)
+        .await
+        .unwrap_or_default();
+
+    let mut entities: Vec<shared::Entity> =
+        rows.into_iter().map(shared_entity_from_model).collect();
+
+    let columns = shared_columns_for(entity_type);
+    let columns_map: std::collections::HashMap<String, &shared::ColumnMeta> =
+        columns.iter().map(|c| (c.key.clone(), c)).collect();
+
+    if !filter.is_empty() {
+        entities.retain(|e| passes_filter(e, &filter, &columns_map));
+    }
+    if let Some(s) = sort.as_ref() {
+        sort_entities(&mut entities, s, &columns_map);
+    }
+
+    let total = entities.len() as u64;
+    let page_idx = (page.max(1) - 1) as usize;
+    let take = page_size.max(1) as usize;
+    let start = page_idx.saturating_mul(take);
+    let end = start.saturating_add(take).min(entities.len());
+    let slice = if start < entities.len() {
+        entities[start..end].to_vec()
+    } else {
+        Vec::new()
+    };
+
+    shared::EntityPage {
+        items: slice,
+        total_count: total,
+        page: page.max(1) as u32,
+        page_size: page_size.max(1) as u32,
+    }
+}
+
 pub async fn entities_page(
     entity_type: &str,
     page: i32,

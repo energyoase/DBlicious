@@ -32,3 +32,33 @@ async fn managed_sqlite_init_is_idempotent() {
     src.init().await.expect("init #1");
     src.init().await.expect("init #2");
 }
+
+use shared::source::{BindingLocator, EntityBinding};
+use shared::FilterCriteria;
+use server::source::PageQuery;
+use std::collections::BTreeMap;
+
+fn shop_product_binding() -> EntityBinding {
+    EntityBinding {
+        source: "local".into(),
+        locator: BindingLocator::GenericEntityRow { entity_type: "product".into() },
+        primary_key: vec!["id".into()],
+        read_only: false,
+        column_map: BTreeMap::new(),
+    }
+}
+
+#[tokio::test]
+#[serial_test::serial]
+async fn managed_sqlite_list_page_returns_seeded_shop_products() {
+    server::fresh_test_setup().await;
+
+    let src = ManagedSqliteSource::new("local".into());
+    let binding = shop_product_binding();
+    let q = PageQuery { page: 1, page_size: 10, sort: None, filter: FilterCriteria::default() };
+
+    let page = src.list_page(&binding, &q).await.expect("list_page");
+    assert!(page.total_count > 0, "expected seeded products, got 0");
+    assert_eq!(page.page, 1);
+    assert_eq!(page.page_size, 10);
+}
