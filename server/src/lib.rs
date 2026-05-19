@@ -13,6 +13,7 @@ pub mod entity;
 pub mod example;
 pub mod plugins;
 pub mod schema;
+pub mod source;
 
 use async_graphql::Schema;
 pub use schema::{MutationRoot, QueryRoot};
