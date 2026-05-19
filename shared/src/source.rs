@@ -13,7 +13,27 @@ pub const COMPOSITE_KEY_SEPARATOR: &str = "::";
 
 /// Logische ID einer Entitaet. Single-PK ist der haeufige Fall;
 /// Composite-PK gibt es bei fremden DB-Schemas (z.B. D2V).
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// # Caller-Contract: zulaessige Single-Strings
+///
+/// `EntityId::Single(s)` muss folgende Bedingungen erfuellen, damit die
+/// Wire-Encoding eindeutig bleibt (siehe [`Self::encode`]/[`Self::decode`]):
+///
+/// - `s` darf nicht `"::"` enthalten — sonst dekodiert die Wire-Form als
+///   `Composite`.
+/// - `s` darf nicht mit `'['` beginnen UND gleichzeitig valides
+///   JSON-Array-of-Strings sein — sonst dekodiert die Wire-Form als
+///   `Composite`.
+///
+/// In der Praxis sind alle Single-PKs im System (`next_id_prefix`-generierte
+/// "product-007"-Form, D2V-Integer-PKs, etc.) automatisch sicher. Wenn ein
+/// neuer Foreign-Source-Typ Single-PKs mit `::` einfuehrt, muss diese
+/// Trait-Form revidiert werden — siehe Tests fuer die gepinnten Faelle.
+///
+/// Note: `EntityId` derives neither `Serialize` nor `Deserialize`. It is a
+/// server-side conversion helper; the wire-format goes through `Entity.id:
+/// String` via [`Self::encode`] / [`Self::decode`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EntityId {
     Single(String),
     Composite(Vec<String>),
@@ -32,7 +52,7 @@ impl EntityId {
         match self {
             EntityId::Single(s) => s.clone(),
             EntityId::Composite(parts) => {
-                if parts.iter().any(needs_escalation) {
+                if parts.iter().any(|p| needs_escalation(p)) {
                     serde_json::to_string(parts).expect("Vec<String> serializes")
                 } else {
                     parts.join(COMPOSITE_KEY_SEPARATOR)
@@ -65,7 +85,7 @@ impl EntityId {
     }
 }
 
-fn needs_escalation(part: &String) -> bool {
+fn needs_escalation(part: &str) -> bool {
     part.contains(COMPOSITE_KEY_SEPARATOR)
         || part.is_empty()
         || part.starts_with(char::is_whitespace)
@@ -93,7 +113,10 @@ pub enum BindingLocator {
     /// Echte relationale Tabelle (foreign-sqlite, postgres, …).
     Table { table: String },
     /// Heutiges Verhalten: Zeile in der gemeinsamen `entities`-Tabelle.
-    GenericEntityRow { entity_type: String },
+    GenericEntityRow {
+        #[serde(rename = "entityType")]
+        entity_type: String,
+    },
     /// REST-Endpunkt (Phase B3 — Trait kennt es, Implementation folgt).
     RestEndpoint { path: String },
 }
