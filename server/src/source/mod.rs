@@ -5,6 +5,7 @@
 //! routet pro `EntityBinding` zur richtigen Implementierung. CRUD-
 //! Resolver gehen ueber diesen Pfad.
 
+pub mod config;
 pub mod managed_sqlite;
 // `foreign_sqlite` kommt in Task 14.
 

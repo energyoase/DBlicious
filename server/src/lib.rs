@@ -67,5 +67,6 @@ pub async fn setup_for_tests() -> AppSchema {
 /// Schema + Seed neu. Tests rufen das am Test-Anfang auf.
 pub async fn fresh_test_setup() -> AppSchema {
     db::reset();
+    example::reset();
     setup_for_tests().await
 }
