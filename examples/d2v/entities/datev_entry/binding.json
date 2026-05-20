@@ -1,0 +1,25 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevEntries" },
+  "primaryKey": ["id"],
+  "readOnly": false,
+  "columnMap": {
+    "id":                       "Id",
+    "date":                     "Date",
+    "description":              "Description",
+    "value":                    "Value",
+    "valueType":                "ValueType",
+    "key":                      "Key",
+    "primaryAccountNr":         "PrimaryAccountNr",
+    "secondaryAccountNr":       "SecondaryAccountNr",
+    "inverted":                 "Inverted",
+    "published":                "Published",
+    "discount":                 "Discount",
+    "documentInfo":             "DocumentInfo",
+    "externalId":               "ExternalId",
+    "groupId":                  "GroupId",
+    "stackId":                  "StackId",
+    "starMoneyEntryId":         "StarMoneyEntryId",
+    "starMoneyCreditCardEntryId":"StarMoneyCreditCardEntryId"
+  }
+}

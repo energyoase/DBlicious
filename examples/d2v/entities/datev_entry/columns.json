@@ -1,0 +1,19 @@
+[
+  { "key": "id",                      "labelKey": "field.datev_entry.id",                        "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": false },
+  { "key": "date",                     "labelKey": "field.datev_entry.date",                       "fieldType": { "kind": "dateTime" },                    "sortable": true,  "filterable": true  },
+  { "key": "description",              "labelKey": "field.datev_entry.description",                "fieldType": { "kind": "text" },                         "sortable": true,  "filterable": true  },
+  { "key": "value",                    "labelKey": "field.datev_entry.value",                      "fieldType": { "kind": "money", "currencyCodeField": null }, "sortable": true, "filterable": true },
+  { "key": "valueType",                "labelKey": "field.datev_entry.value_type",                 "fieldType": { "kind": "text" },                         "sortable": true,  "filterable": true  },
+  { "key": "key",                      "labelKey": "field.datev_entry.key",                        "fieldType": { "kind": "text" },                         "sortable": true,  "filterable": true  },
+  { "key": "primaryAccountNr",         "labelKey": "field.datev_entry.primary_account_nr",         "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
+  { "key": "secondaryAccountNr",       "labelKey": "field.datev_entry.secondary_account_nr",       "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
+  { "key": "inverted",                 "labelKey": "field.datev_entry.inverted",                   "fieldType": { "kind": "boolean" },                     "sortable": true,  "filterable": true  },
+  { "key": "published",                "labelKey": "field.datev_entry.published",                  "fieldType": { "kind": "boolean" },                     "sortable": true,  "filterable": true  },
+  { "key": "discount",                 "labelKey": "field.datev_entry.discount",                   "fieldType": { "kind": "money", "currencyCodeField": null }, "sortable": true, "filterable": true },
+  { "key": "documentInfo",             "labelKey": "field.datev_entry.document_info",              "fieldType": { "kind": "text" },                         "sortable": true,  "filterable": true  },
+  { "key": "externalId",               "labelKey": "field.datev_entry.external_id",                "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
+  { "key": "groupId",                  "labelKey": "field.datev_entry.group_id",                   "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
+  { "key": "stackId",                  "labelKey": "field.datev_entry.stack_id",                   "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
+  { "key": "starMoneyEntryId",         "labelKey": "field.datev_entry.star_money_entry_id",        "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
+  { "key": "starMoneyCreditCardEntryId","labelKey": "field.datev_entry.star_money_credit_card_entry_id","fieldType": { "kind": "integer" },                 "sortable": true,  "filterable": true  }
+]

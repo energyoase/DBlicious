@@ -67,5 +67,23 @@
 
   { "entryId": "field.company.id",               "languageId": "de", "ftlSource": "ID" },
   { "entryId": "field.company.name",             "languageId": "de", "ftlSource": "Firmenname" },
-  { "entryId": "field.company.datev_account_nr", "languageId": "de", "ftlSource": "DATEV-Konto" }
+  { "entryId": "field.company.datev_account_nr", "languageId": "de", "ftlSource": "DATEV-Konto" },
+
+  { "entryId": "field.datev_entry.id",                             "languageId": "de", "ftlSource": "ID" },
+  { "entryId": "field.datev_entry.date",                           "languageId": "de", "ftlSource": "Datum" },
+  { "entryId": "field.datev_entry.description",                    "languageId": "de", "ftlSource": "Beschreibung" },
+  { "entryId": "field.datev_entry.value",                          "languageId": "de", "ftlSource": "Betrag" },
+  { "entryId": "field.datev_entry.value_type",                     "languageId": "de", "ftlSource": "Soll/Haben" },
+  { "entryId": "field.datev_entry.key",                            "languageId": "de", "ftlSource": "Schlüssel" },
+  { "entryId": "field.datev_entry.primary_account_nr",             "languageId": "de", "ftlSource": "Hauptkonto" },
+  { "entryId": "field.datev_entry.secondary_account_nr",           "languageId": "de", "ftlSource": "Gegenkonto" },
+  { "entryId": "field.datev_entry.inverted",                       "languageId": "de", "ftlSource": "Storno" },
+  { "entryId": "field.datev_entry.published",                      "languageId": "de", "ftlSource": "Verbucht" },
+  { "entryId": "field.datev_entry.discount",                       "languageId": "de", "ftlSource": "Skonto" },
+  { "entryId": "field.datev_entry.document_info",                  "languageId": "de", "ftlSource": "Belegnummer" },
+  { "entryId": "field.datev_entry.external_id",                    "languageId": "de", "ftlSource": "Externe ID" },
+  { "entryId": "field.datev_entry.group_id",                       "languageId": "de", "ftlSource": "Gruppe" },
+  { "entryId": "field.datev_entry.stack_id",                       "languageId": "de", "ftlSource": "Stapel" },
+  { "entryId": "field.datev_entry.star_money_entry_id",            "languageId": "de", "ftlSource": "StarMoney-Buchung" },
+  { "entryId": "field.datev_entry.star_money_credit_card_entry_id","languageId": "de", "ftlSource": "SM-Kreditkarte" }
 ]

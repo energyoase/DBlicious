@@ -42,5 +42,23 @@
 
   { "id": "field.company.id",               "category": "field", "description": "Firmen-ID (PK)" },
   { "id": "field.company.name",             "category": "field", "description": "Firmenname" },
-  { "id": "field.company.datev_account_nr", "category": "field", "description": "DATEV-Konto (FK)" }
+  { "id": "field.company.datev_account_nr", "category": "field", "description": "DATEV-Konto (FK)" },
+
+  { "id": "field.datev_entry.id",                             "category": "field", "description": "Buchungs-ID (PK)" },
+  { "id": "field.datev_entry.date",                           "category": "field", "description": "Belegdatum" },
+  { "id": "field.datev_entry.description",                    "category": "field", "description": "Beschreibung" },
+  { "id": "field.datev_entry.value",                          "category": "field", "description": "Betrag" },
+  { "id": "field.datev_entry.value_type",                     "category": "field", "description": "Soll/Haben" },
+  { "id": "field.datev_entry.key",                            "category": "field", "description": "Buchungsschlüssel" },
+  { "id": "field.datev_entry.primary_account_nr",             "category": "field", "description": "Hauptkonto" },
+  { "id": "field.datev_entry.secondary_account_nr",           "category": "field", "description": "Gegenkonto" },
+  { "id": "field.datev_entry.inverted",                       "category": "field", "description": "Storniert" },
+  { "id": "field.datev_entry.published",                      "category": "field", "description": "Verbucht" },
+  { "id": "field.datev_entry.discount",                       "category": "field", "description": "Skonto" },
+  { "id": "field.datev_entry.document_info",                  "category": "field", "description": "Belegnummer" },
+  { "id": "field.datev_entry.external_id",                    "category": "field", "description": "Externe ID" },
+  { "id": "field.datev_entry.group_id",                       "category": "field", "description": "Gruppe (FK)" },
+  { "id": "field.datev_entry.stack_id",                       "category": "field", "description": "Stapel (FK)" },
+  { "id": "field.datev_entry.star_money_entry_id",            "category": "field", "description": "StarMoney-Buchung (FK)" },
+  { "id": "field.datev_entry.star_money_credit_card_entry_id","category": "field", "description": "StarMoney-Kreditkarte (FK)" }
 ]
