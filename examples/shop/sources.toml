@@ -1,0 +1,5 @@
+# Default-Source: DBlicious legt seine eigenen Tabellen an.
+# DBLICIOUS_DATABASE_URL ueberschreibt die URL.
+[sources.local]
+kind = "managed-sqlite"
+url  = "${DBLICIOUS_DATABASE_URL:-sqlite::memory:}"
