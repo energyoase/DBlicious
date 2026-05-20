@@ -1,0 +1,22 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevEntryChangeTrackings" },
+  "primaryKey": ["trackingId"],
+  "readOnly": true,
+  "columnMap": {
+    "trackingId":         "TrackingId",
+    "entryId":            "EntryId",
+    "active":             "Active",
+    "createdAt":          "CreatedAt",
+    "changedAt":          "ChangedAt",
+    "deletedAt":          "DeletedAt",
+    "prevId":             "PrevId",
+    "date":               "Date",
+    "description":        "Description",
+    "value":              "Value",
+    "valueType":          "ValueType",
+    "primaryAccountNr":   "PrimaryAccountNr",
+    "secondaryAccountNr": "SecondaryAccountNr",
+    "stackId":            "StackId"
+  }
+}

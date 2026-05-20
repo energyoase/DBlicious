@@ -1,0 +1,16 @@
+[
+  { "key": "trackingId",          "labelKey": "field.datev_entry_change_tracking.tracking_id",           "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": false },
+  { "key": "entryId",             "labelKey": "field.datev_entry_change_tracking.entry_id",              "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": true  },
+  { "key": "active",              "labelKey": "field.datev_entry_change_tracking.active",                "fieldType": { "kind": "boolean" },  "sortable": true,  "filterable": true  },
+  { "key": "createdAt",           "labelKey": "field.datev_entry_change_tracking.created_at",            "fieldType": { "kind": "dateTime" }, "sortable": true,  "filterable": true  },
+  { "key": "changedAt",           "labelKey": "field.datev_entry_change_tracking.changed_at",            "fieldType": { "kind": "dateTime" }, "sortable": true,  "filterable": true  },
+  { "key": "deletedAt",           "labelKey": "field.datev_entry_change_tracking.deleted_at",            "fieldType": { "kind": "dateTime" }, "sortable": true,  "filterable": true  },
+  { "key": "prevId",              "labelKey": "field.datev_entry_change_tracking.prev_id",               "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": true  },
+  { "key": "date",                "labelKey": "field.datev_entry_change_tracking.date",                  "fieldType": { "kind": "dateTime" }, "sortable": true,  "filterable": true  },
+  { "key": "description",         "labelKey": "field.datev_entry_change_tracking.description",           "fieldType": { "kind": "text" },     "sortable": true,  "filterable": true  },
+  { "key": "value",               "labelKey": "field.datev_entry_change_tracking.value",                 "fieldType": { "kind": "money", "currencyCodeField": null }, "sortable": true, "filterable": true },
+  { "key": "valueType",           "labelKey": "field.datev_entry_change_tracking.value_type",            "fieldType": { "kind": "text" },     "sortable": true,  "filterable": true  },
+  { "key": "primaryAccountNr",    "labelKey": "field.datev_entry_change_tracking.primary_account_nr",   "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": true  },
+  { "key": "secondaryAccountNr",  "labelKey": "field.datev_entry_change_tracking.secondary_account_nr", "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": true  },
+  { "key": "stackId",             "labelKey": "field.datev_entry_change_tracking.stack_id",              "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": true  }
+]

@@ -1,0 +1,10 @@
+{
+  "entityType": "datev_entry_change_tracking",
+  "access": "internal",
+  "defaultPageSize": 100,
+  "defaultSort": { "field": "trackingId", "direction": "desc" },
+  "defaultFilter": null,
+  "properties": [
+    { "key": "trackingId", "visibility": "visible", "access": "readOnly", "loadMethod": "eager", "order": 0, "labelOverrideKey": null, "minWidth": 80 }
+  ]
+}

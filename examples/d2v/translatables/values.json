@@ -99,5 +99,20 @@
   { "entryId": "field.datev_entry_stack.name",      "languageId": "de", "ftlSource": "Name" },
   { "entryId": "field.datev_entry_stack.year",      "languageId": "de", "ftlSource": "Jahr" },
   { "entryId": "field.datev_entry_stack.month",     "languageId": "de", "ftlSource": "Monat" },
-  { "entryId": "field.datev_entry_stack.file_name", "languageId": "de", "ftlSource": "Dateiname" }
+  { "entryId": "field.datev_entry_stack.file_name", "languageId": "de", "ftlSource": "Dateiname" },
+
+  { "entryId": "field.datev_entry_change_tracking.tracking_id",           "languageId": "de", "ftlSource": "Tracking-ID" },
+  { "entryId": "field.datev_entry_change_tracking.entry_id",              "languageId": "de", "ftlSource": "Buchungs-ID" },
+  { "entryId": "field.datev_entry_change_tracking.active",                "languageId": "de", "ftlSource": "Aktiv" },
+  { "entryId": "field.datev_entry_change_tracking.created_at",            "languageId": "de", "ftlSource": "Angelegt am" },
+  { "entryId": "field.datev_entry_change_tracking.changed_at",            "languageId": "de", "ftlSource": "Geändert am" },
+  { "entryId": "field.datev_entry_change_tracking.deleted_at",            "languageId": "de", "ftlSource": "Gelöscht am" },
+  { "entryId": "field.datev_entry_change_tracking.prev_id",               "languageId": "de", "ftlSource": "Vorgänger-ID" },
+  { "entryId": "field.datev_entry_change_tracking.date",                  "languageId": "de", "ftlSource": "Datum" },
+  { "entryId": "field.datev_entry_change_tracking.description",           "languageId": "de", "ftlSource": "Beschreibung" },
+  { "entryId": "field.datev_entry_change_tracking.value",                 "languageId": "de", "ftlSource": "Betrag" },
+  { "entryId": "field.datev_entry_change_tracking.value_type",            "languageId": "de", "ftlSource": "Soll/Haben" },
+  { "entryId": "field.datev_entry_change_tracking.primary_account_nr",   "languageId": "de", "ftlSource": "Hauptkonto" },
+  { "entryId": "field.datev_entry_change_tracking.secondary_account_nr", "languageId": "de", "ftlSource": "Gegenkonto" },
+  { "entryId": "field.datev_entry_change_tracking.stack_id",              "languageId": "de", "ftlSource": "Stapel" }
 ]
