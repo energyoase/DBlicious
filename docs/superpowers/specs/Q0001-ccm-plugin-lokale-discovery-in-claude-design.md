@@ -69,6 +69,14 @@ Plan-B aktivieren, Parent-Spec aktualisieren.
 
 ## 4. Hypothesen — Setup, Verifikation, Erfolgskriterien
 
+### Phase-0-Befund (ausgefüllt während Execute)
+
+- Backup angelegt: `.claude/settings.json.bak-q0001` (Step 0.3).
+- Vorhandene Sources in settings.json: Nur `claude-plugins-official` (implizit via `enabledPlugins`-Einträge wie `"superpowers@claude-plugins-official": true`). Kein `plugins.sources`-Block vorhanden. Kein `extraKnownMarketplaces`-Block vorhanden.
+- `~/.claude/plugins/` Inhalt: Verzeichnis existiert, aber **leer** (keine vorhandenen Einträge). H2-Junction kann kollisionsfrei angelegt werden.
+- context7-Recherche: **Relevanter Befund** — Die offizielle Doku nennt `extraKnownMarketplaces` (nicht `plugins.sources`) als Mechanik für Custom-Sources. Format: `"extraKnownMarketplaces": { "<name>": { "source": { "source": "github", "repo": "..." } } }`. Kein `"path"`-Key für lokale Verzeichnisse dokumentiert. Für H1 müsste `plugins.sources.<name>.path` ein undokumentiertes/internes Feature sein. Die Doku zeigt außerdem `claude plugin install --scope local` als CLI-Befehl — aber der installiert aus Marketplaces, nicht aus lokalen Pfaden. Ein SDK-Snippet zeigt `{ type: "local", path: "./dev-plugins/my-plugin" }` im Agent-SDK-Kontext — könnte für H1 relevant sein, aber es ist unklar ob das für `settings.json` gilt.
+- Hypothesen-Reihung nach Phase 0: **H2 zuerst** (Junction-Hack ist etabliertes DBlicious-Pattern, `~/.claude/plugins/` ist leer → kollisionsfrei). H1 danach mit `extraKnownMarketplaces`-Format statt `plugins.sources` (Doku korrigiert die Plan-Annahme). H3 als Fallback.
+
 ### H1 — Source-Path-Definition in `settings.json`
 
 **Setup:**
