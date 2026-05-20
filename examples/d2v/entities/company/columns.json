@@ -1,0 +1,5 @@
+[
+  { "key": "id",             "labelKey": "field.company.id",               "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": false },
+  { "key": "name",           "labelKey": "field.company.name",             "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "datevAccountNr", "labelKey": "field.company.datev_account_nr", "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  }
+]

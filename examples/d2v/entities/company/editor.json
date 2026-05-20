@@ -1,0 +1,8 @@
+{
+  "entityType": "company",
+  "properties": [
+    { "key": "id",             "labelKey": "field.company.id",               "fieldType": { "kind": "integer" }, "required": true,  "readonly": true, "visibility": "readOnly", "order": 10, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "name",           "labelKey": "field.company.name",             "fieldType": { "kind": "text" },    "required": true,  "readonly": true, "visibility": "readOnly", "order": 20, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "datevAccountNr", "labelKey": "field.company.datev_account_nr", "fieldType": { "kind": "integer" }, "required": false, "readonly": true, "visibility": "readOnly", "order": 30, "groupKey": "editor.section.references", "control": "auto" }
+  ]
+}

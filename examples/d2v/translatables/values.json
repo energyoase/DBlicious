@@ -63,5 +63,9 @@
   { "entryId": "field.datev_account.account_type",                    "languageId": "de", "ftlSource": "Kontotyp" },
   { "entryId": "field.datev_account.automatic_tax_account_nr",        "languageId": "de", "ftlSource": "Auto-USt-Konto" },
   { "entryId": "field.datev_account.automatic_reverse_tax_account_nr","languageId": "de", "ftlSource": "Auto-Gegen-USt-Konto" },
-  { "entryId": "field.datev_account.company_id",                      "languageId": "de", "ftlSource": "Firma" }
+  { "entryId": "field.datev_account.company_id",                      "languageId": "de", "ftlSource": "Firma" },
+
+  { "entryId": "field.company.id",               "languageId": "de", "ftlSource": "ID" },
+  { "entryId": "field.company.name",             "languageId": "de", "ftlSource": "Firmenname" },
+  { "entryId": "field.company.datev_account_nr", "languageId": "de", "ftlSource": "DATEV-Konto" }
 ]
