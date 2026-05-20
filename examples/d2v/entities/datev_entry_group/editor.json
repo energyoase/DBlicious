@@ -1,0 +1,6 @@
+{
+  "entityType": "datev_entry_group",
+  "properties": [
+    { "key": "id", "labelKey": "field.datev_entry_group.id", "fieldType": { "kind": "integer" }, "required": true, "readonly": true, "visibility": "readOnly", "order": 10, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}

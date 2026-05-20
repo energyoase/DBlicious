@@ -1,0 +1,3 @@
+[
+  { "key": "id", "labelKey": "field.datev_entry_group.id", "fieldType": { "kind": "integer" }, "sortable": true, "filterable": false }
+]

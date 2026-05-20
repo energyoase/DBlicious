@@ -1,0 +1,9 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevEntryGroups" },
+  "primaryKey": ["id"],
+  "readOnly": true,
+  "columnMap": {
+    "id": "Id"
+  }
+}
