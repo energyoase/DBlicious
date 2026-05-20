@@ -1,7 +1,7 @@
 ---
 id: Q0001
 created: 2026-05-20T00:00:00Z
-status: planned
+status: executing
 priority: high
 title: "CCM-Plugin lokale Discovery in Claude Code verifizieren"
 spec: docs/superpowers/specs/Q0001-ccm-plugin-lokale-discovery-in-claude-design.md
@@ -56,3 +56,4 @@ laut Spec:
 - 2026-05-20T00:00:00Z — manual: created (M0-Bootstrap)
 - 2026-05-20T22:22:00Z — ccm-brainstorm: status new → brainstormed, spec=docs/superpowers/specs/Q0001-ccm-plugin-lokale-discovery-in-claude-design.md (commit 3200372)
 - 2026-05-20T22:31:00Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0001-ccm-plugin-lokale-discovery-in-claude.md (commit 2588f4d)
+- 2026-05-20T22:35:00Z — ccm-execute: status planned → executing, branch=dev (note: plan refers to feat/phase-0.6-source-architecture — überschrieben durch ccm-execute Branch-Policy)
