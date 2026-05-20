@@ -1,0 +1,4 @@
+[
+  { "id": "de", "code": "de", "nameKey": "locale-de", "fallbackId": "en", "active": true },
+  { "id": "en", "code": "en", "nameKey": "locale-en", "fallbackId": null,  "active": true }
+]

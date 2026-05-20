@@ -1,0 +1,33 @@
+[
+  { "id": "security.group.bookkeepers",      "category": "security", "description": "Bezeichnung der Buchhalter-Gruppe" },
+  { "id": "security.group.bookkeepers.desc", "category": "security", "description": null },
+
+  { "id": "nav.datev",                       "category": "navigation", "description": "Navigationsgruppe DATEV" },
+  { "id": "nav.datev_accounts",              "category": "navigation", "description": "Navigationslink DATEV-Kontenplan" },
+  { "id": "nav.datev_entries",               "category": "navigation", "description": "Navigationslink DATEV-Buchungen" },
+  { "id": "nav.datev_account_entries",       "category": "navigation", "description": "Navigationslink DATEV-Kontenbuchungen" },
+  { "id": "nav.datev_entry_groups",          "category": "navigation", "description": "Navigationslink DATEV-Buchungsgruppen" },
+  { "id": "nav.datev_entry_stacks",          "category": "navigation", "description": "Navigationslink DATEV-Buchungsstapel" },
+  { "id": "nav.datev_change_tracking",       "category": "navigation", "description": "Navigationslink DATEV-Änderungsprotokoll" },
+
+  { "id": "nav.calc",                        "category": "navigation", "description": "Navigationsgruppe Auswertungen" },
+  { "id": "nav.datev_calculations",          "category": "navigation", "description": "Navigationslink DATEV-Auswertungen" },
+  { "id": "nav.datev_calculation_entries",   "category": "navigation", "description": "Navigationslink DATEV-Auswertungspositionen" },
+  { "id": "nav.datev_calculation_values",    "category": "navigation", "description": "Navigationslink DATEV-Auswertungswerte" },
+
+  { "id": "nav.starmoney",                   "category": "navigation", "description": "Navigationsgruppe StarMoney" },
+  { "id": "nav.sm_banks",                    "category": "navigation", "description": "Navigationslink StarMoney-Banken" },
+  { "id": "nav.sm_accounts",                 "category": "navigation", "description": "Navigationslink StarMoney-Konten" },
+  { "id": "nav.sm_booking_texts",            "category": "navigation", "description": "Navigationslink StarMoney-Buchungstexte" },
+  { "id": "nav.sm_entries",                  "category": "navigation", "description": "Navigationslink StarMoney-Buchungen" },
+
+  { "id": "nav.susa",                        "category": "navigation", "description": "Navigationsgruppe SuSa" },
+  { "id": "nav.susa_entries",                "category": "navigation", "description": "Navigationslink SuSa-Einträge" },
+
+  { "id": "nav.contacts",                    "category": "navigation", "description": "Navigationsgruppe Kontakte" },
+  { "id": "nav.companies",                   "category": "navigation", "description": "Navigationslink Firmen-Kreuztabelle" },
+
+  { "id": "nav.sandbox",                     "category": "navigation", "description": "Navigationsgruppe Sandbox (experimentelle Entitäten)" },
+  { "id": "nav.sm_credit_cards",             "category": "navigation", "description": "Navigationslink StarMoney-Kreditkarten" },
+  { "id": "nav.sm_credit_card_entries",      "category": "navigation", "description": "Navigationslink StarMoney-Kreditkartenbuchungen" }
+]
