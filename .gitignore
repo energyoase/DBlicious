@@ -17,3 +17,8 @@ bug-reports/
 
 # superpowers brainstorm artifacts (visual companion server state + mockups)
 .superpowers/
+
+
+# CCM runtime
+.ccm/
+.claude/*-state.json

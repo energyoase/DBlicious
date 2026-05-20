@@ -1,0 +1,23 @@
+# Minimales CCM-Manifest fuer DBlicious (Solo-Mode, Sprint A-light / M0).
+# Bootstrap manuell am 2026-05-20; spaeter durch /ccm-import-project --force
+# ersetzbar (siehe docs/superpowers/specs/2026-05-20-ccm-approvals-ready-design.md
+# Abschnitt "Quick-Win: Sprint A-light").
+
+[ccm.project]
+name                = "DBlicious"
+roles               = ["dev"]
+mode                = "solo"
+default_branch_main = "main"
+default_branch_dev  = "dev"
+
+[ccm.meta]
+schema_version = 1
+created_by     = "manual-bootstrap@2026-05-20"
+created_at     = "2026-05-20T00:00:00Z"
+
+[ccm.questions]
+fallback_mode = "block"
+
+# Keine [ccm.channels.*]-Sektionen — Solo-Mode, Daemon nicht in Verwendung.
+# Keine [ccm.models]-Overrides — Defaults aus ccm-model-mapping.md greifen.
+# Keine [ccm.review]-Sektion — Review-Pipeline kommt erst in M1+.
