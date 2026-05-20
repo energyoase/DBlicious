@@ -130,3 +130,49 @@ impl Default for SourceRegistry {
         Self::new()
     }
 }
+
+// =============================================================================
+// Globaler Prozess-Slot + Boot-Funktion
+// =============================================================================
+
+use parking_lot::RwLock;
+use std::sync::OnceLock;
+
+use crate::source::config::SourceConfig;
+use crate::source::managed_sqlite::ManagedSqliteSource;
+
+static REGISTRY: OnceLock<RwLock<SourceRegistry>> = OnceLock::new();
+
+fn slot() -> &'static RwLock<SourceRegistry> {
+    REGISTRY.get_or_init(|| RwLock::new(SourceRegistry::new()))
+}
+
+/// Liefert eine Read-Lock-Sicht auf die Registry. Lebt prozessweit.
+pub fn registry() -> parking_lot::RwLockReadGuard<'static, SourceRegistry> {
+    slot().read()
+}
+
+/// Baut die Registry aus der Konfiguration auf. Idempotent — bei zweitem
+/// Aufruf wird die alte Registry komplett ersetzt (nur Tests benutzen das,
+/// um zwischen `fresh_test_setup`-Aufrufen zurueckzusetzen).
+pub async fn boot_registry(
+    sources: &std::collections::BTreeMap<String, SourceConfig>,
+) -> Result<(), SourceError> {
+    let mut reg = SourceRegistry::new();
+    for (name, cfg) in sources {
+        let mut src: Box<dyn Source> = match cfg.kind.as_str() {
+            "managed-sqlite" => Box::new(ManagedSqliteSource::new(name.clone())),
+            // foreign-sqlite is wired in Task 14.
+            other => return Err(SourceError::Other(format!("unknown source kind: {other}"))),
+        };
+        src.init().await?;
+        reg.register(src);
+    }
+    *slot().write() = reg;
+    Ok(())
+}
+
+/// Reset fuer Tests — analog zu `db::reset`.
+pub fn reset() {
+    *slot().write() = SourceRegistry::new();
+}

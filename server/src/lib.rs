@@ -68,5 +68,11 @@ pub async fn setup_for_tests() -> AppSchema {
 pub async fn fresh_test_setup() -> AppSchema {
     db::reset();
     example::reset();
-    setup_for_tests().await
+    source::reset();
+    let schema = setup_for_tests().await;
+    let set = example::current().expect("set installed");
+    source::boot_registry(&set.sources)
+        .await
+        .expect("boot_registry");
+    schema
 }
