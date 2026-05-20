@@ -38,7 +38,6 @@
   { "id": "field.datev_account.account_type",                    "category": "field", "description": "Kontotyp" },
   { "id": "field.datev_account.automatic_tax_account_nr",        "category": "field", "description": "Auto-USt-Konto" },
   { "id": "field.datev_account.automatic_reverse_tax_account_nr","category": "field", "description": "Auto-Gegen-USt-Konto" },
-  { "id": "field.datev_account.company_id",                      "category": "field", "description": "Firma (FK)" },
 
   { "id": "field.company.id",               "category": "field", "description": "Firmen-ID (PK)" },
   { "id": "field.company.name",             "category": "field", "description": "Firmenname" },

@@ -10,7 +10,6 @@
     "taxRate":                      "TaxRate",
     "accountType":                  "AccountType",
     "automaticTaxAccountNr":        "AutomaticTaxAccountNr",
-    "automaticReverseTaxAccountNr": "AutomaticReverseTaxAccountNr",
-    "companyId":                    "CompanyId"
+    "automaticReverseTaxAccountNr": "AutomaticReverseTaxAccountNr"
   }
 }
