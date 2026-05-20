@@ -78,6 +78,7 @@ pub trait Source: Send + Sync {
     async fn create(
         &self,
         binding: &EntityBinding,
+        id: Option<String>,
         fields: serde_json::Map<String, serde_json::Value>,
         actor_user_id: Option<&str>,
     ) -> Result<Entity, SourceError>;
@@ -99,7 +100,7 @@ pub trait Source: Send + Sync {
 
 /// In-Process-Routing: pro Source-Name eine boxed Implementierung.
 pub struct SourceRegistry {
-    sources: BTreeMap<String, Box<dyn Source>>,
+    sources: BTreeMap<String, std::sync::Arc<dyn Source>>,
 }
 
 impl SourceRegistry {
@@ -108,15 +109,21 @@ impl SourceRegistry {
     }
 
     pub fn register(&mut self, source: Box<dyn Source>) {
-        self.sources.insert(source.name().to_string(), source);
+        let arc: std::sync::Arc<dyn Source> = source.into();
+        self.sources.insert(arc.name().to_string(), arc);
     }
 
+    /// Borrows a reference. Prefer [`Self::route`] for async callers.
     pub fn get(&self, name: &str) -> Option<&dyn Source> {
-        self.sources.get(name).map(|b| b.as_ref())
+        self.sources.get(name).map(|a| a.as_ref())
     }
 
-    pub fn route(&self, binding: &EntityBinding) -> Result<&dyn Source, SourceError> {
-        self.get(&binding.source)
+    /// Returns a cloned `Arc` so callers can release the registry read-lock
+    /// before calling async methods.
+    pub fn route(&self, binding: &EntityBinding) -> Result<std::sync::Arc<dyn Source>, SourceError> {
+        self.sources
+            .get(&binding.source)
+            .cloned()
             .ok_or_else(|| SourceError::UnknownSource(binding.source.clone()))
     }
 

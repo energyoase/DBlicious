@@ -766,6 +766,8 @@ pub async fn fetch_settings(entity_type: &str) -> Result<Option<EntitySettings>,
         // eine leere Map. Der Server-Resolver konsultiert seine eigene
         // Settings-Schicht (`data::settings_for*`), unabhaengig vom Client.
         field_type_defaults: std::collections::BTreeMap::new(),
+        // Phase 0.6: binding wird ueber GraphQL noch nicht exponiert.
+        binding: None,
     }))
 }
 

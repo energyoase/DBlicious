@@ -93,6 +93,7 @@ fn next_id_prefix(entity_type: &str) -> String {
     format!("{}-{:04}", entity_type.chars().next().unwrap_or('x'), n)
 }
 
+#[allow(dead_code)]
 fn fields_from_model(model: entity::entities::Model) -> Entity {
     let parsed: serde_json::Value =
         serde_json::from_str(&model.fields_json).unwrap_or(serde_json::Value::Null);
@@ -210,7 +211,7 @@ fn shared_entity_from_model(model: entity::entities::Model) -> shared::Entity {
 /// Interne Variante, die das `shared::EntityPage` liefert.
 /// Wird von der Source-Schicht aufgerufen; die alte `entities_page`
 /// (Async-GraphQL-Json-Wrap) ruft sie ihrerseits auf.
-pub(crate) async fn entities_page_raw(
+pub async fn entities_page_raw(
     entity_type: &str,
     page: i32,
     page_size: i32,
@@ -271,7 +272,17 @@ pub(crate) async fn create_entity_raw(
     actor_user_id: Option<&str>,
 ) -> shared::Entity {
     let db = &conn();
-    let id = id.unwrap_or_else(|| next_id_prefix(entity_type));
+    // If no explicit id is supplied, check whether the caller pre-injected one
+    // into the fields map (convention used by data::create_entity when routing
+    // through SourceRegistry without a trait-level id parameter).
+    let id = id
+        .or_else(|| {
+            fields
+                .get("id")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| next_id_prefix(entity_type));
     let mut fields_map = fields;
     fields_map.insert("id".into(), serde_json::Value::String(id.clone()));
     apply_audit_columns(entity_type, &mut fields_map, actor_user_id, AuditPhase::Create);
@@ -315,6 +326,22 @@ pub(crate) async fn update_entity_raw(
     Some(shared::Entity { id: id.to_string(), fields: current })
 }
 
+pub(crate) async fn delete_entity_raw(entity_type: &str, id: &str) -> bool {
+    let db = &conn();
+    let res = entity::entities::Entity::delete_by_id((entity_type.to_string(), id.to_string()))
+        .exec(db)
+        .await;
+    matches!(res, Ok(r) if r.rows_affected > 0)
+}
+
+fn binding_for(entity_type: &str) -> shared::source::EntityBinding {
+    crate::example::current()
+        .and_then(|set| set.entities.get(entity_type).cloned())
+        .and_then(|ty| ty.settings)
+        .and_then(|s| s.binding)
+        .unwrap_or_else(|| shared::source::default_binding_for(entity_type))
+}
+
 pub async fn entities_page(
     entity_type: &str,
     page: i32,
@@ -322,69 +349,57 @@ pub async fn entities_page(
     sort: Option<shared::Sort>,
     filter: shared::FilterCriteria,
 ) -> EntityPage {
-    let db = &conn();
-
-    // 1) Alle Rows fuer entity_type laden. Filter/Sort laufen heute komplett
-    //    in Rust — bei wachsendem Datenvolumen muessen die Praedikate via
-    //    `json_extract`/Indices nach SQLite gepusht werden.
-    let rows = entity::entities::Entity::find()
-        .filter(entity::entities::Column::EntityType.eq(entity_type))
-        .all(db)
-        .await
-        .unwrap_or_default();
-
-    let mut entities: Vec<shared::Entity> = rows.into_iter().map(shared_entity_from_model).collect();
-
-    let columns = shared_columns_for(entity_type);
-    let columns_map: std::collections::HashMap<String, &shared::ColumnMeta> =
-        columns.iter().map(|c| (c.key.clone(), c)).collect();
-
-    // 2) Filter
-    if !filter.is_empty() {
-        entities.retain(|e| passes_filter(e, &filter, &columns_map));
-    }
-
-    // 3) Sort
-    if let Some(s) = sort.as_ref() {
-        sort_entities(&mut entities, s, &columns_map);
-    }
-
-    // 4) Pagination ueber das gefilterte/sortierte Ergebnis
-    let total = entities.len() as i64;
-    let page_idx = (page.max(1) - 1) as usize;
-    let take = page_size.max(1) as usize;
-    let start = page_idx.saturating_mul(take);
-    let end = start.saturating_add(take).min(entities.len());
-    let slice = if start < entities.len() {
-        entities[start..end].to_vec()
-    } else {
-        Vec::new()
+    let binding = binding_for(entity_type);
+    // Acquire Arc before dropping the read-lock so we don't hold it across await.
+    let source = {
+        let reg = crate::source::registry();
+        match reg.route(&binding) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!(target: "server::data", "route error: {e}");
+                return EntityPage {
+                    items: Vec::new(),
+                    total_count: 0,
+                    page,
+                    page_size,
+                };
+            }
+        }
     };
-
-    let items = slice
-        .into_iter()
-        .map(|e| Entity {
-            id: e.id,
-            fields: Json(serde_json::Value::Object(e.fields)),
-        })
-        .collect();
-
-    EntityPage {
-        items,
-        total_count: total,
-        page,
-        page_size,
+    let q = crate::source::PageQuery { page, page_size, sort, filter };
+    match source.list_page(&binding, &q).await {
+        Ok(p) => EntityPage {
+            items: p.items.into_iter().map(|e| Entity {
+                id: e.id,
+                fields: Json(serde_json::Value::Object(e.fields)),
+            }).collect(),
+            total_count: p.total_count as i64,
+            page: p.page as i32,
+            page_size: p.page_size as i32,
+        },
+        Err(e) => {
+            tracing::error!(target: "server::data", "list_page error: {e}");
+            EntityPage {
+                items: Vec::new(),
+                total_count: 0,
+                page,
+                page_size,
+            }
+        }
     }
 }
 
 pub async fn entity_by_id(entity_type: &str, id: &str) -> Option<Entity> {
-    let db = &conn();
-    entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
-        .one(db)
-        .await
-        .ok()
-        .flatten()
-        .map(fields_from_model)
+    let binding = binding_for(entity_type);
+    let source = { crate::source::registry().route(&binding).ok()? };
+    let entity_id = shared::source::EntityId::decode(id);
+    match source.get(&binding, &entity_id).await {
+        Ok(Some(e)) => Some(Entity {
+            id: e.id,
+            fields: Json(serde_json::Value::Object(e.fields)),
+        }),
+        _ => None,
+    }
 }
 
 pub async fn current_hash(entity_type: &str, id: &str) -> Option<u64> {
@@ -420,22 +435,31 @@ pub async fn create_entity(
     fields: serde_json::Value,
     actor_user_id: Option<&str>,
 ) -> Entity {
-    let db = &conn();
-    let id = id.unwrap_or_else(|| next_id_prefix(entity_type));
-    let mut fields_map = fields_obj_from_value(&fields);
-    fields_map.insert("id".into(), serde_json::Value::String(id.clone()));
-    apply_audit_columns(entity_type, &mut fields_map, actor_user_id, AuditPhase::Create);
-    let value = serde_json::Value::Object(fields_map.clone());
-    let hash = hash_for_entity(&id, &fields_map);
-
-    let model = entity::entities::ActiveModel {
-        entity_type: ActiveValue::Set(entity_type.to_string()),
-        id: ActiveValue::Set(id.clone()),
-        fields_json: ActiveValue::Set(value.to_string()),
-        hash: ActiveValue::Set(hash),
+    let binding = binding_for(entity_type);
+    let fields_map = match fields {
+        serde_json::Value::Object(m) => m,
+        _ => serde_json::Map::new(),
     };
-    let _ = model.insert(db).await;
-    Entity { id, fields: Json(value) }
+    let source = {
+        let reg = crate::source::registry();
+        match reg.route(&binding) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!(target: "server::data", "route error: {e}");
+                return Entity { id: id.unwrap_or_default(), fields: Json(serde_json::Value::Null) };
+            }
+        }
+    };
+    match source.create(&binding, id.clone(), fields_map, actor_user_id).await {
+        Ok(e) => Entity {
+            id: e.id,
+            fields: Json(serde_json::Value::Object(e.fields)),
+        },
+        Err(e) => {
+            tracing::error!(target: "server::data", "create error: {e}");
+            Entity { id: id.unwrap_or_default(), fields: Json(serde_json::Value::Null) }
+        }
+    }
 }
 
 pub async fn update_entity(
@@ -444,38 +468,30 @@ pub async fn update_entity(
     field_patch: serde_json::Value,
     actor_user_id: Option<&str>,
 ) -> Option<Entity> {
-    let db = &conn();
-    let existing = entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
-        .one(db)
-        .await
-        .ok()
-        .flatten()?;
-    let mut current: serde_json::Map<String, serde_json::Value> =
-        serde_json::from_str(&existing.fields_json).unwrap_or_default();
-    if let serde_json::Value::Object(patch) = field_patch {
-        for (k, v) in patch {
-            current.insert(k, v);
-        }
-    }
-    apply_audit_columns(entity_type, &mut current, actor_user_id, AuditPhase::Update);
-    let value = serde_json::Value::Object(current.clone());
-    let hash = hash_for_entity(id, &current);
-    let am = entity::entities::ActiveModel {
-        entity_type: ActiveValue::Set(entity_type.to_string()),
-        id: ActiveValue::Set(id.to_string()),
-        fields_json: ActiveValue::Set(value.to_string()),
-        hash: ActiveValue::Set(hash),
+    let binding = binding_for(entity_type);
+    let source = { crate::source::registry().route(&binding).ok()? };
+    let entity_id = shared::source::EntityId::decode(id);
+    let patch = match field_patch {
+        serde_json::Value::Object(m) => m,
+        _ => return None,
     };
-    let _ = am.update(db).await;
-    Some(Entity { id: id.to_string(), fields: Json(value) })
+    match source.update(&binding, &entity_id, patch, actor_user_id).await {
+        Ok(Some(e)) => Some(Entity {
+            id: e.id,
+            fields: Json(serde_json::Value::Object(e.fields)),
+        }),
+        _ => None,
+    }
 }
 
 pub async fn delete_entity(entity_type: &str, id: &str) -> bool {
-    let db = &conn();
-    let res = entity::entities::Entity::delete_by_id((entity_type.to_string(), id.to_string()))
-        .exec(db)
-        .await;
-    matches!(res, Ok(r) if r.rows_affected > 0)
+    let binding = binding_for(entity_type);
+    let source = match { crate::source::registry().route(&binding) } {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let entity_id = shared::source::EntityId::decode(id);
+    source.delete(&binding, &entity_id).await.unwrap_or(false)
 }
 
 // =============================================================================
@@ -1757,7 +1773,13 @@ mod tests {
     async fn setup() {
         ensure_example();
         crate::db::reset();
+        crate::source::reset();
         crate::db::init().await.expect("db::init() failed");
+        // Phase 0.6: Routing via SourceRegistry — also tests must boot it.
+        let set = crate::example::current().expect("example installed");
+        crate::source::boot_registry(&set.sources)
+            .await
+            .expect("boot_registry");
     }
 
     #[tokio::test]

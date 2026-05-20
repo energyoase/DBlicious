@@ -96,7 +96,7 @@ async fn managed_sqlite_create_update_delete_roundtrips() {
     fields.insert("name".into(), serde_json::json!("Test Product"));
     fields.insert("price".into(), serde_json::json!(9.99));
 
-    let created = src.create(&binding, fields, None).await.unwrap();
+    let created = src.create(&binding, None, fields, None).await.unwrap();
     let id = EntityId::Single(created.id.clone());
 
     let mut patch = serde_json::Map::new();

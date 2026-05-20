@@ -91,6 +91,7 @@ impl Source for ManagedSqliteSource {
     async fn create(
         &self,
         binding: &EntityBinding,
+        id: Option<String>,
         fields: serde_json::Map<String, serde_json::Value>,
         actor_user_id: Option<&str>,
     ) -> Result<Entity, SourceError> {
@@ -101,7 +102,7 @@ impl Source for ManagedSqliteSource {
             shared::source::BindingLocator::GenericEntityRow { entity_type } => entity_type,
             other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
         };
-        Ok(crate::data::create_entity_raw(entity_type, None, fields, actor_user_id).await)
+        Ok(crate::data::create_entity_raw(entity_type, id, fields, actor_user_id).await)
     }
 
     async fn update(
@@ -149,6 +150,6 @@ impl Source for ManagedSqliteSource {
                 ));
             }
         };
-        Ok(crate::data::delete_entity(entity_type, &key).await)
+        Ok(crate::data::delete_entity_raw(entity_type, &key).await)
     }
 }
