@@ -1,0 +1,11 @@
+{
+  "entityType": "datev_calculation",
+  "properties": [
+    { "key": "id",         "labelKey": "field.datev_calculation.id",          "fieldType": { "kind": "integer" }, "required": true,  "readonly": true,  "visibility": "readOnly", "order": 10, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "name",       "labelKey": "field.datev_calculation.name",        "fieldType": { "kind": "text" },    "required": true,  "readonly": false, "visibility": "visible",  "order": 20, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "exportName", "labelKey": "field.datev_calculation.export_name", "fieldType": { "kind": "text" },    "required": false, "readonly": false, "visibility": "visible",  "order": 30, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "type",       "labelKey": "field.datev_calculation.type",        "fieldType": { "kind": "text" },    "required": false, "readonly": false, "visibility": "visible",  "order": 40, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "valueType",  "labelKey": "field.datev_calculation.value_type",  "fieldType": { "kind": "text" },    "required": false, "readonly": false, "visibility": "visible",  "order": 50, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "isRequired", "labelKey": "field.datev_calculation.is_required", "fieldType": { "kind": "boolean" }, "required": false, "readonly": false, "visibility": "visible",  "order": 60, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}

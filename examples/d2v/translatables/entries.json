@@ -89,5 +89,12 @@
   { "id": "field.datev_entry_change_tracking.value_type",            "category": "field", "description": "Soll/Haben" },
   { "id": "field.datev_entry_change_tracking.primary_account_nr",   "category": "field", "description": "Hauptkonto" },
   { "id": "field.datev_entry_change_tracking.secondary_account_nr", "category": "field", "description": "Gegenkonto" },
-  { "id": "field.datev_entry_change_tracking.stack_id",              "category": "field", "description": "Stapel (FK)" }
+  { "id": "field.datev_entry_change_tracking.stack_id",              "category": "field", "description": "Stapel (FK)" },
+
+  { "id": "field.datev_calculation.id",          "category": "field", "description": "Auswertungs-ID (PK)" },
+  { "id": "field.datev_calculation.name",        "category": "field", "description": "Name" },
+  { "id": "field.datev_calculation.export_name", "category": "field", "description": "Exportname" },
+  { "id": "field.datev_calculation.type",        "category": "field", "description": "Typ" },
+  { "id": "field.datev_calculation.value_type",  "category": "field", "description": "Soll/Haben" },
+  { "id": "field.datev_calculation.is_required", "category": "field", "description": "Pflichtauswertung" }
 ]

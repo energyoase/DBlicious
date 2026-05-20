@@ -1,0 +1,8 @@
+[
+  { "key": "id",          "labelKey": "field.datev_calculation.id",           "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": false },
+  { "key": "name",        "labelKey": "field.datev_calculation.name",         "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "exportName",  "labelKey": "field.datev_calculation.export_name",  "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "type",        "labelKey": "field.datev_calculation.type",         "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "valueType",   "labelKey": "field.datev_calculation.value_type",   "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "isRequired",  "labelKey": "field.datev_calculation.is_required",  "fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  }
+]

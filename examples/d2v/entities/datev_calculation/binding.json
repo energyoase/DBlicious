@@ -1,0 +1,14 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevCalculations" },
+  "primaryKey": ["id"],
+  "readOnly": false,
+  "columnMap": {
+    "id":         "Id",
+    "name":       "Name",
+    "exportName": "ExportName",
+    "type":       "Type",
+    "valueType":  "ValueType",
+    "isRequired": "IsRequired"
+  }
+}
