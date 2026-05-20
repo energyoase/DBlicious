@@ -68,5 +68,11 @@
   { "id": "field.datev_account_entry.factor",              "category": "field", "description": "Faktor" },
   { "id": "field.datev_account_entry.is_discount_related", "category": "field", "description": "Skonto-Zeile" },
 
-  { "id": "field.datev_entry_group.id", "category": "field", "description": "Gruppen-ID (PK)" }
+  { "id": "field.datev_entry_group.id", "category": "field", "description": "Gruppen-ID (PK)" },
+
+  { "id": "field.datev_entry_stack.id",        "category": "field", "description": "Stapel-ID (PK)" },
+  { "id": "field.datev_entry_stack.name",      "category": "field", "description": "Stapelname" },
+  { "id": "field.datev_entry_stack.year",      "category": "field", "description": "Jahr" },
+  { "id": "field.datev_entry_stack.month",     "category": "field", "description": "Monat" },
+  { "id": "field.datev_entry_stack.file_name", "category": "field", "description": "Dateiname" }
 ]

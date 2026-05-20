@@ -1,0 +1,7 @@
+[
+  { "key": "id",       "labelKey": "field.datev_entry_stack.id",        "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": false },
+  { "key": "name",     "labelKey": "field.datev_entry_stack.name",      "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "year",     "labelKey": "field.datev_entry_stack.year",      "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "month",    "labelKey": "field.datev_entry_stack.month",     "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "fileName", "labelKey": "field.datev_entry_stack.file_name", "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  }
+]

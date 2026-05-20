@@ -93,5 +93,11 @@
   { "entryId": "field.datev_account_entry.factor",              "languageId": "de", "ftlSource": "Faktor" },
   { "entryId": "field.datev_account_entry.is_discount_related", "languageId": "de", "ftlSource": "Skonto-Zeile" },
 
-  { "entryId": "field.datev_entry_group.id", "languageId": "de", "ftlSource": "ID" }
+  { "entryId": "field.datev_entry_group.id", "languageId": "de", "ftlSource": "ID" },
+
+  { "entryId": "field.datev_entry_stack.id",        "languageId": "de", "ftlSource": "ID" },
+  { "entryId": "field.datev_entry_stack.name",      "languageId": "de", "ftlSource": "Name" },
+  { "entryId": "field.datev_entry_stack.year",      "languageId": "de", "ftlSource": "Jahr" },
+  { "entryId": "field.datev_entry_stack.month",     "languageId": "de", "ftlSource": "Monat" },
+  { "entryId": "field.datev_entry_stack.file_name", "languageId": "de", "ftlSource": "Dateiname" }
 ]

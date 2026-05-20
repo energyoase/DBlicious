@@ -1,0 +1,13 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevEntryStacks" },
+  "primaryKey": ["id"],
+  "readOnly": false,
+  "columnMap": {
+    "id":       "Id",
+    "name":     "Name",
+    "year":     "Year",
+    "month":    "Month",
+    "fileName": "FileName"
+  }
+}
