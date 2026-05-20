@@ -117,3 +117,57 @@ async fn foreign_list_page_paginates() {
     assert_eq!(page.total_count, 3);
     assert_eq!(page.items.len(), 2);
 }
+
+#[tokio::test]
+async fn foreign_get_single_pk() {
+    let (src, _a) = fixture_source_with_data().await;
+    let id = shared::source::EntityId::Single("1200".into());
+    let e = src.get(&account_binding(), &id).await.unwrap();
+    assert!(e.is_some());
+    assert_eq!(e.unwrap().fields.get("name").and_then(|v| v.as_str()), Some("Bank"));
+}
+
+async fn fixture_composite_pk() -> (ForeignSqliteSource, sea_orm::DatabaseConnection) {
+    let url = format!("sqlite:file:test_{}?mode=memory&cache=shared", uuid_like());
+    let anchor = sea_orm::Database::connect(sea_orm::ConnectOptions::new(url.clone())).await.unwrap();
+    let stmts = [
+        "CREATE TABLE StarMoneyAccounts (
+            BankCode TEXT NOT NULL,
+            Code     TEXT NOT NULL,
+            Balance  REAL,
+            PRIMARY KEY (BankCode, Code)
+        )",
+        "INSERT INTO StarMoneyAccounts VALUES ('60050101', '1234', 100.0)",
+        "INSERT INTO StarMoneyAccounts VALUES ('60050101', '5678', 200.0)",
+    ];
+    for s in stmts {
+        anchor.execute(sea_orm::Statement::from_string(sea_orm::DbBackend::Sqlite, s)).await.unwrap();
+    }
+    let mut src = ForeignSqliteSource::new("sm".into(), url);
+    src.init().await.unwrap();
+    (src, anchor)
+}
+
+fn sm_binding() -> EntityBinding {
+    let mut map = BTreeMap::new();
+    map.insert("bankCode".into(), "BankCode".into());
+    map.insert("code".into(), "Code".into());
+    map.insert("balance".into(), "Balance".into());
+    EntityBinding {
+        source: "sm".into(),
+        locator: BindingLocator::Table { table: "StarMoneyAccounts".into() },
+        primary_key: vec!["bankCode".into(), "code".into()],
+        read_only: false,
+        column_map: map,
+    }
+}
+
+#[tokio::test]
+async fn foreign_get_composite_pk() {
+    let (src, _a) = fixture_composite_pk().await;
+    let id = shared::source::EntityId::Composite(vec!["60050101".into(), "5678".into()]);
+    let e = src.get(&sm_binding(), &id).await.unwrap();
+    assert!(e.is_some());
+    let row = e.unwrap();
+    assert_eq!(row.fields.get("code").and_then(|v| v.as_str()), Some("5678"));
+}
