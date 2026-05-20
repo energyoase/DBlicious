@@ -93,25 +93,27 @@ impl Source for ForeignSqliteSource {
             None => String::new(),
         };
 
-        // Filter-Pushdown comes in Task 19 — for now: empty WHERE.
-        let where_sql = String::new();
+        let (where_sql, where_values) = build_filter_sql(&query.filter, binding);
 
         let sql_list = format!(
             "SELECT {cols_sql} FROM {table_sql}{where_sql}{order_sql} LIMIT {page_size} OFFSET {offset}"
         );
         let sql_count = format!("SELECT COUNT(*) AS c FROM {table_sql}{where_sql}");
 
-        use sea_orm::{DbBackend, FromQueryResult, Statement, JsonValue};
+        use sea_orm::{DbBackend, FromQueryResult, JsonValue};
 
-        let rows_json: Vec<serde_json::Value> = JsonValue::find_by_statement(
-            Statement::from_string(DbBackend::Sqlite, sql_list)
-        ).all(conn).await?;
+        let stmt_list = sea_orm::Statement::from_sql_and_values(
+            DbBackend::Sqlite, sql_list, where_values.clone()
+        );
+        let rows_json: Vec<serde_json::Value> = JsonValue::find_by_statement(stmt_list).all(conn).await?;
 
         #[derive(FromQueryResult)]
         struct CountRow { c: i64 }
-        let count_row: CountRow = CountRow::find_by_statement(
-            Statement::from_string(DbBackend::Sqlite, sql_count)
-        ).one(conn).await?.ok_or_else(|| SourceError::Other("count returned no row".into()))?;
+        let stmt_count = sea_orm::Statement::from_sql_and_values(
+            DbBackend::Sqlite, sql_count, where_values
+        );
+        let count_row: CountRow = CountRow::find_by_statement(stmt_count).one(conn).await?
+            .ok_or_else(|| SourceError::Other("count returned no row".into()))?;
 
         // Map DB column names back to logical keys (reverse of column_map).
         let reverse_map: std::collections::BTreeMap<String, String> =
@@ -371,4 +373,94 @@ pub(super) fn encode_pk_from_row(
     } else {
         shared::source::EntityId::Composite(parts).encode()
     }
+}
+
+pub(super) fn build_filter_sql(
+    filter: &shared::FilterCriteria,
+    binding: &shared::source::EntityBinding,
+) -> (String, Vec<sea_orm::Value>) {
+    let resolve = |logical: &str| binding.column_map.get(logical).cloned().unwrap_or_else(|| logical.to_string());
+
+    let mut clauses: Vec<String> = Vec::new();
+    let mut values: Vec<sea_orm::Value> = Vec::new();
+    for cf in &filter.predicates {
+        let db_col = resolve(&cf.key);
+        match &cf.predicate {
+            shared::FilterPredicate::TextContains { value, case_insensitive } => {
+                if *case_insensitive {
+                    clauses.push(format!("LOWER({}) LIKE LOWER(?)", quote_ident(&db_col)));
+                } else {
+                    clauses.push(format!("{} LIKE ?", quote_ident(&db_col)));
+                }
+                values.push(sea_orm::Value::from(format!("%{value}%")));
+            }
+            shared::FilterPredicate::TextEquals { value, case_insensitive } => {
+                if *case_insensitive {
+                    clauses.push(format!("LOWER({}) = LOWER(?)", quote_ident(&db_col)));
+                } else {
+                    clauses.push(format!("{} = ?", quote_ident(&db_col)));
+                }
+                values.push(sea_orm::Value::from(value.clone()));
+            }
+            shared::FilterPredicate::NumberEquals { value } => {
+                clauses.push(format!("{} = ?", quote_ident(&db_col)));
+                values.push(sea_orm::Value::from(*value));
+            }
+            shared::FilterPredicate::NumberRange { min, max } => {
+                if let Some(min) = min {
+                    clauses.push(format!("{} >= ?", quote_ident(&db_col)));
+                    values.push(sea_orm::Value::from(*min));
+                }
+                if let Some(max) = max {
+                    clauses.push(format!("{} <= ?", quote_ident(&db_col)));
+                    values.push(sea_orm::Value::from(*max));
+                }
+            }
+            shared::FilterPredicate::BoolEquals { value } => {
+                clauses.push(format!("{} = ?", quote_ident(&db_col)));
+                values.push(sea_orm::Value::from(if *value { 1i32 } else { 0i32 }));
+            }
+            shared::FilterPredicate::DateRange { from, to } => {
+                if let Some(from) = from {
+                    clauses.push(format!("{} >= ?", quote_ident(&db_col)));
+                    values.push(sea_orm::Value::from(from.clone()));
+                }
+                if let Some(to) = to {
+                    clauses.push(format!("{} <= ?", quote_ident(&db_col)));
+                    values.push(sea_orm::Value::from(to.clone()));
+                }
+            }
+            shared::FilterPredicate::EnumIn { values: vs } => {
+                if !vs.is_empty() {
+                    let placeholders = vs.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                    clauses.push(format!("{} IN ({})", quote_ident(&db_col), placeholders));
+                    for v in vs { values.push(sea_orm::Value::from(v.clone())); }
+                }
+            }
+            shared::FilterPredicate::IsNull => {
+                clauses.push(format!("{} IS NULL", quote_ident(&db_col)));
+            }
+            shared::FilterPredicate::IsNotNull => {
+                clauses.push(format!("{} IS NOT NULL", quote_ident(&db_col)));
+            }
+        }
+    }
+    if let Some(search) = filter.global_search.as_deref() {
+        if !search.is_empty() {
+            let mut search_clauses: Vec<String> = Vec::new();
+            for (_, db_col) in &binding.column_map {
+                search_clauses.push(format!("LOWER({}) LIKE LOWER(?)", quote_ident(db_col)));
+                values.push(sea_orm::Value::from(format!("%{search}%")));
+            }
+            if !search_clauses.is_empty() {
+                clauses.push(format!("({})", search_clauses.join(" OR ")));
+            }
+        }
+    }
+    let sql = if clauses.is_empty() {
+        String::new()
+    } else {
+        format!(" WHERE {}", clauses.join(" AND "))
+    };
+    (sql, values)
 }

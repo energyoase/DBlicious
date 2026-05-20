@@ -212,3 +212,39 @@ async fn foreign_read_only_binding_rejects_mutations() {
     let err = src.create(&b, None, fields, None).await.err().expect("should error");
     assert!(matches!(err, server::source::SourceError::ReadOnly));
 }
+
+#[tokio::test]
+async fn foreign_list_page_filters_by_number_equals_via_sql() {
+    let (src, _a) = fixture_source_with_data().await;
+    let filter = shared::FilterCriteria {
+        global_search: None,
+        predicates: vec![shared::ColumnFilter {
+            key: "number".into(),
+            predicate: shared::FilterPredicate::NumberEquals { value: 1200.0 },
+        }],
+    };
+    let page = src.list_page(&account_binding(), &server::source::PageQuery {
+        page: 1, page_size: 10, sort: None, filter,
+    }).await.unwrap();
+    assert_eq!(page.total_count, 1);
+    assert_eq!(page.items[0].fields.get("name").and_then(|v| v.as_str()), Some("Bank"));
+}
+
+#[tokio::test]
+async fn foreign_list_page_filters_by_text_contains_case_insensitive() {
+    let (src, _a) = fixture_source_with_data().await;
+    let filter = shared::FilterCriteria {
+        global_search: None,
+        predicates: vec![shared::ColumnFilter {
+            key: "name".into(),
+            predicate: shared::FilterPredicate::TextContains {
+                value: "BANK".into(),
+                case_insensitive: true,
+            },
+        }],
+    };
+    let page = src.list_page(&account_binding(), &server::source::PageQuery {
+        page: 1, page_size: 10, sort: None, filter,
+    }).await.unwrap();
+    assert_eq!(page.total_count, 1);
+}
