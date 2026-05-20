@@ -37,6 +37,15 @@ Original niemals auf einem Entwicklungsrechner einchecken oder weitergeben.
 
 ## Stand
 
-Track A ist **noch nicht lauffähig** — Track B (DBlicious DB-Layer: foreign-sqlite-Source,
-Composite-PK-Support) muss zuerst implementiert werden. Die Metadaten hier sind
-bereits vollständig und dienen als Eingabe für Track-B-Design und -Tests.
+Track A-Metadaten sind komplett (17 Entitäten, 4 mit Composite-PK, 6 read-only).
+Track B (foreign-sqlite-Source, Composite-PK, SQL-Pushdown, Read-only-Bindings,
+per-entity-Binding-Loader) ist ebenfalls fertig — der Loader parst alle
+17 Entity-Verzeichnisse sauber (siehe `server/tests/loader_d2v.rs`, 7 Test-Cases).
+
+Was noch fehlt:
+
+- Fixture-`.db` mit Mini-Auszug der echten Schemas (Plan-Task 25).
+- Integrations-Test gegen die Fixture (Plan-Task 26).
+- Manueller Smoke-Test gegen eine Kopie der Produktions-DB (Plan-Task 27).
+- Post-Port-Cleanup (Spec §11): Enum-FieldType für `valueType`/`accountType`,
+  feinere `precision` pro Decimal-Spalte, EN-Translations polieren.
