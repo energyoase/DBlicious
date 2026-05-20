@@ -1,10 +1,10 @@
 ---
 id: Q0001
 created: 2026-05-20T00:00:00Z
-status: new
+status: brainstormed
 priority: high
 title: "CCM-Plugin lokale Discovery in Claude Code verifizieren"
-spec: docs/superpowers/specs/2026-05-20-ccm-approvals-ready-design.md
+spec: docs/superpowers/specs/Q0001-ccm-plugin-lokale-discovery-in-claude-design.md
 plan: null
 pending_question_id: null
 resume_step: null
@@ -54,3 +54,4 @@ laut Spec:
 
 ## Log
 - 2026-05-20T00:00:00Z — manual: created (M0-Bootstrap)
+- 2026-05-20T22:22:00Z — ccm-brainstorm: status new → brainstormed, spec=docs/superpowers/specs/Q0001-ccm-plugin-lokale-discovery-in-claude-design.md (commit 3200372)
