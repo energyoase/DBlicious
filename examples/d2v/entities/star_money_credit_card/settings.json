@@ -1,0 +1,10 @@
+{
+  "entityType": "star_money_credit_card",
+  "access": "internal",
+  "defaultPageSize": 100,
+  "defaultSort": { "field": "code", "direction": "asc" },
+  "defaultFilter": null,
+  "properties": [
+    { "key": "code", "visibility": "visible", "access": "readOnly", "loadMethod": "eager", "order": 0, "labelOverrideKey": null, "minWidth": 120 }
+  ]
+}

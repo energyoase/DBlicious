@@ -210,5 +210,10 @@
   { "id": "field.star_money_entry.purpose_code",                  "category": "field", "description": "Verwendungszweckcode" },
   { "id": "field.star_money_entry.primanota",                     "category": "field", "description": "Primanota" },
   { "id": "field.star_money_entry.return_reason",                 "category": "field", "description": "Rückgabegrund" },
-  { "id": "field.star_money_entry.return_reason_code",            "category": "field", "description": "Rückgabegrund-Code" }
+  { "id": "field.star_money_entry.return_reason_code",            "category": "field", "description": "Rückgabegrund-Code" },
+
+  { "id": "field.star_money_credit_card.code",            "category": "field", "description": "Code (PK)" },
+  { "id": "field.star_money_credit_card.name",            "category": "field", "description": "Name" },
+  { "id": "field.star_money_credit_card.card_type",       "category": "field", "description": "Kartentyp" },
+  { "id": "field.star_money_credit_card.datev_account_nr","category": "field", "description": "DATEV-Konto (FK)" }
 ]

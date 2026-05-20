@@ -235,5 +235,10 @@
   { "entryId": "field.star_money_entry.purpose_code",                  "languageId": "de", "ftlSource": "Verwendungszweckcode" },
   { "entryId": "field.star_money_entry.primanota",                     "languageId": "de", "ftlSource": "Primanota" },
   { "entryId": "field.star_money_entry.return_reason",                 "languageId": "de", "ftlSource": "Rückgabegrund" },
-  { "entryId": "field.star_money_entry.return_reason_code",            "languageId": "de", "ftlSource": "Rückgabegrund-Code" }
+  { "entryId": "field.star_money_entry.return_reason_code",            "languageId": "de", "ftlSource": "Rückgabegrund-Code" },
+
+  { "entryId": "field.star_money_credit_card.code",            "languageId": "de", "ftlSource": "Code" },
+  { "entryId": "field.star_money_credit_card.name",            "languageId": "de", "ftlSource": "Name" },
+  { "entryId": "field.star_money_credit_card.card_type",       "languageId": "de", "ftlSource": "Kartentyp" },
+  { "entryId": "field.star_money_credit_card.datev_account_nr","languageId": "de", "ftlSource": "DATEV-Konto" }
 ]

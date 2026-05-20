@@ -1,0 +1,9 @@
+{
+  "entityType": "star_money_credit_card",
+  "properties": [
+    { "key": "code",           "labelKey": "field.star_money_credit_card.code",            "fieldType": { "kind": "text" },    "required": true,  "readonly": true, "visibility": "readOnly", "order": 10, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "name",           "labelKey": "field.star_money_credit_card.name",            "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 20, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "cardType",       "labelKey": "field.star_money_credit_card.card_type",       "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 30, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "datevAccountNr", "labelKey": "field.star_money_credit_card.datev_account_nr","fieldType": { "kind": "integer" }, "required": false, "readonly": true, "visibility": "readOnly", "order": 110, "groupKey": "editor.section.references", "control": "auto" }
+  ]
+}

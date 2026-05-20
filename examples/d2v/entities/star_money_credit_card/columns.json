@@ -1,0 +1,6 @@
+[
+  { "key": "code",           "labelKey": "field.star_money_credit_card.code",            "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "name",           "labelKey": "field.star_money_credit_card.name",            "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "cardType",       "labelKey": "field.star_money_credit_card.card_type",       "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "datevAccountNr", "labelKey": "field.star_money_credit_card.datev_account_nr","fieldType": { "kind": "integer" }, "sortable": true, "filterable": true }
+]
