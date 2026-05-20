@@ -96,6 +96,7 @@ async fn main() {
         .unwrap_or_else(|| set.config.bind.clone());
     let example_name = set.config.name.clone();
     let entity_types: Vec<String> = set.entity_types().map(str::to_string).collect();
+    let sources = set.sources.clone();
     example::install(set);
     tracing::info!(
         "Beispiel '{example_name}' aus '{}' geladen ({} Entity-Typen: {})",
@@ -111,6 +112,19 @@ async fn main() {
         tracing::error!("DB-Init fehlgeschlagen: {e}");
         std::process::exit(1);
     }
+
+    // Phase 0.6: SourceRegistry aus sources.toml booten — sonst routet
+    // jeder CRUD-Resolver auf einen leeren Slot und liefert silent leere
+    // Pages. fresh_test_setup macht das, main hat es vorher vergessen.
+    if let Err(e) = server::source::boot_registry(&sources).await {
+        tracing::error!("Source-Registry-Boot fehlgeschlagen: {e}");
+        std::process::exit(1);
+    }
+    tracing::info!(
+        "SourceRegistry geladen ({} Source(s): {})",
+        sources.len(),
+        sources.keys().cloned().collect::<Vec<_>>().join(", ")
+    );
     let _ = server::data::rehydrate_db_schema().await;
 
     let schema: AppSchema = build_schema();
