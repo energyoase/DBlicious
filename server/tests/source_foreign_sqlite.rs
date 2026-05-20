@@ -171,3 +171,44 @@ async fn foreign_get_composite_pk() {
     let row = e.unwrap();
     assert_eq!(row.fields.get("code").and_then(|v| v.as_str()), Some("5678"));
 }
+
+#[tokio::test]
+async fn foreign_create_inserts_row_and_returns_entity() {
+    let (src, _a) = fixture_source_with_data().await;
+    let mut fields = serde_json::Map::new();
+    fields.insert("number".into(), serde_json::json!(9999));
+    fields.insert("name".into(), serde_json::json!("Neu"));
+    let created = src.create(&account_binding(), None, fields, None).await.unwrap();
+    assert_eq!(created.id, "9999");
+
+    let id = shared::source::EntityId::Single("9999".into());
+    let one = src.get(&account_binding(), &id).await.unwrap().unwrap();
+    assert_eq!(one.fields.get("name").and_then(|v| v.as_str()), Some("Neu"));
+}
+
+#[tokio::test]
+async fn foreign_update_and_delete() {
+    let (src, _a) = fixture_source_with_data().await;
+    let id = shared::source::EntityId::Single("1200".into());
+
+    let mut patch = serde_json::Map::new();
+    patch.insert("name".into(), serde_json::json!("Renamed"));
+    let upd = src.update(&account_binding(), &id, patch, None).await.unwrap().unwrap();
+    assert_eq!(upd.fields.get("name").and_then(|v| v.as_str()), Some("Renamed"));
+
+    let removed = src.delete(&account_binding(), &id).await.unwrap();
+    assert!(removed);
+    let after = src.get(&account_binding(), &id).await.unwrap();
+    assert!(after.is_none());
+}
+
+#[tokio::test]
+async fn foreign_read_only_binding_rejects_mutations() {
+    let (src, _a) = fixture_source_with_data().await;
+    let mut b = account_binding();
+    b.read_only = true;
+
+    let fields = serde_json::Map::new();
+    let err = src.create(&b, None, fields, None).await.err().expect("should error");
+    assert!(matches!(err, server::source::SourceError::ReadOnly));
+}

@@ -206,18 +206,154 @@ impl Source for ForeignSqliteSource {
         let id_string = encode_pk_from_row(&fields, &binding.primary_key);
         Ok(Some(shared::Entity { id: id_string, fields }))
     }
-    async fn create(&self, _b: &EntityBinding, _id: Option<String>,
-        _f: serde_json::Map<String, serde_json::Value>, _a: Option<&str>)
-        -> Result<Entity, SourceError> { unimplemented!("Task 18") }
-    async fn update(&self, _b: &EntityBinding, _id: &EntityId,
-        _f: serde_json::Map<String, serde_json::Value>, _a: Option<&str>)
-        -> Result<Option<Entity>, SourceError> { unimplemented!("Task 18") }
-    async fn delete(&self, _b: &EntityBinding, _id: &EntityId)
-        -> Result<bool, SourceError> { unimplemented!("Task 18") }
+    async fn create(
+        &self,
+        binding: &EntityBinding,
+        _id: Option<String>,
+        fields: serde_json::Map<String, serde_json::Value>,
+        _actor_user_id: Option<&str>,
+    ) -> Result<Entity, SourceError> {
+        if binding.read_only {
+            return Err(SourceError::ReadOnly);
+        }
+        let table = match &binding.locator {
+            shared::source::BindingLocator::Table { table } => table.clone(),
+            other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
+        };
+        let conn = self.conn.as_ref().ok_or_else(|| SourceError::Other("init not called".into()))?;
+
+        // logical column name -> DB name
+        let resolve = |logical: &str| binding.column_map.get(logical).cloned().unwrap_or_else(|| logical.to_string());
+
+        let mut cols: Vec<String> = Vec::new();
+        let mut placeholders: Vec<String> = Vec::new();
+        let mut values: Vec<sea_orm::Value> = Vec::new();
+        for (logical, val) in &fields {
+            cols.push(quote_ident(&resolve(logical)));
+            placeholders.push("?".into());
+            values.push(json_to_sea_value(val));
+        }
+
+        let sql = format!(
+            "INSERT INTO {} ({}) VALUES ({})",
+            quote_ident(&table),
+            cols.join(", "),
+            placeholders.join(", "),
+        );
+        let stmt = sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite, sql, values);
+        use sea_orm::ConnectionTrait;
+        conn.execute(stmt).await?;
+
+        let id_string = encode_pk_from_row(&fields, &binding.primary_key);
+        Ok(shared::Entity { id: id_string, fields })
+    }
+
+    async fn update(
+        &self,
+        binding: &EntityBinding,
+        id: &EntityId,
+        patch: serde_json::Map<String, serde_json::Value>,
+        _actor_user_id: Option<&str>,
+    ) -> Result<Option<Entity>, SourceError> {
+        if binding.read_only {
+            return Err(SourceError::ReadOnly);
+        }
+        let table = match &binding.locator {
+            shared::source::BindingLocator::Table { table } => table.clone(),
+            other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
+        };
+        let conn = self.conn.as_ref().ok_or_else(|| SourceError::Other("init not called".into()))?;
+
+        let resolve = |logical: &str| binding.column_map.get(logical).cloned().unwrap_or_else(|| logical.to_string());
+
+        if patch.is_empty() {
+            return self.get(binding, id).await;
+        }
+
+        let mut set_parts: Vec<String> = Vec::new();
+        let mut values: Vec<sea_orm::Value> = Vec::new();
+        for (logical, val) in &patch {
+            set_parts.push(format!("{} = ?", quote_ident(&resolve(logical))));
+            values.push(json_to_sea_value(val));
+        }
+
+        let pk_logical = &binding.primary_key;
+        let pk_values: Vec<String> = match id {
+            EntityId::Single(s) => vec![s.clone()],
+            EntityId::Composite(parts) => parts.clone(),
+        };
+        let where_clauses: Vec<String> = pk_logical.iter().map(|logical| {
+            format!("{} = ?", quote_ident(&resolve(logical)))
+        }).collect();
+        for pv in &pk_values { values.push(sea_orm::Value::from(pv.clone())); }
+
+        let sql = format!(
+            "UPDATE {} SET {} WHERE {}",
+            quote_ident(&table),
+            set_parts.join(", "),
+            where_clauses.join(" AND "),
+        );
+        let stmt = sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite, sql, values);
+        use sea_orm::ConnectionTrait;
+        conn.execute(stmt).await?;
+
+        self.get(binding, id).await
+    }
+
+    async fn delete(
+        &self,
+        binding: &EntityBinding,
+        id: &EntityId,
+    ) -> Result<bool, SourceError> {
+        if binding.read_only {
+            return Err(SourceError::ReadOnly);
+        }
+        let table = match &binding.locator {
+            shared::source::BindingLocator::Table { table } => table.clone(),
+            other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
+        };
+        let conn = self.conn.as_ref().ok_or_else(|| SourceError::Other("init not called".into()))?;
+        let resolve = |logical: &str| binding.column_map.get(logical).cloned().unwrap_or_else(|| logical.to_string());
+
+        let pk_logical = &binding.primary_key;
+        let pk_values: Vec<String> = match id {
+            EntityId::Single(s) => vec![s.clone()],
+            EntityId::Composite(parts) => parts.clone(),
+        };
+        let where_clauses: Vec<String> = pk_logical.iter().map(|logical| {
+            format!("{} = ?", quote_ident(&resolve(logical)))
+        }).collect();
+        let mut values: Vec<sea_orm::Value> = Vec::new();
+        for pv in &pk_values { values.push(sea_orm::Value::from(pv.clone())); }
+
+        let sql = format!(
+            "DELETE FROM {} WHERE {}",
+            quote_ident(&table),
+            where_clauses.join(" AND "),
+        );
+        let stmt = sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite, sql, values);
+        use sea_orm::ConnectionTrait;
+        let res = conn.execute(stmt).await?;
+        Ok(res.rows_affected() > 0)
+    }
 }
 
 pub(super) fn quote_ident(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
+}
+
+pub(super) fn json_to_sea_value(v: &serde_json::Value) -> sea_orm::Value {
+    match v {
+        serde_json::Value::Null => sea_orm::Value::String(None),
+        serde_json::Value::Bool(b) => sea_orm::Value::Bool(Some(*b)),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() { sea_orm::Value::BigInt(Some(i)) }
+            else if let Some(f) = n.as_f64() { sea_orm::Value::Double(Some(f)) }
+            else { sea_orm::Value::String(Some(Box::new(n.to_string()))) }
+        }
+        serde_json::Value::String(s) => sea_orm::Value::String(Some(Box::new(s.clone()))),
+        other => sea_orm::Value::String(Some(Box::new(other.to_string()))),
+    }
 }
 
 pub(super) fn encode_pk_from_row(
