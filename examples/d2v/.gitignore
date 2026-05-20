@@ -1,0 +1,10 @@
+# D2V-Produktions-DB — darf NICHT eingecheckt werden (echte Buchungsdaten).
+*.db
+*.db-shm
+*.db-wal
+
+# DBlicious-eigene DB für dieses Beispiel.
+dblicious-d2v.db
+
+# Lokale Env-Overrides.
+.env
