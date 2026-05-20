@@ -8,6 +8,8 @@ Rust workspace (`shared`, `server`, `client`, `cli`) implementing a Leptos CSR/W
 
 **No demo content lives in the server crate.** Navigation, entity columns/editor/settings, seed entities, users, groups and translatables are loaded at startup from a `--data-dir` folder (see `examples/shop/`). Without `--data-dir` the server refuses to start; with an empty/missing folder the server runs with no nav and an empty DB. The `dblicious` CLI does **not** need an example — it only mutates the DB.
 
+**CCM ist Skills-only in DBlicious.** Die 23 `ccm-*`-Skills werden via Junctions in `~/.claude/skills/ccm-*` aktiviert (Setup: `scripts/setup-ccm-symlinks.ps1`). Plugin-Lifecycle-Hooks (`SessionStart`, künftig `PreToolUse`) feuern aktuell **nicht** — Claude-Code-Plugin-Discovery setzt Marketplace-Registry-Einträge voraus, die für lokale Quellen heute nicht offiziell unterstützt sind. Begründung + H4-Lösungspfad: [`docs/superpowers/specs/Q0001-ccm-plugin-lokale-discovery-in-claude-design.md`](docs/superpowers/specs/Q0001-ccm-plugin-lokale-discovery-in-claude-design.md) §8.
+
 ## Commands
 
 Prereqs (one-time): `rustup target add wasm32-unknown-unknown` and `cargo install trunk`. The `wasm32-unknown-unknown` target is also pinned in `rust-toolchain.toml`.

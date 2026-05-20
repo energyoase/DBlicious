@@ -120,20 +120,18 @@ Bevor irgendetwas Großes losgeht:
 
 Zwei Feature-Branches in CCM-Repo: `feat/iter-2-approvals` und `feat/iter-3-telegram` (depend). Sequential mergen auf `dev`. Begründung: Iter-3 baut auf Iter-2-Tabellen auf; separate PRs erhalten Review-Granularität.
 
-### D2 — Plugin-Install-Mechanik (Windows, lokal)
+### D2 — Plugin-Install-Mechanik (Windows, lokal) — **Plan-B aktiv**
 
-Vorab in B verifizieren ob `settings.json.enabledPlugins` einen lokalen Pfad akzeptiert. Aktuelles DBlicious-Schema:
-```json
-"enabledPlugins": {
-  "rust-analyzer-lsp@claude-plugins-official": true,
-  ...
-}
-```
-Das Format `name@source` mit `claude-plugins-official` als externer Source ist Marketplace-zentrisch. Lokaler Pfad braucht entweder:
-- (a) eine eigene Source-Definition in `settings.json` (z.B. `"plugins": { "sources": { "local-ccm": { "path": "C:\\Users\\jz\\source\\ClaudeCodeManager\\plugin" } } }` — Format zu verifizieren)
-- (b) Symlink `~/.claude/plugins/ccm/` → `C:\Users\jz\source\ClaudeCodeManager\plugin` und Eintrag `"ccm@local": true`
+**Status (Update 2026-05-20 nach Q0001-Investigation):** H1 (settings.json `plugins.sources`-Block) und H2 (Junction in `~/.claude/plugins/<name>/`) **schlagen beide fehl**. Schema-Validation akzeptiert die Einträge, aber Claude Code aktiviert das Plugin nicht — Plugin-Hooks feuern nicht. Vollständiger Befund: [`Q0001-ccm-plugin-lokale-discovery-in-claude-design.md`](./Q0001-ccm-plugin-lokale-discovery-in-claude-design.md) §8.
 
-Plan-B falls beide Pfade nicht gehen: Plugin-Mechanik wegfallen lassen, nur Skills-Symlinks (M0-Modus). Verlust: keine Plugin-Lifecycle-Hooks (`SessionStart`-Bootstrap-Check), aber Skills selbst funktionieren. Marketplace-Push erst nach M3.
+**Root-Cause:** Claude-Code-Plugin-Discovery liest aus zwei Registry-Dateien (`~/.claude/plugins/known_marketplaces.json` + `~/.claude/plugins/installed_plugins.json`) und lädt aus `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`. Ohne Marketplace-Registry-Eintrag wird `"ccm@local"` als dangling-Reference still ignoriert.
+
+**Plan-B aktiv:** Skills-only via `~/.claude/skills/ccm-*`-Junctions (M0-Modus) bleibt der primäre Pfad. **Plugin-Lifecycle-Hooks (`SessionStart`, künftig `PreToolUse`) feuern nicht.** Konsequenzen für M1+:
+
+- **M1-AC** `ccm-bootstrap-skill-check.ps1 läuft im SessionStart-Hook` wird **gestrichen** bzw. auf "manuell triggerbar via `/ccm-doctor`" reformuliert.
+- **Sprint B** re-scoped: aus "Bootstrap-Hook portieren" wird **"H4-Tooling: `ccm-install-local`-Script"** — Marketplace-Entry + Plugin-Entry in den Registry-JSONs + Junction ins korrekte Cache-Layout, mit Backup + Rollback + Idempotenz. Q0001-Spec §8 listet die genauen Schritte.
+- **Alternativ-Pfad zu Sprint B:** CCM via PR an `anthropics/claude-plugins-official` einreichen → Marketplace-Push (Post-M3-Track, langsamer).
+- Bis dahin: Plugin-Dependencies werden nicht automatisch validiert; User aktiviert `superpowers`/`code-review`/`claude-md-management` ohnehin schon manuell.
 
 ### D3 — Triage→Queue-Migrations-Tool
 
@@ -201,8 +199,8 @@ Echte Windows-Service-Installation (`sc create`) ist Post-M3. Bis dahin: User mu
 ### M1 (CCM Iter-2 + Plugin + C-light)
 
 - [ ] CCM-Repo: `feat/iter-2-approvals` ist auf `dev` gemergt, `cargo test --workspace` grün
-- [ ] DBlicious: `ccm-bootstrap-skill-check.ps1` läuft im SessionStart-Hook
-- [ ] DBlicious: alle 7 Triage-Items sind nach `docs/queue/` migriert; `docs/triage/` wird stillgelegt (mit Hinweis-README)
+- [ ] ~~DBlicious: `ccm-bootstrap-skill-check.ps1` läuft im SessionStart-Hook~~ — **gestrichen** nach Q0001: Plugin-Hooks feuern nicht ohne H4-Tooling. Ersatz: `/ccm-doctor` manuell on-demand. Sprint B baut H4-Install-Script.
+- [ ] DBlicious: Triage-Verzeichnis ist stillgelegt (Hinweis-README, da `docs/triage/` heute eh leer ist)
 - [ ] Manueller Smoke-Test: `claude code` in DBlicious → versuche `Bash(rm -rf target-test)` → Tray-Toast erscheint mit Approve/Deny → Klick wird im Audit-Log persistiert
 - [ ] `ccm-doctor` warnt nicht mehr
 
@@ -225,7 +223,7 @@ Echte Windows-Service-Installation (`sc create`) ist Post-M3. Bis dahin: User mu
 
 | Risiko                                                  | Wahrscheinlichkeit | Mitigation                                                              |
 |---------------------------------------------------------|--------------------|-------------------------------------------------------------------------|
-| Claude-Code-Plugin-Discovery nimmt keinen lokalen Pfad  | mittel             | Plan-B: Skills-only (M0-Mode dauerhaft), Marketplace-Push als Eskalation |
+| Claude-Code-Plugin-Discovery nimmt keinen lokalen Pfad  | **eingetreten** (Q0001 bestätigt) | Plan-B aktiv: Skills-only (M0-Mode dauerhaft). H4-Tooling oder Marketplace-Push als Lösungspfade — siehe D2 + Q0001-Spec §8 |
 | Iter-2-Plan-Drift während Implementation               | niedrig            | TDD-Schritte fangen Drift; subagent-driven-development hält synchron    |
 | Telegram-Bot-Token leakt in Logs/Config                | niedrig            | Keyring-only, in Spec hart festgehalten; `secrecy::SecretString` im Code |
 | Daemon-Lifecycle auf Win11 (User schließt Console)     | hoch ohne A3       | A3 ist nicht optional; mindestens Detach + Lock-File + Watchdog          |

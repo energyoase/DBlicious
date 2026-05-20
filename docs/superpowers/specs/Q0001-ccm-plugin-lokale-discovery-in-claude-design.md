@@ -186,11 +186,86 @@ Zusätzlich:
 
 ## 8. Setup-Rezept / Negativ-Befund
 
-> **Wird nach Durchführung der Experimente in Phase 1-3 hier eingetragen.**
-> Bei Erfolg (H1/H2): Setup-Rezept laut §6.
-> Bei Fehlschlag (H3): Negativ-Befund laut §7.
+**Resultat: H3 (Plan-B) bestätigt — Skills-only via M0-Junctions bleibt der primäre Pfad.**
 
-(Platzhalter — wird von der Execute-Phase gefüllt.)
+### Phase 1 — H2-Beobachtung (Junction in `~/.claude/plugins/ccm/`)
+
+**Setup tatsächlich durchgeführt am 2026-05-20:**
+- Junction `~/.claude/plugins/ccm` → `C:\Users\jz\source\ClaudeCodeManager\plugin` angelegt (`Get-Item` `LinkType=Junction` bestätigt)
+- `.claude/settings.json` erweitert: `"ccm@local": true` in `enabledPlugins` (JSON-Lint OK)
+- Backup `.claude/settings.json.bak-q0001` angelegt
+- Claude-Code komplett beendet (alle Fenster), in DBlicious neu gestartet
+
+**Beobachtung nach Restart:**
+
+| Check | Erwartet | Tatsächlich | Bewertung |
+|-------|----------|-------------|-----------|
+| V2.1 Schema-Validation | Eintrag bleibt erhalten, kein Error | Eintrag erhalten, Session startete fehlerfrei | ✅ PASS |
+| V2.2 Plugin-Listing | `ccm`/`ccm@local` in Plugin- oder Skill-Liste | Alle `ccm-*`-Skills sichtbar — **aber:** Skills kommen bereits über M0-Junctions in `~/.claude/skills/`; nicht eindeutig vom Plugin-Pfad unterscheidbar | ❓ INKONKLUSIV |
+| V2.3 SessionStart-Hook | `[CCM] SessionStart-Check (Stub)`-Output und/oder neuer Eintrag in `.ccm/audit.log` (`event=session_start_stub`) | `.ccm/audit.log` mtime nach Restart unverändert. Hook hat NICHT gefeuert | ❌ FAIL |
+
+**Hook-Funktionstest (Kontrolle):** Hook manuell aus DBlicious-PWD ausgeführt (`bash plugin/hooks/ccm-bootstrap-skill-check.sh`) — schrieb erfolgreich den erwarteten Audit-Log-Eintrag, Exit 0. Das beweist: **der Hook selbst ist funktional, Claude Code hat ihn nur bei Session-Start nicht ausgelöst** → Plugin wurde von Claude Code nicht aktiviert.
+
+**Fazit H2:** Schema-Validation akzeptiert den Eintrag, aber das Plugin-Lifecycle wird nicht ausgelöst. H2 ist **unzureichend** für vollständige Plugin-Aktivierung.
+
+### Root-Cause: Echte Plugin-Discovery-Mechanik
+
+Inspektion der Claude-Code-Plugin-Registry-Dateien ergab:
+
+```
+~/.claude/plugins/
+├── known_marketplaces.json     ← Marketplace-Registry
+├── installed_plugins.json      ← Installierte Plugins pro Marketplace + Projekt
+├── plugin-catalog-cache.json   ← Catalog mit Tokens/Components-Metadata
+├── marketplaces/<marketplace>/ ← Marketplace-Metadaten (.claude-plugin/, plugins/, …)
+└── cache/<marketplace>/<plugin>/<version>/   ← echte Plugin-Quelle (HIER sucht der Loader)
+```
+
+Unser H2-Junction lag im **falschen Layout** (`~/.claude/plugins/<name>/`, nicht `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`). Der `"ccm@local"`-Eintrag in `settings.json` referenziert einen Marketplace `local`, der in `known_marketplaces.json` **nicht existiert** → Claude Code akzeptiert ihn schema-technisch, kann ihn aber nicht zu einem konkreten Plugin auflösen.
+
+### H4-Hypothese (NICHT in Q0001 getestet — Risiko zu hoch)
+
+Eine echte lokale Installation würde erfordern:
+
+1. Marketplace-Entry in `known_marketplaces.json` mit `source: { source: "local", path: "<plugin-pfad>" }` (Schema geraten, undokumentiert)
+2. Plugin-Entry in `installed_plugins.json` mit korrektem `installPath` (Cache-Layout-Pfad)
+3. Cache-Struktur `~/.claude/plugins/cache/local/ccm/0.1.0/` als Junction (oder Kopie) auf die Plugin-Quelle
+4. Marketplace-Metadaten in `~/.claude/plugins/marketplaces/local/` (`.claude-plugin/`, `plugins/`, README.md)
+5. Catalog-Eintrag in `plugin-catalog-cache.json` (Tokens/Components — sonst inkonsistentes Cost-Tracking)
+
+**Warum nicht getestet:** Surgery betrifft **User-globalen Plugin-State**, nicht Projekt-State. Ein Fehler könnte die 11 funktionierenden offiziellen Plugins beschädigen. Außerhalb des Q0001-Investigations-Scopes. Implementierung gehört in ein M1-Tooling-Item (`ccm-install-local`-Script mit Backups + Idempotenz + Rollback).
+
+### Phase 2 — H1 nicht durchgeführt
+
+Begründung: Phase-0-Recherche (siehe §4) ergab, dass die dokumentierte Custom-Marketplace-Mechanik `extraKnownMarketplaces` nur GitHub-Sources beschreibt. Lokale Paths nur im Agent-SDK-Kontext (`{ type: "local", path: "..." }`) erwähnt, nicht für `settings.json`. H1 würde dasselbe Underlying-Problem wie H2 treffen (Marketplace-Registry nicht populated). Test wäre redundant.
+
+### Cleanup nach Beobachtung
+
+- `"ccm@local": true` aus `.claude/settings.json` entfernt (dangling reference)
+- Junction `~/.claude/plugins/ccm/` entfernt (dangling, im falschen Layout)
+- Backup `.claude/settings.json.bak-q0001` entfernt
+- M0-Junctions in `~/.claude/skills/ccm-*` BLEIBEN — produktive Mechanik
+
+### H3 (Plan-B) — Bestätigte Schlussfolgerung
+
+**Skills-only via `~/.claude/skills/ccm-*`-Junctions (Sprint M0) ist und bleibt der primäre Pfad für CCM in DBlicious**, bis eine der folgenden Bedingungen eintritt:
+
+1. Claude Code lokale Plugin-Quellen **offiziell und dokumentiert** unterstützt, ODER
+2. CCM auf einem öffentlich erreichbaren GitHub-Marketplace publiziert wird (Anthropic-offiziell oder eigene Org-Marketplace), ODER
+3. Ein M1-Item liefert ein `ccm-install-local`-Script, das den H4-Surgical-Install sicher (Backup + Rollback + Idempotenz + Schema-Verifikation) durchführt.
+
+### Konsequenzen für CCM-Roadmap (Parent-Spec D2)
+
+- M1-Akzeptanzkriterium `ccm-bootstrap-skill-check.ps1 läuft im SessionStart-Hook` ist **nicht erreichbar** ohne H4-Tooling (Hooks feuern nicht ohne aktivierte Plugin-Registry-Einträge). M1-AC reformulieren auf "manuell durch User triggerbar" oder als "blockiert bis H4-Tooling".
+- Sprint B (`Plugin-Distribution Windows-tauglich`) re-scopen: aus "Bootstrap-Hook portieren" wird "H4-Install-Script + PowerShell-Hook-Variante bauen".
+- Risiken-Tabelle der Parent-Spec: Zeile `Claude-Code-Plugin-Discovery nimmt keinen lokalen Pfad` von `Wahrscheinlichkeit: mittel` auf `eingetreten` (Plan-B aktiv) setzen.
+
+### Verifizierter Status für CCM in DBlicious
+
+- ✅ **23 CCM-Skills laden via M0-Junctions** (`/ccm-doctor`, `/ccm-brainstorm Q<id>`, `/ccm-plan`, `/ccm-execute`, …)
+- ✅ **Lifecycle in dieser Session bewiesen:** Q0001 selbst durchlief `ccm-brainstorm → ccm-plan → ccm-execute` ohne Daemon, ohne Plugin (`audit.log` und Commits `3200372` / `2588f4d` / `c71f495` / `74c70a1` / `f28f4bb` belegen es)
+- ❌ **Plugin-Hook `SessionStart` feuert nicht** — Daemon-spezifische Dep-Checks, automatische CLAUDE.md-Pflege etc. müssen alternativ getriggert werden (z.B. via `/ccm-doctor` on-demand)
+- ⚠️ **Plugin-Dependencies werden nicht automatisch validiert** — der User aktiviert die Required-Deps (`superpowers`, `code-review`, `claude-md-management`) ohnehin schon manuell in `~/.claude/settings.json`
 
 ## 9. Risiken & Mitigationen
 
