@@ -1,0 +1,14 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevCalculationValues" },
+  "primaryKey": ["calculationId", "year", "method"],
+  "readOnly": false,
+  "columnMap": {
+    "calculationId": "CalculationId",
+    "year":          "Year",
+    "method":        "Method",
+    "value":         "Value",
+    "isShown":       "IsShown",
+    "lastUpdate":    "LastUpdate"
+  }
+}

@@ -133,5 +133,12 @@
   { "entryId": "field.datev_calculation_entry.with_underline",   "languageId": "de", "ftlSource": "Unterstrichen" },
   { "entryId": "field.datev_calculation_entry.left",             "languageId": "de", "ftlSource": "Linksbündig" },
   { "entryId": "field.datev_calculation_entry.show_key",         "languageId": "de", "ftlSource": "Schlüssel anzeigen" },
-  { "entryId": "field.datev_calculation_entry.flat",             "languageId": "de", "ftlSource": "Flach" }
+  { "entryId": "field.datev_calculation_entry.flat",             "languageId": "de", "ftlSource": "Flach" },
+
+  { "entryId": "field.datev_calculation_value.calculation_id", "languageId": "de", "ftlSource": "Auswertung" },
+  { "entryId": "field.datev_calculation_value.year",           "languageId": "de", "ftlSource": "Jahr" },
+  { "entryId": "field.datev_calculation_value.method",         "languageId": "de", "ftlSource": "Methode" },
+  { "entryId": "field.datev_calculation_value.value",          "languageId": "de", "ftlSource": "Wert" },
+  { "entryId": "field.datev_calculation_value.is_shown",       "languageId": "de", "ftlSource": "Angezeigt" },
+  { "entryId": "field.datev_calculation_value.last_update",    "languageId": "de", "ftlSource": "Letzte Aktualisierung" }
 ]

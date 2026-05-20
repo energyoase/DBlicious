@@ -1,0 +1,11 @@
+{
+  "entityType": "datev_calculation_value",
+  "properties": [
+    { "key": "calculationId", "labelKey": "field.datev_calculation_value.calculation_id", "fieldType": { "kind": "integer" }, "required": true,  "readonly": true,  "visibility": "readOnly", "order": 10, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "year",          "labelKey": "field.datev_calculation_value.year",           "fieldType": { "kind": "integer" }, "required": true,  "readonly": true,  "visibility": "readOnly", "order": 20, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "method",        "labelKey": "field.datev_calculation_value.method",         "fieldType": { "kind": "text" },    "required": true,  "readonly": true,  "visibility": "readOnly", "order": 30, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "value",         "labelKey": "field.datev_calculation_value.value",          "fieldType": { "kind": "decimal" }, "required": true,  "readonly": false, "visibility": "visible",  "order": 40, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "isShown",       "labelKey": "field.datev_calculation_value.is_shown",       "fieldType": { "kind": "boolean" }, "required": false, "readonly": false, "visibility": "visible",  "order": 50, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "lastUpdate",    "labelKey": "field.datev_calculation_value.last_update",    "fieldType": { "kind": "dateTime" },"required": false, "readonly": false, "visibility": "visible",  "order": 60, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}

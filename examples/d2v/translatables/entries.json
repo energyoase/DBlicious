@@ -108,5 +108,12 @@
   { "id": "field.datev_calculation_entry.with_underline",   "category": "field", "description": "Unterstrichen" },
   { "id": "field.datev_calculation_entry.left",             "category": "field", "description": "Linksbündig" },
   { "id": "field.datev_calculation_entry.show_key",         "category": "field", "description": "Schlüssel anzeigen" },
-  { "id": "field.datev_calculation_entry.flat",             "category": "field", "description": "Flach (kein Aufklappen)" }
+  { "id": "field.datev_calculation_entry.flat",             "category": "field", "description": "Flach (kein Aufklappen)" },
+
+  { "id": "field.datev_calculation_value.calculation_id", "category": "field", "description": "Auswertung (FK, PK)" },
+  { "id": "field.datev_calculation_value.year",           "category": "field", "description": "Jahr (PK)" },
+  { "id": "field.datev_calculation_value.method",         "category": "field", "description": "Methode (PK)" },
+  { "id": "field.datev_calculation_value.value",          "category": "field", "description": "Wert" },
+  { "id": "field.datev_calculation_value.is_shown",       "category": "field", "description": "Angezeigt" },
+  { "id": "field.datev_calculation_value.last_update",    "category": "field", "description": "Letzte Aktualisierung" }
 ]
