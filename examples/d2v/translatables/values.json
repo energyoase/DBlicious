@@ -144,5 +144,11 @@
 
   { "entryId": "field.star_money_bank.code",    "languageId": "de", "ftlSource": "BIC" },
   { "entryId": "field.star_money_bank.name",    "languageId": "de", "ftlSource": "Name" },
-  { "entryId": "field.star_money_bank.address", "languageId": "de", "ftlSource": "Adresse" }
+  { "entryId": "field.star_money_bank.address", "languageId": "de", "ftlSource": "Adresse" },
+
+  { "entryId": "field.star_money_account.bank_code",        "languageId": "de", "ftlSource": "Bank (BIC)" },
+  { "entryId": "field.star_money_account.code",             "languageId": "de", "ftlSource": "IBAN" },
+  { "entryId": "field.star_money_account.default_name",     "languageId": "de", "ftlSource": "Standardname" },
+  { "entryId": "field.star_money_account.company_id",       "languageId": "de", "ftlSource": "Firma" },
+  { "entryId": "field.star_money_account.datev_account_nr", "languageId": "de", "ftlSource": "DATEV-Konto" }
 ]

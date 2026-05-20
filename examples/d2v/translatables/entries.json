@@ -119,5 +119,11 @@
 
   { "id": "field.star_money_bank.code",    "category": "field", "description": "BIC (PK)" },
   { "id": "field.star_money_bank.name",    "category": "field", "description": "Bankname" },
-  { "id": "field.star_money_bank.address", "category": "field", "description": "Adresse" }
+  { "id": "field.star_money_bank.address", "category": "field", "description": "Adresse" },
+
+  { "id": "field.star_money_account.bank_code",        "category": "field", "description": "Bank (BIC, PK)" },
+  { "id": "field.star_money_account.code",             "category": "field", "description": "IBAN (PK)" },
+  { "id": "field.star_money_account.default_name",     "category": "field", "description": "Standardname" },
+  { "id": "field.star_money_account.company_id",       "category": "field", "description": "Firma (FK)" },
+  { "id": "field.star_money_account.datev_account_nr", "category": "field", "description": "DATEV-Konto (FK)" }
 ]

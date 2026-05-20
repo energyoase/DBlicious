@@ -1,0 +1,7 @@
+[
+  { "key": "bankCode",       "labelKey": "field.star_money_account.bank_code",        "fieldType": { "kind": "text" },    "sortable": true, "filterable": true  },
+  { "key": "code",           "labelKey": "field.star_money_account.code",             "fieldType": { "kind": "text" },    "sortable": true, "filterable": true  },
+  { "key": "defaultName",    "labelKey": "field.star_money_account.default_name",     "fieldType": { "kind": "text" },    "sortable": true, "filterable": true  },
+  { "key": "companyId",      "labelKey": "field.star_money_account.company_id",       "fieldType": { "kind": "integer" }, "sortable": true, "filterable": true  },
+  { "key": "datevAccountNr", "labelKey": "field.star_money_account.datev_account_nr", "fieldType": { "kind": "integer" }, "sortable": true, "filterable": true  }
+]

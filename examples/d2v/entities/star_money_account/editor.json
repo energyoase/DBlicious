@@ -1,0 +1,10 @@
+{
+  "entityType": "star_money_account",
+  "properties": [
+    { "key": "bankCode",       "labelKey": "field.star_money_account.bank_code",        "fieldType": { "kind": "text" },    "required": true,  "readonly": true,  "visibility": "readOnly", "order": 10, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "code",           "labelKey": "field.star_money_account.code",             "fieldType": { "kind": "text" },    "required": true,  "readonly": true,  "visibility": "readOnly", "order": 20, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "defaultName",    "labelKey": "field.star_money_account.default_name",     "fieldType": { "kind": "text" },    "required": false, "readonly": false, "visibility": "visible",  "order": 30, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "companyId",      "labelKey": "field.star_money_account.company_id",       "fieldType": { "kind": "integer" }, "required": false, "readonly": false, "visibility": "visible",  "order": 110, "groupKey": "editor.section.references", "control": "auto" },
+    { "key": "datevAccountNr", "labelKey": "field.star_money_account.datev_account_nr", "fieldType": { "kind": "integer" }, "required": false, "readonly": false, "visibility": "visible",  "order": 120, "groupKey": "editor.section.references", "control": "auto" }
+  ]
+}

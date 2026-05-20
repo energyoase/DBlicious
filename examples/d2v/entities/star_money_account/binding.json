@@ -1,0 +1,13 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "StarMoneyAccounts" },
+  "primaryKey": ["bankCode", "code"],
+  "readOnly": false,
+  "columnMap": {
+    "bankCode":       "BankCode",
+    "code":           "Code",
+    "defaultName":    "DefaultName",
+    "companyId":      "CompanyId",
+    "datevAccountNr": "DatevAccountNr"
+  }
+}
