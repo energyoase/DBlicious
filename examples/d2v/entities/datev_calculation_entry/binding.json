@@ -1,0 +1,19 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevCalculationEntries" },
+  "primaryKey": ["id"],
+  "readOnly": false,
+  "columnMap": {
+    "id":             "Id",
+    "parentId":       "ParentId",
+    "accountNr":      "AccountNr",
+    "calculationId":  "CalculationId",
+    "order":          "Order",
+    "excludeFromSum": "ExcludeFromSum",
+    "isBold":         "IsBold",
+    "withUnderline":  "WithUnderline",
+    "left":           "Left",
+    "showKey":        "ShowKey",
+    "flat":           "Flat"
+  }
+}

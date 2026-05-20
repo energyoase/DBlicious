@@ -96,5 +96,17 @@
   { "id": "field.datev_calculation.export_name", "category": "field", "description": "Exportname" },
   { "id": "field.datev_calculation.type",        "category": "field", "description": "Typ" },
   { "id": "field.datev_calculation.value_type",  "category": "field", "description": "Soll/Haben" },
-  { "id": "field.datev_calculation.is_required", "category": "field", "description": "Pflichtauswertung" }
+  { "id": "field.datev_calculation.is_required", "category": "field", "description": "Pflichtauswertung" },
+
+  { "id": "field.datev_calculation_entry.id",               "category": "field", "description": "Positions-ID (PK)" },
+  { "id": "field.datev_calculation_entry.parent_id",        "category": "field", "description": "Auswertung (FK)" },
+  { "id": "field.datev_calculation_entry.account_nr",       "category": "field", "description": "Konto (FK)" },
+  { "id": "field.datev_calculation_entry.calculation_id",   "category": "field", "description": "Kind-Auswertung (FK)" },
+  { "id": "field.datev_calculation_entry.order",            "category": "field", "description": "Reihenfolge" },
+  { "id": "field.datev_calculation_entry.exclude_from_sum", "category": "field", "description": "Aus Summe ausschließen" },
+  { "id": "field.datev_calculation_entry.is_bold",          "category": "field", "description": "Fett" },
+  { "id": "field.datev_calculation_entry.with_underline",   "category": "field", "description": "Unterstrichen" },
+  { "id": "field.datev_calculation_entry.left",             "category": "field", "description": "Linksbündig" },
+  { "id": "field.datev_calculation_entry.show_key",         "category": "field", "description": "Schlüssel anzeigen" },
+  { "id": "field.datev_calculation_entry.flat",             "category": "field", "description": "Flach (kein Aufklappen)" }
 ]

@@ -1,0 +1,16 @@
+{
+  "entityType": "datev_calculation_entry",
+  "properties": [
+    { "key": "id",             "labelKey": "field.datev_calculation_entry.id",               "fieldType": { "kind": "integer" }, "required": true,  "readonly": true,  "visibility": "readOnly", "order": 10,  "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "parentId",       "labelKey": "field.datev_calculation_entry.parent_id",        "fieldType": { "kind": "integer" }, "required": true,  "readonly": false, "visibility": "visible",  "order": 20,  "groupKey": "editor.section.references", "control": "auto" },
+    { "key": "accountNr",      "labelKey": "field.datev_calculation_entry.account_nr",       "fieldType": { "kind": "integer" }, "required": false, "readonly": false, "visibility": "visible",  "order": 30,  "groupKey": "editor.section.references", "control": "auto" },
+    { "key": "calculationId",  "labelKey": "field.datev_calculation_entry.calculation_id",   "fieldType": { "kind": "integer" }, "required": false, "readonly": false, "visibility": "visible",  "order": 40,  "groupKey": "editor.section.references", "control": "auto" },
+    { "key": "order",          "labelKey": "field.datev_calculation_entry.order",            "fieldType": { "kind": "integer" }, "required": false, "readonly": false, "visibility": "visible",  "order": 50,  "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "excludeFromSum", "labelKey": "field.datev_calculation_entry.exclude_from_sum", "fieldType": { "kind": "boolean" }, "required": false, "readonly": false, "visibility": "visible",  "order": 60,  "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "isBold",         "labelKey": "field.datev_calculation_entry.is_bold",          "fieldType": { "kind": "boolean" }, "required": false, "readonly": false, "visibility": "visible",  "order": 70,  "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "withUnderline",  "labelKey": "field.datev_calculation_entry.with_underline",   "fieldType": { "kind": "boolean" }, "required": false, "readonly": false, "visibility": "visible",  "order": 80,  "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "left",           "labelKey": "field.datev_calculation_entry.left",             "fieldType": { "kind": "boolean" }, "required": false, "readonly": false, "visibility": "visible",  "order": 90,  "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "showKey",        "labelKey": "field.datev_calculation_entry.show_key",         "fieldType": { "kind": "boolean" }, "required": false, "readonly": false, "visibility": "visible",  "order": 100, "groupKey": "editor.section.master",     "control": "auto" },
+    { "key": "flat",           "labelKey": "field.datev_calculation_entry.flat",             "fieldType": { "kind": "boolean" }, "required": false, "readonly": false, "visibility": "visible",  "order": 110, "groupKey": "editor.section.master",     "control": "auto" }
+  ]
+}

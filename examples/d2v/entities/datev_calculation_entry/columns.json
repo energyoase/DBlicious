@@ -1,0 +1,13 @@
+[
+  { "key": "id",             "labelKey": "field.datev_calculation_entry.id",              "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": false },
+  { "key": "parentId",       "labelKey": "field.datev_calculation_entry.parent_id",       "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "accountNr",      "labelKey": "field.datev_calculation_entry.account_nr",      "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "calculationId",  "labelKey": "field.datev_calculation_entry.calculation_id",  "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "order",          "labelKey": "field.datev_calculation_entry.order",           "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "excludeFromSum", "labelKey": "field.datev_calculation_entry.exclude_from_sum","fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  },
+  { "key": "isBold",         "labelKey": "field.datev_calculation_entry.is_bold",         "fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  },
+  { "key": "withUnderline",  "labelKey": "field.datev_calculation_entry.with_underline",  "fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  },
+  { "key": "left",           "labelKey": "field.datev_calculation_entry.left",            "fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  },
+  { "key": "showKey",        "labelKey": "field.datev_calculation_entry.show_key",        "fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  },
+  { "key": "flat",           "labelKey": "field.datev_calculation_entry.flat",            "fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  }
+]

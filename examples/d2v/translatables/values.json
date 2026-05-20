@@ -121,5 +121,17 @@
   { "entryId": "field.datev_calculation.export_name", "languageId": "de", "ftlSource": "Exportname" },
   { "entryId": "field.datev_calculation.type",        "languageId": "de", "ftlSource": "Typ" },
   { "entryId": "field.datev_calculation.value_type",  "languageId": "de", "ftlSource": "Soll/Haben" },
-  { "entryId": "field.datev_calculation.is_required", "languageId": "de", "ftlSource": "Pflichtauswertung" }
+  { "entryId": "field.datev_calculation.is_required", "languageId": "de", "ftlSource": "Pflichtauswertung" },
+
+  { "entryId": "field.datev_calculation_entry.id",               "languageId": "de", "ftlSource": "ID" },
+  { "entryId": "field.datev_calculation_entry.parent_id",        "languageId": "de", "ftlSource": "Auswertung" },
+  { "entryId": "field.datev_calculation_entry.account_nr",       "languageId": "de", "ftlSource": "Konto" },
+  { "entryId": "field.datev_calculation_entry.calculation_id",   "languageId": "de", "ftlSource": "Kind-Auswertung" },
+  { "entryId": "field.datev_calculation_entry.order",            "languageId": "de", "ftlSource": "Reihenfolge" },
+  { "entryId": "field.datev_calculation_entry.exclude_from_sum", "languageId": "de", "ftlSource": "Aus Summe ausschl." },
+  { "entryId": "field.datev_calculation_entry.is_bold",          "languageId": "de", "ftlSource": "Fett" },
+  { "entryId": "field.datev_calculation_entry.with_underline",   "languageId": "de", "ftlSource": "Unterstrichen" },
+  { "entryId": "field.datev_calculation_entry.left",             "languageId": "de", "ftlSource": "Linksbündig" },
+  { "entryId": "field.datev_calculation_entry.show_key",         "languageId": "de", "ftlSource": "Schlüssel anzeigen" },
+  { "entryId": "field.datev_calculation_entry.flat",             "languageId": "de", "ftlSource": "Flach" }
 ]
