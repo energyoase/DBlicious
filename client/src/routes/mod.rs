@@ -124,8 +124,12 @@ pub fn EntityListPage() -> impl IntoView {
                 } else {
                     let settings_for_table = settings.clone();
                     let can_create = auth.is_allowed(&entity_type, shared::PermissionOp::Create);
+                    let can_update = auth.is_allowed(&entity_type, shared::PermissionOp::Update);
                     let new_href = format!("/entities/{}/new", entity_type_for_table);
-                    let primary_btn = use_design().button(crate::styling::ButtonVariant::Primary).inline.clone();
+                    let builder_href = format!("/builder/{}", entity_type_for_table);
+                    let design = use_design();
+                    let primary_btn = design.button(crate::styling::ButtonVariant::Primary).inline.clone();
+                    let secondary_btn = design.button(crate::styling::ButtonVariant::Secondary).inline.clone();
                     view! {
                         <div>
                             <h1 style=h1>{entity_type.clone()}</h1>
@@ -141,6 +145,11 @@ pub fn EntityListPage() -> impl IntoView {
                                     {can_create.then(|| view! {
                                         <a href=new_href style=primary_btn>
                                             {move || t("table.actions.new")}
+                                        </a>
+                                    })}
+                                    {can_update.then(|| view! {
+                                        <a href=builder_href style=secondary_btn>
+                                            {move || t("table.actions.builder")}
                                         </a>
                                     })}
                                 </TopMenu>
@@ -221,9 +230,15 @@ pub fn BuilderPage() -> impl IntoView {
     let primary_btn = design.button(crate::styling::ButtonVariant::Primary).inline.clone();
     let secondary_btn = design.button(crate::styling::ButtonVariant::Secondary).inline.clone();
 
-    // Auth-Gate analog zum DesignerPage: ohne Update-Recht kein Builder.
+    // Auth-Gate analog zum EditorPage: Update-Recht auf die konkrete Entity
+    // genuegt — wer eine Entity editieren darf, darf auch ihr Layout
+    // (Builder) bearbeiten.
     let auth = AuthContext::use_context();
-    let allowed = auth.is_allowed("*", shared::PermissionOp::Update);
+    let allowed_entity = params
+        .with(|p| p.get("entity_type").map(|s| s.to_string()))
+        .unwrap_or_default();
+    let allowed = !allowed_entity.is_empty()
+        && auth.is_allowed(&allowed_entity, shared::PermissionOp::Update);
 
     // Builder-State + History fuer den gesamten Unterbaum bereitstellen.
     // Wir starten mit leerem Tree; bei erfolgreichem Load wird er ersetzt.

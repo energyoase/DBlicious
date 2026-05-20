@@ -115,6 +115,7 @@ topbar-user = { $name }
 table-actions-new = New
 table-actions-edit = Edit
 table-actions-delete = Delete
+table-actions-builder = Edit layout
 
 ## Builder (Visual UI-Designer)
 builder-title = Visual Builder

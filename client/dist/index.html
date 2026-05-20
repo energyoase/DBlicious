@@ -6,8 +6,8 @@
     <title>DBlicious</title>
     
 <script type="module">
-import init, * as bindings from '/client-app-8a8b576318ae3261.js';
-const wasm = await init({ module_or_path: '/client-app-8a8b576318ae3261_bg.wasm' });
+import init, * as bindings from '/client-app-5acb9e7133b04e1b.js';
+const wasm = await init({ module_or_path: '/client-app-5acb9e7133b04e1b_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -22,7 +22,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
       html, body { margin: 0; padding: 0; height: 100%; }
       body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
     </style>
-  <link rel="modulepreload" href="/client-app-8a8b576318ae3261.js" crossorigin="anonymous" integrity="sha384-M3wv0jbB0ebRYG2nhXBftyREpwfUldFbm9MxCCt3w2Abq4mRllJbtQfGjP99RR+t"><link rel="preload" href="/client-app-8a8b576318ae3261_bg.wasm" crossorigin="anonymous" integrity="sha384-5W77uLXGMcjCcwO6DIddlTE57MC7ymqztOaMk+D2uMXAcjjmawzO9PaT5jo+oWwJ" as="fetch" type="application/wasm"></head>
+  <link rel="modulepreload" href="/client-app-5acb9e7133b04e1b.js" crossorigin="anonymous" integrity="sha384-UIXHgr/8RoQZZWkwEpYWi2sOwszI2FYesgDAOqvw/x9ja/flD89B4ATivP67d+iK"><link rel="preload" href="/client-app-5acb9e7133b04e1b_bg.wasm" crossorigin="anonymous" integrity="sha384-CgnihjmPAw4E3406WGe1N4k9YrOPEDk+JLjdFKP3FZ6n84OW++bqxiQam9j1S61r" as="fetch" type="application/wasm"></head>
   <body><script>"use strict";
 
 (function () {

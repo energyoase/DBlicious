@@ -115,6 +115,7 @@ topbar-user = { $name }
 table-actions-new = Neu
 table-actions-edit = Bearbeiten
 table-actions-delete = Löschen
+table-actions-builder = Layout bearbeiten
 
 ## Designer
 designer-title = Schema-Designer
