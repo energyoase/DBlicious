@@ -1,0 +1,26 @@
+[
+  {
+    "id": "g-bookkeepers",
+    "nameKey": "security.group.bookkeepers",
+    "descriptionKey": "security.group.bookkeepers.desc",
+    "permissions": [
+      { "entityType": "datev_account",                "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "datev_entry",                  "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "datev_account_entry",          "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "datev_entry_stack",            "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "datev_calculation",            "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "datev_calculation_entry",      "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "datev_calculation_value",      "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "star_money_bank",              "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "star_money_account",           "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "star_money_entry",             "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "susa_entry",                   "canRead": true, "canCreate": true,  "canUpdate": true,  "canDelete": true,  "minAccess": "internal" },
+      { "entityType": "datev_entry_group",            "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "internal" },
+      { "entityType": "datev_entry_change_tracking",  "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "internal" },
+      { "entityType": "star_money_booking_text",      "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "internal" },
+      { "entityType": "company",                      "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "internal" },
+      { "entityType": "star_money_credit_card",       "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "internal" },
+      { "entityType": "star_money_credit_card_entry", "canRead": true, "canCreate": false, "canUpdate": false, "canDelete": false, "minAccess": "internal" }
+    ]
+  }
+]

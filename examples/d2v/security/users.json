@@ -1,0 +1,11 @@
+[
+  {
+    "id": "u-1",
+    "username": "bookkeeper@local",
+    "displayName": "Buchhalter",
+    "locale": "de",
+    "groupIds": ["g-bookkeepers"],
+    "active": true,
+    "passwordPlain": "bookkeeper"
+  }
+]
