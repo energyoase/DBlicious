@@ -14,3 +14,6 @@
 
 # bug-report mirror (the monitor copies ZIPs here for inspection)
 bug-reports/
+
+# superpowers brainstorm artifacts (visual companion server state + mockups)
+.superpowers/
