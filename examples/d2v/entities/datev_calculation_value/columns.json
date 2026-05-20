@@ -2,7 +2,7 @@
   { "key": "calculationId", "labelKey": "field.datev_calculation_value.calculation_id", "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
   { "key": "year",          "labelKey": "field.datev_calculation_value.year",           "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
   { "key": "method",        "labelKey": "field.datev_calculation_value.method",         "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
-  { "key": "value",         "labelKey": "field.datev_calculation_value.value",          "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": false },
+  { "key": "value",         "labelKey": "field.datev_calculation_value.value",          "fieldType": { "kind": "decimal", "precision": 4 }, "sortable": true,  "filterable": false },
   { "key": "isShown",       "labelKey": "field.datev_calculation_value.is_shown",       "fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  },
   { "key": "lastUpdate",    "labelKey": "field.datev_calculation_value.last_update",    "fieldType": { "kind": "dateTime" },"sortable": true,  "filterable": false }
 ]
