@@ -1,0 +1,67 @@
+[
+  {
+    "id": "datev",
+    "labelKey": "nav.datev",
+    "route": null,
+    "icon": "book",
+    "children": [
+      { "id": "datev-accounts",        "labelKey": "nav.datev_accounts",        "route": "/entities/datev_account",                "icon": null, "children": [] },
+      { "id": "datev-entries",          "labelKey": "nav.datev_entries",          "route": "/entities/datev_entry",                  "icon": null, "children": [] },
+      { "id": "datev-account-entries",  "labelKey": "nav.datev_account_entries",  "route": "/entities/datev_account_entry",          "icon": null, "children": [] },
+      { "id": "datev-entry-groups",     "labelKey": "nav.datev_entry_groups",     "route": "/entities/datev_entry_group",            "icon": null, "children": [] },
+      { "id": "datev-entry-stacks",     "labelKey": "nav.datev_entry_stacks",     "route": "/entities/datev_entry_stack",            "icon": null, "children": [] },
+      { "id": "datev-change-tracking",  "labelKey": "nav.datev_change_tracking",  "route": "/entities/datev_entry_change_tracking",  "icon": null, "children": [] }
+    ]
+  },
+  {
+    "id": "calc",
+    "labelKey": "nav.calc",
+    "route": null,
+    "icon": null,
+    "children": [
+      { "id": "datev-calculations",        "labelKey": "nav.datev_calculations",        "route": "/entities/datev_calculation",        "icon": null, "children": [] },
+      { "id": "datev-calculation-entries", "labelKey": "nav.datev_calculation_entries", "route": "/entities/datev_calculation_entry",  "icon": null, "children": [] },
+      { "id": "datev-calculation-values",  "labelKey": "nav.datev_calculation_values",  "route": "/entities/datev_calculation_value",  "icon": null, "children": [] }
+    ]
+  },
+  {
+    "id": "starmoney",
+    "labelKey": "nav.starmoney",
+    "route": null,
+    "icon": null,
+    "children": [
+      { "id": "sm-banks",         "labelKey": "nav.sm_banks",         "route": "/entities/star_money_bank",         "icon": null, "children": [] },
+      { "id": "sm-accounts",      "labelKey": "nav.sm_accounts",      "route": "/entities/star_money_account",      "icon": null, "children": [] },
+      { "id": "sm-booking-texts", "labelKey": "nav.sm_booking_texts", "route": "/entities/star_money_booking_text", "icon": null, "children": [] },
+      { "id": "sm-entries",       "labelKey": "nav.sm_entries",       "route": "/entities/star_money_entry",        "icon": null, "children": [] }
+    ]
+  },
+  {
+    "id": "susa",
+    "labelKey": "nav.susa",
+    "route": null,
+    "icon": null,
+    "children": [
+      { "id": "susa-entries", "labelKey": "nav.susa_entries", "route": "/entities/susa_entry", "icon": null, "children": [] }
+    ]
+  },
+  {
+    "id": "contacts",
+    "labelKey": "nav.contacts",
+    "route": null,
+    "icon": null,
+    "children": [
+      { "id": "companies", "labelKey": "nav.companies", "route": "/entities/company", "icon": null, "children": [] }
+    ]
+  },
+  {
+    "id": "sandbox",
+    "labelKey": "nav.sandbox",
+    "route": null,
+    "icon": null,
+    "children": [
+      { "id": "sm-credit-cards",         "labelKey": "nav.sm_credit_cards",         "route": "/entities/star_money_credit_card",        "icon": null, "children": [] },
+      { "id": "sm-credit-card-entries",  "labelKey": "nav.sm_credit_card_entries",  "route": "/entities/star_money_credit_card_entry",  "icon": null, "children": [] }
+    ]
+  }
+]
