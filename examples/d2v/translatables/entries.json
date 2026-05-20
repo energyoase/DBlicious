@@ -125,5 +125,15 @@
   { "id": "field.star_money_account.code",             "category": "field", "description": "IBAN (PK)" },
   { "id": "field.star_money_account.default_name",     "category": "field", "description": "Standardname" },
   { "id": "field.star_money_account.company_id",       "category": "field", "description": "Firma (FK)" },
-  { "id": "field.star_money_account.datev_account_nr", "category": "field", "description": "DATEV-Konto (FK)" }
+  { "id": "field.star_money_account.datev_account_nr", "category": "field", "description": "DATEV-Konto (FK)" },
+
+  { "id": "field.star_money_booking_text.key",   "category": "field", "description": "Schlüssel (PK)" },
+  { "id": "field.star_money_booking_text.text",  "category": "field", "description": "Text 1" },
+  { "id": "field.star_money_booking_text.text2", "category": "field", "description": "Text 2" },
+  { "id": "field.star_money_booking_text.text3", "category": "field", "description": "Text 3" },
+  { "id": "field.star_money_booking_text.text4", "category": "field", "description": "Text 4" },
+  { "id": "field.star_money_booking_text.text5", "category": "field", "description": "Text 5" },
+  { "id": "field.star_money_booking_text.text6", "category": "field", "description": "Text 6" },
+  { "id": "field.star_money_booking_text.text7", "category": "field", "description": "Text 7" },
+  { "id": "field.star_money_booking_text.text8", "category": "field", "description": "Text 8" }
 ]

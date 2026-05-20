@@ -1,0 +1,11 @@
+[
+  { "key": "key",   "labelKey": "field.star_money_booking_text.key",   "fieldType": { "kind": "integer" }, "sortable": true, "filterable": true },
+  { "key": "text",  "labelKey": "field.star_money_booking_text.text",  "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "text2", "labelKey": "field.star_money_booking_text.text2", "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "text3", "labelKey": "field.star_money_booking_text.text3", "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "text4", "labelKey": "field.star_money_booking_text.text4", "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "text5", "labelKey": "field.star_money_booking_text.text5", "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "text6", "labelKey": "field.star_money_booking_text.text6", "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "text7", "labelKey": "field.star_money_booking_text.text7", "fieldType": { "kind": "text" },    "sortable": true, "filterable": true },
+  { "key": "text8", "labelKey": "field.star_money_booking_text.text8", "fieldType": { "kind": "text" },    "sortable": true, "filterable": true }
+]

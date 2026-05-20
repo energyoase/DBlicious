@@ -1,0 +1,17 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "StarMoneyBookingTexts" },
+  "primaryKey": ["key"],
+  "readOnly": true,
+  "columnMap": {
+    "key":   "Key",
+    "text":  "Text",
+    "text2": "Text2",
+    "text3": "Text3",
+    "text4": "Text4",
+    "text5": "Text5",
+    "text6": "Text6",
+    "text7": "Text7",
+    "text8": "Text8"
+  }
+}

@@ -150,5 +150,15 @@
   { "entryId": "field.star_money_account.code",             "languageId": "de", "ftlSource": "IBAN" },
   { "entryId": "field.star_money_account.default_name",     "languageId": "de", "ftlSource": "Standardname" },
   { "entryId": "field.star_money_account.company_id",       "languageId": "de", "ftlSource": "Firma" },
-  { "entryId": "field.star_money_account.datev_account_nr", "languageId": "de", "ftlSource": "DATEV-Konto" }
+  { "entryId": "field.star_money_account.datev_account_nr", "languageId": "de", "ftlSource": "DATEV-Konto" },
+
+  { "entryId": "field.star_money_booking_text.key",   "languageId": "de", "ftlSource": "Schlüssel" },
+  { "entryId": "field.star_money_booking_text.text",  "languageId": "de", "ftlSource": "Text 1" },
+  { "entryId": "field.star_money_booking_text.text2", "languageId": "de", "ftlSource": "Text 2" },
+  { "entryId": "field.star_money_booking_text.text3", "languageId": "de", "ftlSource": "Text 3" },
+  { "entryId": "field.star_money_booking_text.text4", "languageId": "de", "ftlSource": "Text 4" },
+  { "entryId": "field.star_money_booking_text.text5", "languageId": "de", "ftlSource": "Text 5" },
+  { "entryId": "field.star_money_booking_text.text6", "languageId": "de", "ftlSource": "Text 6" },
+  { "entryId": "field.star_money_booking_text.text7", "languageId": "de", "ftlSource": "Text 7" },
+  { "entryId": "field.star_money_booking_text.text8", "languageId": "de", "ftlSource": "Text 8" }
 ]

@@ -1,0 +1,14 @@
+{
+  "entityType": "star_money_booking_text",
+  "properties": [
+    { "key": "key",   "labelKey": "field.star_money_booking_text.key",   "fieldType": { "kind": "integer" }, "required": true,  "readonly": true, "visibility": "readOnly", "order": 10, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "text",  "labelKey": "field.star_money_booking_text.text",  "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 20, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "text2", "labelKey": "field.star_money_booking_text.text2", "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 30, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "text3", "labelKey": "field.star_money_booking_text.text3", "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 40, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "text4", "labelKey": "field.star_money_booking_text.text4", "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 50, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "text5", "labelKey": "field.star_money_booking_text.text5", "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 60, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "text6", "labelKey": "field.star_money_booking_text.text6", "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 70, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "text7", "labelKey": "field.star_money_booking_text.text7", "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 80, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "text8", "labelKey": "field.star_money_booking_text.text8", "fieldType": { "kind": "text" },    "required": false, "readonly": true, "visibility": "readOnly", "order": 90, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}
