@@ -1,0 +1,10 @@
+[
+  { "key": "number",                       "labelKey": "field.datev_account.number",                          "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": false },
+  { "key": "name",                         "labelKey": "field.datev_account.name",                            "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "englishName",                  "labelKey": "field.datev_account.english_name",                    "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "taxRate",                      "labelKey": "field.datev_account.tax_rate",                        "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": true  },
+  { "key": "accountType",                  "labelKey": "field.datev_account.account_type",                    "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "automaticTaxAccountNr",        "labelKey": "field.datev_account.automatic_tax_account_nr",        "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "automaticReverseTaxAccountNr", "labelKey": "field.datev_account.automatic_reverse_tax_account_nr","fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "companyId",                    "labelKey": "field.datev_account.company_id",                      "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  }
+]

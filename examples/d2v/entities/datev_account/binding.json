@@ -1,0 +1,16 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevAccounts" },
+  "primaryKey": ["number"],
+  "readOnly": false,
+  "columnMap": {
+    "number":                       "Number",
+    "name":                         "Name",
+    "englishName":                  "EnglishName",
+    "taxRate":                      "TaxRate",
+    "accountType":                  "AccountType",
+    "automaticTaxAccountNr":        "AutomaticTaxAccountNr",
+    "automaticReverseTaxAccountNr": "AutomaticReverseTaxAccountNr",
+    "companyId":                    "CompanyId"
+  }
+}

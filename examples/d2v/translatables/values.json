@@ -54,5 +54,14 @@
   { "entryId": "nav.sm_credit_cards",             "languageId": "de", "ftlSource": "Kreditkarten" },
   { "entryId": "nav.sm_credit_cards",             "languageId": "en", "ftlSource": "Credit Cards" },
   { "entryId": "nav.sm_credit_card_entries",      "languageId": "de", "ftlSource": "Kreditkartenbuchungen" },
-  { "entryId": "nav.sm_credit_card_entries",      "languageId": "en", "ftlSource": "Credit Card Entries" }
+  { "entryId": "nav.sm_credit_card_entries",      "languageId": "en", "ftlSource": "Credit Card Entries" },
+
+  { "entryId": "field.datev_account.number",                          "languageId": "de", "ftlSource": "Nummer" },
+  { "entryId": "field.datev_account.name",                            "languageId": "de", "ftlSource": "Bezeichnung" },
+  { "entryId": "field.datev_account.english_name",                    "languageId": "de", "ftlSource": "Engl. Bezeichnung" },
+  { "entryId": "field.datev_account.tax_rate",                        "languageId": "de", "ftlSource": "USt-Satz" },
+  { "entryId": "field.datev_account.account_type",                    "languageId": "de", "ftlSource": "Kontotyp" },
+  { "entryId": "field.datev_account.automatic_tax_account_nr",        "languageId": "de", "ftlSource": "Auto-USt-Konto" },
+  { "entryId": "field.datev_account.automatic_reverse_tax_account_nr","languageId": "de", "ftlSource": "Auto-Gegen-USt-Konto" },
+  { "entryId": "field.datev_account.company_id",                      "languageId": "de", "ftlSource": "Firma" }
 ]
