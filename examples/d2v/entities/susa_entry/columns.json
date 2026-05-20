@@ -1,0 +1,15 @@
+[
+  { "key": "accountNr",    "labelKey": "field.susa_entry.account_nr",    "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "year",         "labelKey": "field.susa_entry.year",          "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "ebDebit",      "labelKey": "field.susa_entry.eb_debit",      "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": false },
+  { "key": "ebCredit",     "labelKey": "field.susa_entry.eb_credit",     "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": false },
+  { "key": "eb",           "labelKey": "field.susa_entry.eb",            "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": false },
+  { "key": "ebValueType",  "labelKey": "field.susa_entry.eb_value_type", "fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "debitValue",   "labelKey": "field.susa_entry.debit_value",   "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": false },
+  { "key": "creditValue",  "labelKey": "field.susa_entry.credit_value",  "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": false },
+  { "key": "sum",          "labelKey": "field.susa_entry.sum",           "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": false },
+  { "key": "sumValueType", "labelKey": "field.susa_entry.sum_value_type","fieldType": { "kind": "text" },    "sortable": true,  "filterable": true  },
+  { "key": "total",        "labelKey": "field.susa_entry.total",         "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": false },
+  { "key": "totalValueType","labelKey": "field.susa_entry.total_value_type","fieldType": { "kind": "text" }, "sortable": true,  "filterable": true  },
+  { "key": "lastUpdate",   "labelKey": "field.susa_entry.last_update",   "fieldType": { "kind": "dateTime" },"sortable": true,  "filterable": false }
+]

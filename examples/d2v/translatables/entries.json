@@ -247,5 +247,19 @@
   { "id": "field.star_money_credit_card_entry.split_category",         "category": "field", "description": "Split-Kategorie" },
   { "id": "field.star_money_credit_card_entry.split_sub_category",     "category": "field", "description": "Split-Unterkategorie" },
   { "id": "field.star_money_credit_card_entry.split_cost_center",      "category": "field", "description": "Split-Kostenstelle" },
-  { "id": "field.star_money_credit_card_entry.split_transaction",      "category": "field", "description": "Split-Transaktion" }
+  { "id": "field.star_money_credit_card_entry.split_transaction",      "category": "field", "description": "Split-Transaktion" },
+
+  { "id": "field.susa_entry.account_nr",      "category": "field", "description": "Konto (FK, PK)" },
+  { "id": "field.susa_entry.year",            "category": "field", "description": "Jahr (PK)" },
+  { "id": "field.susa_entry.eb_debit",        "category": "field", "description": "EB Soll" },
+  { "id": "field.susa_entry.eb_credit",       "category": "field", "description": "EB Haben" },
+  { "id": "field.susa_entry.eb",              "category": "field", "description": "EB" },
+  { "id": "field.susa_entry.eb_value_type",   "category": "field", "description": "EB Typ" },
+  { "id": "field.susa_entry.debit_value",     "category": "field", "description": "Soll-Umsatz" },
+  { "id": "field.susa_entry.credit_value",    "category": "field", "description": "Haben-Umsatz" },
+  { "id": "field.susa_entry.sum",             "category": "field", "description": "Summe" },
+  { "id": "field.susa_entry.sum_value_type",  "category": "field", "description": "Summen-Typ" },
+  { "id": "field.susa_entry.total",           "category": "field", "description": "Gesamt" },
+  { "id": "field.susa_entry.total_value_type","category": "field", "description": "Gesamt-Typ" },
+  { "id": "field.susa_entry.last_update",     "category": "field", "description": "Letzte Aktualisierung" }
 ]

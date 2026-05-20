@@ -1,0 +1,18 @@
+{
+  "entityType": "susa_entry",
+  "properties": [
+    { "key": "accountNr",    "labelKey": "field.susa_entry.account_nr",       "fieldType": { "kind": "integer" }, "required": true,  "readonly": true,  "visibility": "readOnly", "order": 10,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "year",         "labelKey": "field.susa_entry.year",             "fieldType": { "kind": "integer" }, "required": true,  "readonly": true,  "visibility": "readOnly", "order": 20,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "ebDebit",      "labelKey": "field.susa_entry.eb_debit",         "fieldType": { "kind": "decimal" }, "required": false, "readonly": false, "visibility": "visible",  "order": 30,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "ebCredit",     "labelKey": "field.susa_entry.eb_credit",        "fieldType": { "kind": "decimal" }, "required": false, "readonly": false, "visibility": "visible",  "order": 40,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "eb",           "labelKey": "field.susa_entry.eb",               "fieldType": { "kind": "decimal" }, "required": false, "readonly": false, "visibility": "visible",  "order": 50,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "ebValueType",  "labelKey": "field.susa_entry.eb_value_type",    "fieldType": { "kind": "text" },    "required": false, "readonly": false, "visibility": "visible",  "order": 60,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "debitValue",   "labelKey": "field.susa_entry.debit_value",      "fieldType": { "kind": "decimal" }, "required": false, "readonly": false, "visibility": "visible",  "order": 70,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "creditValue",  "labelKey": "field.susa_entry.credit_value",     "fieldType": { "kind": "decimal" }, "required": false, "readonly": false, "visibility": "visible",  "order": 80,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "sum",          "labelKey": "field.susa_entry.sum",              "fieldType": { "kind": "decimal" }, "required": false, "readonly": false, "visibility": "visible",  "order": 90,  "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "sumValueType", "labelKey": "field.susa_entry.sum_value_type",   "fieldType": { "kind": "text" },    "required": false, "readonly": false, "visibility": "visible",  "order": 100, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "total",        "labelKey": "field.susa_entry.total",            "fieldType": { "kind": "decimal" }, "required": false, "readonly": false, "visibility": "visible",  "order": 110, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "totalValueType","labelKey": "field.susa_entry.total_value_type","fieldType": { "kind": "text" },    "required": false, "readonly": false, "visibility": "visible",  "order": 120, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "lastUpdate",   "labelKey": "field.susa_entry.last_update",      "fieldType": { "kind": "dateTime" },"required": false, "readonly": false, "visibility": "visible",  "order": 130, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}

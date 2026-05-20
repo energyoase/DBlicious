@@ -272,5 +272,19 @@
   { "entryId": "field.star_money_credit_card_entry.split_category",         "languageId": "de", "ftlSource": "Split-Kategorie" },
   { "entryId": "field.star_money_credit_card_entry.split_sub_category",     "languageId": "de", "ftlSource": "Split-Unterkategorie" },
   { "entryId": "field.star_money_credit_card_entry.split_cost_center",      "languageId": "de", "ftlSource": "Split-Kostenstelle" },
-  { "entryId": "field.star_money_credit_card_entry.split_transaction",      "languageId": "de", "ftlSource": "Split-Transaktion" }
+  { "entryId": "field.star_money_credit_card_entry.split_transaction",      "languageId": "de", "ftlSource": "Split-Transaktion" },
+
+  { "entryId": "field.susa_entry.account_nr",      "languageId": "de", "ftlSource": "Konto" },
+  { "entryId": "field.susa_entry.year",            "languageId": "de", "ftlSource": "Jahr" },
+  { "entryId": "field.susa_entry.eb_debit",        "languageId": "de", "ftlSource": "EB Soll" },
+  { "entryId": "field.susa_entry.eb_credit",       "languageId": "de", "ftlSource": "EB Haben" },
+  { "entryId": "field.susa_entry.eb",              "languageId": "de", "ftlSource": "EB" },
+  { "entryId": "field.susa_entry.eb_value_type",   "languageId": "de", "ftlSource": "EB Typ" },
+  { "entryId": "field.susa_entry.debit_value",     "languageId": "de", "ftlSource": "Soll-Umsatz" },
+  { "entryId": "field.susa_entry.credit_value",    "languageId": "de", "ftlSource": "Haben-Umsatz" },
+  { "entryId": "field.susa_entry.sum",             "languageId": "de", "ftlSource": "Summe" },
+  { "entryId": "field.susa_entry.sum_value_type",  "languageId": "de", "ftlSource": "Summen-Typ" },
+  { "entryId": "field.susa_entry.total",           "languageId": "de", "ftlSource": "Gesamt" },
+  { "entryId": "field.susa_entry.total_value_type","languageId": "de", "ftlSource": "Gesamt-Typ" },
+  { "entryId": "field.susa_entry.last_update",     "languageId": "de", "ftlSource": "Letzte Aktualisierung" }
 ]

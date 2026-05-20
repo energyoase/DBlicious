@@ -1,0 +1,21 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "SuSaEntries" },
+  "primaryKey": ["accountNr", "year"],
+  "readOnly": false,
+  "columnMap": {
+    "accountNr":    "AccountNr",
+    "year":         "Year",
+    "ebDebit":      "EbDebit",
+    "ebCredit":     "EbCredit",
+    "eb":           "Eb",
+    "ebValueType":  "EbValueType",
+    "debitValue":   "DebitValue",
+    "creditValue":  "CreditValue",
+    "sum":          "Sum",
+    "sumValueType": "SumValueType",
+    "total":        "Total",
+    "totalValueType":"TotalValueType",
+    "lastUpdate":   "LastUpdate"
+  }
+}
