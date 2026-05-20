@@ -7,7 +7,8 @@
 
 pub mod config;
 pub mod managed_sqlite;
-// `foreign_sqlite` kommt in Task 14.
+pub mod foreign_sqlite;
+pub mod introspect;
 
 use std::collections::BTreeMap;
 
@@ -169,7 +170,12 @@ pub async fn boot_registry(
     for (name, cfg) in sources {
         let mut src: Box<dyn Source> = match cfg.kind.as_str() {
             "managed-sqlite" => Box::new(ManagedSqliteSource::new(name.clone())),
-            // foreign-sqlite is wired in Task 14.
+            "foreign-sqlite" => {
+                let url = cfg.url.clone().ok_or_else(|| {
+                    SourceError::Other(format!("source '{name}' (foreign-sqlite) requires url"))
+                })?;
+                Box::new(crate::source::foreign_sqlite::ForeignSqliteSource::new(name.clone(), url))
+            }
             other => return Err(SourceError::Other(format!("unknown source kind: {other}"))),
         };
         src.init().await?;
