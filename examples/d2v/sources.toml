@@ -1,0 +1,10 @@
+# Default managed-sqlite-Source für DBlicious-eigene Tabellen
+# (Auth, Audit, Plugin, Translatables, Builder-Designs).
+[sources.local]
+kind = "managed-sqlite"
+url  = "${DBLICIOUS_DATABASE_URL:-sqlite://./dblicious-d2v.db}"
+
+# Fremde D2V-DB als read/write-Source. Pfad wird per Env überschrieben.
+[sources.d2v_legacy]
+kind = "foreign-sqlite"
+url  = "${D2V_LEGACY_URL:-sqlite:///pfad/zu/d2v.db}"
