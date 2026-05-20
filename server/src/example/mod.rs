@@ -111,6 +111,9 @@ pub struct ExampleSet {
     pub permissions: Vec<shared::auth::Permission>,
     pub roles: Vec<shared::auth::Role>,
     pub role_assignments: Vec<shared::auth::RoleAssignment>,
+    /// Phase 0.6: konfigurierte Sources. Default-`local` wird vom Loader
+    /// synthetisiert, falls keine `sources.toml` vorhanden ist.
+    pub sources: BTreeMap<String, crate::source::config::SourceConfig>,
 }
 
 impl ExampleSet {

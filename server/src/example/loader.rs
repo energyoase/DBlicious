@@ -141,6 +141,20 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
         }
     }
 
+    // ---- Sources ----
+    let mut sources = crate::source::config::load_from_dir(dir)
+        .map_err(|e| anyhow!("sources.toml: {e}"))?
+        .sources;
+    if !sources.contains_key("local") {
+        sources.insert(
+            "local".into(),
+            crate::source::config::SourceConfig {
+                kind: "managed-sqlite".into(),
+                url: std::env::var("DBLICIOUS_DATABASE_URL").ok(),
+            },
+        );
+    }
+
     Ok(ExampleSet {
         root: dir.to_path_buf(),
         config,
@@ -152,6 +166,7 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
         permissions,
         roles,
         role_assignments,
+        sources,
     })
 }
 
