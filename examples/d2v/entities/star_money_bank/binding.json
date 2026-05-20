@@ -1,0 +1,11 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "StarMoneyBanks" },
+  "primaryKey": ["code"],
+  "readOnly": false,
+  "columnMap": {
+    "code":    "Code",
+    "name":    "Name",
+    "address": "Address"
+  }
+}

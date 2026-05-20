@@ -115,5 +115,9 @@
   { "id": "field.datev_calculation_value.method",         "category": "field", "description": "Methode (PK)" },
   { "id": "field.datev_calculation_value.value",          "category": "field", "description": "Wert" },
   { "id": "field.datev_calculation_value.is_shown",       "category": "field", "description": "Angezeigt" },
-  { "id": "field.datev_calculation_value.last_update",    "category": "field", "description": "Letzte Aktualisierung" }
+  { "id": "field.datev_calculation_value.last_update",    "category": "field", "description": "Letzte Aktualisierung" },
+
+  { "id": "field.star_money_bank.code",    "category": "field", "description": "BIC (PK)" },
+  { "id": "field.star_money_bank.name",    "category": "field", "description": "Bankname" },
+  { "id": "field.star_money_bank.address", "category": "field", "description": "Adresse" }
 ]

@@ -1,0 +1,8 @@
+{
+  "entityType": "star_money_bank",
+  "properties": [
+    { "key": "code",    "labelKey": "field.star_money_bank.code",    "fieldType": { "kind": "text" }, "required": true,  "readonly": true,  "visibility": "readOnly", "order": 10, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "name",    "labelKey": "field.star_money_bank.name",    "fieldType": { "kind": "text" }, "required": false, "readonly": false, "visibility": "visible",  "order": 20, "groupKey": "editor.section.master", "control": "auto" },
+    { "key": "address", "labelKey": "field.star_money_bank.address", "fieldType": { "kind": "text" }, "required": false, "readonly": false, "visibility": "visible",  "order": 30, "groupKey": "editor.section.master", "control": "auto" }
+  ]
+}

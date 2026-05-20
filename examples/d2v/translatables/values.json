@@ -140,5 +140,9 @@
   { "entryId": "field.datev_calculation_value.method",         "languageId": "de", "ftlSource": "Methode" },
   { "entryId": "field.datev_calculation_value.value",          "languageId": "de", "ftlSource": "Wert" },
   { "entryId": "field.datev_calculation_value.is_shown",       "languageId": "de", "ftlSource": "Angezeigt" },
-  { "entryId": "field.datev_calculation_value.last_update",    "languageId": "de", "ftlSource": "Letzte Aktualisierung" }
+  { "entryId": "field.datev_calculation_value.last_update",    "languageId": "de", "ftlSource": "Letzte Aktualisierung" },
+
+  { "entryId": "field.star_money_bank.code",    "languageId": "de", "ftlSource": "BIC" },
+  { "entryId": "field.star_money_bank.name",    "languageId": "de", "ftlSource": "Name" },
+  { "entryId": "field.star_money_bank.address", "languageId": "de", "ftlSource": "Adresse" }
 ]

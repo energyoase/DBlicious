@@ -1,0 +1,5 @@
+[
+  { "key": "code",    "labelKey": "field.star_money_bank.code",    "fieldType": { "kind": "text" }, "sortable": true, "filterable": true },
+  { "key": "name",    "labelKey": "field.star_money_bank.name",    "fieldType": { "kind": "text" }, "sortable": true, "filterable": true },
+  { "key": "address", "labelKey": "field.star_money_bank.address", "fieldType": { "kind": "text" }, "sortable": true, "filterable": true }
+]
