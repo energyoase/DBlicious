@@ -31,3 +31,32 @@ fn loader_synthesizes_local_when_no_sources_toml() {
     let set = server::example::loader::load(tmp.path()).expect("load");
     assert_eq!(set.sources.get("local").map(|c| c.kind.as_str()), Some("managed-sqlite"));
 }
+
+#[test]
+fn loader_picks_up_per_entity_binding_toml() {
+    let tmp = tempfile::tempdir().unwrap();
+    let entities = tmp.path().join("entities").join("datev_account");
+    std::fs::create_dir_all(&entities).unwrap();
+    std::fs::write(entities.join("columns.json"), "[]").unwrap();
+    std::fs::write(entities.join("binding.toml"), r#"
+source = "d2v_legacy"
+primaryKey = ["number"]
+readOnly = false
+
+[locator]
+kind = "table"
+table = "DatevAccounts"
+
+[columnMap]
+number = "Number"
+name   = "Name"
+    "#).unwrap();
+
+    let set = server::example::loader::load(tmp.path()).expect("load");
+    let ty = set.entities.get("datev_account").expect("entity loaded");
+    let settings = ty.settings.as_ref().expect("settings synthesized");
+    let binding = settings.binding.as_ref().expect("binding present");
+    assert_eq!(binding.source, "d2v_legacy");
+    assert_eq!(binding.primary_key, vec!["number".to_string()]);
+    assert_eq!(binding.column_map.get("name"), Some(&"Name".to_string()));
+}

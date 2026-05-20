@@ -174,8 +174,14 @@ fn load_entity_type(dir: &Path) -> Result<EntityTypeSet> {
     let columns: Vec<shared::ColumnMeta> =
         read_typed_opt(find_file(dir, "columns"))?.unwrap_or_default();
     let editor: Option<shared::EditorMeta> = read_typed_opt(find_file(dir, "editor"))?;
-    let settings: Option<shared::EntitySettings> =
+    let mut settings: Option<shared::EntitySettings> =
         read_typed_opt(find_file(dir, "settings"))?;
+    let binding: Option<shared::source::EntityBinding> =
+        read_typed_opt(find_file(dir, "binding"))?;
+    if let Some(b) = binding {
+        let entry = settings.get_or_insert_with(shared::EntitySettings::default);
+        entry.binding = Some(b);
+    }
     let seeds: Vec<shared::Entity> = read_typed_opt(find_file(dir, "seed"))?.unwrap_or_default();
     Ok(EntityTypeSet {
         columns,
