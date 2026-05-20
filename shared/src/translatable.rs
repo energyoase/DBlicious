@@ -102,7 +102,14 @@ impl TranslatableValue {
         // wir auf "value steht in einer Zeile oder bringt seine Einrueckung
         // selbst mit". Aufrufer mit komplexen Selektoren liefern den `value`
         // bereits korrekt eingerueckt.
-        format!("{} = {}", entry.id, self.ftl_source)
+        //
+        // Punkt-Schluessel (`nav.datev`, `field.foo.bar`) muessen in
+        // Fluent-konforme IDs (`nav-datev`, `field-foo-bar`) gewandelt
+        // werden — sonst weist `FluentResource::try_new` die Zeile als
+        // invalide Message-ID zurueck und die Uebersetzung erscheint nie
+        // im Bundle. Lookup-seitig macht `i18n::translate` exakt diese
+        // Konvertierung; hier ist das Spiegelbild.
+        format!("{} = {}", message_id_for_key(&entry.id), self.ftl_source)
     }
 }
 
