@@ -63,8 +63,12 @@ use shared::source::{BindingLocator, EntityBinding};
 use std::collections::BTreeMap;
 
 fn uuid_like() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos().to_string()
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    format!("{nanos}_{seq}")
 }
 
 async fn fixture_source_with_data() -> (ForeignSqliteSource, sea_orm::DatabaseConnection) {
