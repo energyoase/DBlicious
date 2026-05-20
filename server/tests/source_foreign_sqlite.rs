@@ -58,3 +58,62 @@ async fn introspect_reads_composite_pk_in_correct_order() {
     assert!(col_names.contains(&"BankCode"));
     assert!(col_names.contains(&"Balance"));
 }
+
+use shared::source::{BindingLocator, EntityBinding};
+use std::collections::BTreeMap;
+
+fn uuid_like() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos().to_string()
+}
+
+async fn fixture_source_with_data() -> (ForeignSqliteSource, sea_orm::DatabaseConnection) {
+    // Named shared-memory DB so the source's own connection sees the same data.
+    let url = format!("sqlite:file:test_{}?mode=memory&cache=shared", uuid_like());
+    let anchor = sea_orm::Database::connect(sea_orm::ConnectOptions::new(url.clone())).await.unwrap();
+    let stmts = [
+        "CREATE TABLE DatevAccounts (Number INTEGER PRIMARY KEY, Name TEXT NOT NULL)",
+        "INSERT INTO DatevAccounts (Number, Name) VALUES (1000, 'Kasse')",
+        "INSERT INTO DatevAccounts (Number, Name) VALUES (1200, 'Bank')",
+        "INSERT INTO DatevAccounts (Number, Name) VALUES (1800, 'Privat')",
+    ];
+    for s in stmts {
+        anchor.execute(sea_orm::Statement::from_string(sea_orm::DbBackend::Sqlite, s)).await.unwrap();
+    }
+    let mut src = ForeignSqliteSource::new("d2v_test".into(), url);
+    src.init().await.unwrap();
+    (src, anchor)
+}
+
+fn account_binding() -> EntityBinding {
+    let mut map = BTreeMap::new();
+    map.insert("number".into(), "Number".into());
+    map.insert("name".into(), "Name".into());
+    EntityBinding {
+        source: "d2v_test".into(),
+        locator: BindingLocator::Table { table: "DatevAccounts".into() },
+        primary_key: vec!["number".into()],
+        read_only: false,
+        column_map: map,
+    }
+}
+
+#[tokio::test]
+async fn foreign_list_page_returns_all_rows() {
+    let (src, _anchor) = fixture_source_with_data().await;
+    let page = src.list_page(&account_binding(), &server::source::PageQuery {
+        page: 1, page_size: 10, sort: None, filter: shared::FilterCriteria::default(),
+    }).await.unwrap();
+    assert_eq!(page.total_count, 3);
+    assert_eq!(page.items.len(), 3);
+}
+
+#[tokio::test]
+async fn foreign_list_page_paginates() {
+    let (src, _anchor) = fixture_source_with_data().await;
+    let page = src.list_page(&account_binding(), &server::source::PageQuery {
+        page: 1, page_size: 2, sort: None, filter: shared::FilterCriteria::default(),
+    }).await.unwrap();
+    assert_eq!(page.total_count, 3);
+    assert_eq!(page.items.len(), 2);
+}
