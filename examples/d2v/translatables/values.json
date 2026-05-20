@@ -85,5 +85,11 @@
   { "entryId": "field.datev_entry.group_id",                       "languageId": "de", "ftlSource": "Gruppe" },
   { "entryId": "field.datev_entry.stack_id",                       "languageId": "de", "ftlSource": "Stapel" },
   { "entryId": "field.datev_entry.star_money_entry_id",            "languageId": "de", "ftlSource": "StarMoney-Buchung" },
-  { "entryId": "field.datev_entry.star_money_credit_card_entry_id","languageId": "de", "ftlSource": "SM-Kreditkarte" }
+  { "entryId": "field.datev_entry.star_money_credit_card_entry_id","languageId": "de", "ftlSource": "SM-Kreditkarte" },
+
+  { "entryId": "field.datev_account_entry.entry_id",           "languageId": "de", "ftlSource": "Buchungs-ID" },
+  { "entryId": "field.datev_account_entry.account_nr",          "languageId": "de", "ftlSource": "Konto" },
+  { "entryId": "field.datev_account_entry.offset_account_nr",   "languageId": "de", "ftlSource": "Gegenkonto" },
+  { "entryId": "field.datev_account_entry.factor",              "languageId": "de", "ftlSource": "Faktor" },
+  { "entryId": "field.datev_account_entry.is_discount_related", "languageId": "de", "ftlSource": "Skonto-Zeile" }
 ]

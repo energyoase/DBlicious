@@ -1,0 +1,12 @@
+{
+  "entityType": "datev_account_entry",
+  "access": "internal",
+  "defaultPageSize": 100,
+  "defaultSort": { "field": "entryId", "direction": "asc" },
+  "defaultFilter": null,
+  "properties": [
+    { "key": "entryId",       "visibility": "visible", "access": "readOnly", "loadMethod": "eager", "order": 0, "labelOverrideKey": null, "minWidth": 60 },
+    { "key": "accountNr",     "visibility": "visible", "access": "readOnly", "loadMethod": "eager", "order": 1, "labelOverrideKey": null, "minWidth": 80 },
+    { "key": "offsetAccountNr","visibility": "visible", "access": "readOnly", "loadMethod": "eager", "order": 2, "labelOverrideKey": null, "minWidth": 80 }
+  ]
+}

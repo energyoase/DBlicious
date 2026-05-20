@@ -1,0 +1,7 @@
+[
+  { "key": "entryId",          "labelKey": "field.datev_account_entry.entry_id",           "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "accountNr",        "labelKey": "field.datev_account_entry.account_nr",          "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "offsetAccountNr",  "labelKey": "field.datev_account_entry.offset_account_nr",   "fieldType": { "kind": "integer" }, "sortable": true,  "filterable": true  },
+  { "key": "factor",           "labelKey": "field.datev_account_entry.factor",              "fieldType": { "kind": "decimal" }, "sortable": true,  "filterable": true  },
+  { "key": "isDiscountRelated","labelKey": "field.datev_account_entry.is_discount_related", "fieldType": { "kind": "boolean" }, "sortable": true,  "filterable": true  }
+]

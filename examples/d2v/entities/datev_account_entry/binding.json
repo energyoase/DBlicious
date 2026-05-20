@@ -1,0 +1,13 @@
+{
+  "source": "d2v_legacy",
+  "locator": { "kind": "table", "table": "DatevAccountEntries" },
+  "primaryKey": ["entryId", "accountNr", "offsetAccountNr"],
+  "readOnly": false,
+  "columnMap": {
+    "entryId":          "EntryId",
+    "accountNr":        "AccountNr",
+    "offsetAccountNr":  "OffsetAccountNr",
+    "factor":           "Factor",
+    "isDiscountRelated":"IsDiscountRelated"
+  }
+}
