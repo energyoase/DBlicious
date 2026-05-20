@@ -15,8 +15,17 @@
     "description":        "Description",
     "value":              "Value",
     "valueType":          "ValueType",
-    "primaryAccountNr":   "PrimaryAccountNr",
-    "secondaryAccountNr": "SecondaryAccountNr",
-    "stackId":            "StackId"
+    "primaryAccountNr":           "PrimaryAccountNr",
+    "secondaryAccountNr":         "SecondaryAccountNr",
+    "stackId":                    "StackId",
+    "groupId":                    "GroupId",
+    "key":                        "Key",
+    "discount":                   "Discount",
+    "documentInfo":               "DocumentInfo",
+    "externalId":                 "ExternalId",
+    "inverted":                   "Inverted",
+    "published":                  "Published",
+    "starMoneyEntryId":           "StarMoneyEntryId",
+    "starMoneyCreditCardEntryId": "StarMoneyCreditCardEntryId"
   }
 }

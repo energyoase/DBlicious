@@ -11,6 +11,15 @@
   { "key": "value",               "labelKey": "field.datev_entry_change_tracking.value",                 "fieldType": { "kind": "money", "currencyCodeField": null }, "sortable": true, "filterable": true },
   { "key": "valueType",           "labelKey": "field.datev_entry_change_tracking.value_type",            "fieldType": { "kind": "text" },     "sortable": true,  "filterable": true  },
   { "key": "primaryAccountNr",    "labelKey": "field.datev_entry_change_tracking.primary_account_nr",   "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": true  },
-  { "key": "secondaryAccountNr",  "labelKey": "field.datev_entry_change_tracking.secondary_account_nr", "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": true  },
-  { "key": "stackId",             "labelKey": "field.datev_entry_change_tracking.stack_id",              "fieldType": { "kind": "integer" },  "sortable": true,  "filterable": true  }
+  { "key": "secondaryAccountNr",          "labelKey": "field.datev_entry_change_tracking.secondary_account_nr",          "fieldType": { "kind": "integer" },                              "sortable": true,  "filterable": true  },
+  { "key": "stackId",                     "labelKey": "field.datev_entry_change_tracking.stack_id",                      "fieldType": { "kind": "integer" },                              "sortable": true,  "filterable": true  },
+  { "key": "groupId",                     "labelKey": "field.datev_entry_change_tracking.group_id",                      "fieldType": { "kind": "integer" },                              "sortable": false, "filterable": true  },
+  { "key": "key",                         "labelKey": "field.datev_entry_change_tracking.key",                           "fieldType": { "kind": "text" },                                 "sortable": true,  "filterable": true  },
+  { "key": "discount",                    "labelKey": "field.datev_entry_change_tracking.discount",                      "fieldType": { "kind": "decimal", "precision": 4 },              "sortable": false, "filterable": false },
+  { "key": "documentInfo",                "labelKey": "field.datev_entry_change_tracking.document_info",                 "fieldType": { "kind": "text" },                                 "sortable": false, "filterable": true  },
+  { "key": "externalId",                  "labelKey": "field.datev_entry_change_tracking.external_id",                   "fieldType": { "kind": "text" },                                 "sortable": false, "filterable": true  },
+  { "key": "inverted",                    "labelKey": "field.datev_entry_change_tracking.inverted",                      "fieldType": { "kind": "boolean" },                              "sortable": true,  "filterable": true  },
+  { "key": "published",                   "labelKey": "field.datev_entry_change_tracking.published",                     "fieldType": { "kind": "boolean" },                              "sortable": true,  "filterable": true  },
+  { "key": "starMoneyEntryId",            "labelKey": "field.datev_entry_change_tracking.star_money_entry_id",           "fieldType": { "kind": "integer" },                              "sortable": false, "filterable": true  },
+  { "key": "starMoneyCreditCardEntryId",  "labelKey": "field.datev_entry_change_tracking.sm_credit_card_entry_id",       "fieldType": { "kind": "integer" },                              "sortable": false, "filterable": false }
 ]
