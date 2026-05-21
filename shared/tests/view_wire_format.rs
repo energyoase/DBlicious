@@ -47,3 +47,30 @@ fn empty_overrides_drop_via_skip_serializing_if() {
     let s = serde_json::to_string(&o).unwrap();
     assert_eq!(s, r#"{"key":"x"}"#);
 }
+
+#[test]
+fn resolved_layer_ref_omits_none_owner_and_pins_camelcase() {
+    use shared::view::ResolvedLayerRef;
+
+    let none_owner = ResolvedLayerRef {
+        layer: shared::view::ViewLayer::Global,
+        view_id: "v-1".into(),
+        owner_id: None,
+        version: 3,
+    };
+    assert_eq!(
+        serde_json::to_string(&none_owner).unwrap(),
+        r#"{"layer":"global","viewId":"v-1","version":3}"#
+    );
+
+    let with_owner = ResolvedLayerRef {
+        layer: shared::view::ViewLayer::Group,
+        view_id: "v-2".into(),
+        owner_id: Some("g-1".into()),
+        version: 1,
+    };
+    assert_eq!(
+        serde_json::to_string(&with_owner).unwrap(),
+        r#"{"layer":"group","viewId":"v-2","ownerId":"g-1","version":1}"#
+    );
+}

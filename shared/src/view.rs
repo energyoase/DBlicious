@@ -72,6 +72,7 @@ pub struct EntityView {
 pub struct ResolvedLayerRef {
     pub layer: ViewLayer,
     pub view_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner_id: Option<String>,
     pub version: i32,
 }
