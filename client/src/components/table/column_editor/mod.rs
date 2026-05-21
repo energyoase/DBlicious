@@ -1,5 +1,8 @@
 //! Q0005 — Pure-Function-Layer fuer den In-Place Column-Editor.
 
+pub mod popover;
+pub use popover::ColumnEditorPopover;
+
 use std::collections::HashMap;
 use shared::view::ViewPropertyOverride;
 use shared::{ColumnMeta, EntitySettings};
