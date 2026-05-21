@@ -907,7 +907,27 @@ impl QueryRoot {
         entity_type: String,
     ) -> async_graphql::Result<Option<EntitySettings>> {
         require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
-        Ok(data::settings_for_async(&entity_type).await.map(map_settings))
+        let auth = ctx.data_opt::<AuthContext>();
+        let user_ref = auth.and_then(|a| a.user.as_ref());
+        let resolved = crate::views::resolve_view(&entity_type, "default", user_ref).await;
+        // Wenn keine Layer vorliegen, ist provenance leer — gib None zurueck,
+        // damit der Client auf Default-Verhalten faellt.
+        // F1 (loader bootstrap) wird entity_views beim Start befuellen, sodass
+        // dieser Pfad im normalen Betrieb nicht mehr zurueck-None liefert.
+        if resolved.provenance.is_empty() {
+            return Ok(None);
+        }
+        let settings = shared::EntitySettings {
+            entity_type:         resolved.entity_type,
+            access:              shared::settings::Access::default(),
+            default_page_size:   resolved.default_page_size,
+            default_sort:        resolved.default_sort,
+            default_filter:      resolved.default_filter,
+            properties:          resolved.properties,
+            field_type_defaults: Default::default(),
+            binding:             None,
+        };
+        Ok(Some(map_settings(settings)))
     }
 
     /// Aktive Builder-Version (Phase 1.6). `None` wenn fuer den entity_type
