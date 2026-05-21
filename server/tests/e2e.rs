@@ -1577,3 +1577,168 @@ async fn logout_invalidates_only_this_token() {
         .await
         .is_some());
 }
+
+// =============================================================================
+// Q0005: Named Views E2E
+// =============================================================================
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn entity_view_returns_resolved_default_for_authenticated_user() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    let res = exec(
+        r#"query($t:String!){ entityView(entityType:$t) { entityType viewName version } }"#,
+        json!({"t": "product"}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    let ev = &v["entityView"];
+    assert_eq!(ev["entityType"], json!("product"));
+    assert_eq!(ev["viewName"], json!("default"));
+    // Version ist die Summe aller Layer-Versionen.
+    // F1 seeded version=0 → Summe ist 0.
+    assert!(ev["version"].as_i64().is_some());
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn save_entity_view_creates_then_conflicts_on_stale_version() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+
+    // Erst speichern — kein expectedVersion → wird version=1.
+    let res = exec(
+        r#"mutation($i:SaveEntityViewInput!){ saveEntityView(input:$i) { kind view { version } message } }"#,
+        json!({
+            "i": {
+                "entityType": "product",
+                "viewName": "default",
+                "layer": "GLOBAL",
+                "payload": { "properties": [], "defaultPageSize": 50 }
+            }
+        }),
+        ctx.clone(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    assert_eq!(v["saveEntityView"]["kind"], json!("OK"));
+
+    // Jetzt mit stale expectedVersion=0 erneut speichern.
+    // Die aktuelle Version ist jetzt 1, daher Conflict.
+    let res2 = exec(
+        r#"mutation($i:SaveEntityViewInput!){ saveEntityView(input:$i) { kind } }"#,
+        json!({
+            "i": {
+                "entityType": "product",
+                "viewName": "default",
+                "layer": "GLOBAL",
+                "expectedVersion": 0,
+                "payload": { "properties": [] }
+            }
+        }),
+        ctx,
+    )
+    .await;
+    assert!(res2.errors.is_empty(), "{:?}", res2.errors);
+    assert_eq!(res2.data.into_json().unwrap()["saveEntityView"]["kind"], json!("CONFLICT"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn save_entity_view_forbidden_without_auth() {
+    boot().await;
+    let res = exec(
+        r#"mutation($i:SaveEntityViewInput!){ saveEntityView(input:$i) { kind message } }"#,
+        json!({
+            "i": {
+                "entityType": "product",
+                "viewName": "default",
+                "layer": "GLOBAL",
+                "payload": { "properties": [] }
+            }
+        }),
+        anon(),
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    assert_eq!(res.data.into_json().unwrap()["saveEntityView"]["kind"], json!("FORBIDDEN"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn revert_entity_view_removes_user_layer_only() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    // Admin-ID im Shop-Beispiel ist "u-1".
+    let admin_id = ctx.user.as_ref().unwrap().id.clone();
+
+    // User-Layer anlegen.
+    let save = exec(
+        r#"mutation($i:SaveEntityViewInput!){ saveEntityView(input:$i) { kind } }"#,
+        json!({
+            "i": {
+                "entityType": "product",
+                "viewName": "default",
+                "layer": "USER",
+                "ownerId": admin_id,
+                "payload": { "properties": [] }
+            }
+        }),
+        ctx.clone(),
+    )
+    .await;
+    assert!(save.errors.is_empty(), "{:?}", save.errors);
+    assert_eq!(save.data.into_json().unwrap()["saveEntityView"]["kind"], json!("OK"));
+
+    // User-Layer wieder loeschen (revert).
+    let revert = exec(
+        r#"mutation($et:String!,$vn:String!,$l:ViewLayer!,$oid:String){
+            revertEntityView(entityType:$et, viewName:$vn, layer:$l, ownerId:$oid) { ok }
+        }"#,
+        json!({
+            "et": "product",
+            "vn": "default",
+            "l": "USER",
+            "oid": admin_id
+        }),
+        ctx.clone(),
+    )
+    .await;
+    assert!(revert.errors.is_empty(), "{:?}", revert.errors);
+    assert_eq!(revert.data.into_json().unwrap()["revertEntityView"]["ok"], json!(true));
+
+    // Global-Layer aus F1-Seed bleibt erhalten.
+    let q = exec(
+        r#"query($t:String!){ entityView(entityType:$t) { viewName entityType } }"#,
+        json!({"t": "product"}),
+        ctx,
+    )
+    .await;
+    assert!(q.errors.is_empty(), "{:?}", q.errors);
+    assert_eq!(q.data.into_json().unwrap()["entityView"]["viewName"], json!("default"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[serial_test::serial]
+async fn entity_settings_resolves_via_view_overlay() {
+    boot().await;
+    let ctx = login_as("admin", "admin").await;
+    // F1 seeded entity views aus Loader-Settings; entitySettings laedt
+    // ueber resolve_view und liefert ein typisiertes EntitySettings-Objekt.
+    let res = exec(
+        r#"query($t:String!){ entitySettings(entityType:$t) { entityType access } }"#,
+        json!({"t": "product"}),
+        ctx,
+    )
+    .await;
+    assert!(res.errors.is_empty(), "{:?}", res.errors);
+    let v = res.data.into_json().unwrap();
+    let es = &v["entitySettings"];
+    // entitySettings ist Some(...) weil F1 einen Global-Layer geseedet hat.
+    assert!(!es.is_null(), "entitySettings muss Some sein nach F1-Seed");
+    assert_eq!(es["entityType"], json!("product"));
+}
