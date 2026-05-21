@@ -102,12 +102,23 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         // Phase 2.5 + 2.8: Plugin-Storage + Audit-Log.
         schema.create_table_from_entity(entity::plugins::Entity),
         schema.create_table_from_entity(entity::plugin_invocations::Entity),
+        // Q0005: Named Views — 1 Row pro (entity_type, view_name, layer, owner_id).
+        schema.create_table_from_entity(entity::entity_views::Entity),
     ];
     for t in &mut tables {
         t.if_not_exists();
         let stmt = db.get_database_backend().build(t);
         db.execute(stmt).await?;
     }
+    // UNIQUE (entity_type, view_name, layer, owner_id)
+    // SeaORM hat hier keine bequeme Builder-API mit NULL-Semantik; raw SQL
+    // bleibt sauber.
+    let _ = db
+        .execute_unprepared(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_entity_views \
+             ON entity_views(entity_type, view_name, layer, IFNULL(owner_id, ''))",
+        )
+        .await?;
     Ok(())
 }
 
