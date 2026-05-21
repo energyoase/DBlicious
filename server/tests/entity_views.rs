@@ -12,7 +12,9 @@ async fn entity_views_table_exists_after_init() {
         .count(&db)
         .await
         .expect("query");
-    assert_eq!(count, 0, "Tabelle existiert und ist leer nach init");
+    // Nach Phase F (Q0005) legt seed_entity_views_from_example beim Init
+    // eine Row pro Entity-Typ mit Settings an — Tabelle ist nicht mehr leer.
+    assert!(count >= 3, "Tabelle existiert und hat mindestens 3 Loader-Rows (product/order/customer)");
 }
 
 #[tokio::test]
@@ -20,10 +22,12 @@ async fn entity_views_table_exists_after_init() {
 async fn insert_and_read_back_a_view_row() {
     let _ = fresh_test_setup().await;
     let db = server::db::conn();
+    // Verwende "manual-test" als view_name, damit kein Konflikt mit der
+    // durch F1 (seed_entity_views_from_example) angelegten "default"-Row entsteht.
     entity::entity_views::ActiveModel {
         id:          ActiveValue::Set("v-1".into()),
         entity_type: ActiveValue::Set("order".into()),
-        view_name:   ActiveValue::Set("default".into()),
+        view_name:   ActiveValue::Set("manual-test".into()),
         layer:       ActiveValue::Set("global".into()),
         owner_id:    ActiveValue::Set(None),
         payload:     ActiveValue::Set("{\"properties\":[]}".into()),
@@ -117,4 +121,33 @@ async fn delete_view_removes_only_target_layer() {
     data::delete_entity_view("order", "default", ViewLayer::User, Some("u-1")).await.unwrap();
     assert!(data::find_entity_view("order", "default", ViewLayer::Global, None).await.unwrap().is_some());
     assert!(data::find_entity_view("order", "default", ViewLayer::User,   Some("u-1")).await.unwrap().is_none());
+}
+
+// =============================================================================
+// F1 — Loader-Bootstrap
+// =============================================================================
+
+#[tokio::test]
+#[serial_test::serial]
+async fn loader_bootstrap_creates_default_global_view_per_entity_type_with_settings() {
+    let _ = server::fresh_test_setup().await;
+    // setup_for_tests laedt 'shop'-Beispiel; pruefen wir auf 'product' (hat settings).
+    let row = data::find_entity_view("product", "default", ViewLayer::Global, None)
+        .await
+        .expect("find");
+    assert!(row.is_some(), "Loader-Settings fuer 'product' werden zur Default-View gemacht");
+    let v = row.unwrap();
+    assert_eq!(v.version, 0);
+    assert_eq!(v.updated_by.as_deref(), Some("system"));
+}
+
+#[tokio::test]
+#[serial_test::serial]
+async fn loader_bootstrap_is_idempotent() {
+    let _ = server::fresh_test_setup().await;
+    // Manuell nochmal aufrufen; bestehende Row bleibt unangetastet (version=0).
+    server::data::seed_entity_views_from_example(&server::db::conn()).await.unwrap();
+    let row = data::find_entity_view("product", "default", ViewLayer::Global, None)
+        .await.unwrap().unwrap();
+    assert_eq!(row.version, 0, "idempotent");
 }

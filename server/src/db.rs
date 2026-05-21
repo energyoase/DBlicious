@@ -158,6 +158,8 @@ async fn seed_if_empty(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     // Phase 1.6: Boot-Snapshot der Builder-Designs aus dem Loader-Set.
     // Idempotent pro entity_type (existierende version=0 bleibt unangefasst).
     crate::data::seed_entity_designs_from_example(db).await?;
+    // Phase F (Q0005): Loader-Settings als Default-Global-View materialisieren.
+    crate::data::seed_entity_views_from_example(db).await?;
     Ok(())
 }
 

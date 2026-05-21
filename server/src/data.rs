@@ -1924,6 +1924,69 @@ pub async fn delete_entity_view(
     Ok(())
 }
 
+/// Phase F (Q0005): Loader-Bootstrap. Pro Entity-Typ aus dem aktuellen
+/// `ExampleSet` mit gesetztem `EntitySettings` legen wir eine
+/// `(view_name="default", layer="global", owner_id=NULL)`-Row an.
+/// Idempotent — bestehende Rows bleiben unangetastet.
+///
+/// Achtung: Diese Funktion wird aus `db::seed_if_empty` aufgerufen, bevor
+/// der Pool-Slot gesetzt ist. Sie darf deshalb `conn()` NICHT aufrufen,
+/// sondern muss ausschliesslich das uebergebene `db` verwenden.
+pub async fn seed_entity_views_from_example(db: &sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else { return Ok(()); };
+    for (entity_type, ty_set) in &set.entities {
+        let Some(settings) = ty_set.settings.as_ref() else { continue; };
+
+        // Existiert schon? -> skip (direkt ueber db, nicht ueber conn())
+        let existing = entity::entity_views::Entity::find()
+            .filter(entity::entity_views::Column::EntityType.eq(entity_type.clone()))
+            .filter(entity::entity_views::Column::ViewName.eq("default"))
+            .filter(entity::entity_views::Column::Layer.eq("global"))
+            .filter(entity::entity_views::Column::OwnerId.is_null())
+            .one(db)
+            .await?;
+        if existing.is_some() { continue; }
+
+        // Aus EntitySettings → ViewPropertyOverride mappen.
+        let properties: Vec<shared::view::ViewPropertyOverride> = settings.properties.iter().map(|p| {
+            shared::view::ViewPropertyOverride {
+                key: p.key.clone(),
+                visibility: Some(p.visibility),
+                order: Some(p.order),
+                min_width: p.min_width,
+                label_override_key: p.label_override_key.clone(),
+                sortable: None,
+                filter_id_override: None,
+                formatter_id_override: None,
+            }
+        }).collect();
+
+        let payload = ViewPayload {
+            properties,
+            default_filter: settings.default_filter.clone(),
+            default_sort: settings.default_sort.clone(),
+            default_page_size: settings.default_page_size,
+        };
+        let payload_json = serde_json::to_string(&payload)
+            .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+
+        entity::entity_views::ActiveModel {
+            id: ActiveValue::Set(format!("v-system-{entity_type}-default-global")),
+            entity_type: ActiveValue::Set(entity_type.clone()),
+            view_name: ActiveValue::Set("default".into()),
+            layer: ActiveValue::Set("global".into()),
+            owner_id: ActiveValue::Set(None),
+            payload: ActiveValue::Set(payload_json),
+            version: ActiveValue::Set(0),
+            updated_at: ActiveValue::Set(chrono::Utc::now().to_rfc3339()),
+            updated_by: ActiveValue::Set(Some("system".into())),
+        }
+        .insert(db)
+        .await?;
+    }
+    Ok(())
+}
+
 fn row_to_view(r: entity::entity_views::Model) -> EntityView {
     let payload: ViewPayload = serde_json::from_str(&r.payload).unwrap_or(ViewPayload {
         properties: Vec::new(),
