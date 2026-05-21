@@ -10,7 +10,7 @@ use crate::settings::Visibility;
 use crate::{FilterCriteria, Sort};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 pub enum ViewLayer {
     Global,
     Group,
@@ -48,17 +48,25 @@ pub struct EntityView {
     pub entity_type: String,
     pub view_name: String,
     pub layer: ViewLayer,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner_id: Option<String>,
     pub properties: Vec<ViewPropertyOverride>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_filter: Option<FilterCriteria>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_sort: Option<Sort>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_page_size: Option<u32>,
     pub version: i32,
     pub updated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub updated_by: Option<String>,
 }
 
-/// Verwendet vom Server-Resolver. Im Wire-Format als Debug/Audit-Info.
+/// Audit-Spur fuer den Resolver. Liegt in `shared`, weil sie ueber den
+/// GraphQL-Response (server `ResolvedView::provenance`) mit ausgeliefert
+/// werden kann — heute zwar server-intern, aber kein Wire-Bruch noetig,
+/// sobald ein Client sie konsumieren will.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedLayerRef {

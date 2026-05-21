@@ -30,7 +30,7 @@ fn entity_view_global_serializes_to_pinned_camelcase_json() {
         updated_by: Some("u-1".into()),
     };
     let s = serde_json::to_string(&v).unwrap();
-    let expected = r#"{"id":"v-1","entityType":"order","viewName":"default","layer":"global","ownerId":null,"properties":[{"key":"amount","visibility":"visible","order":2}],"defaultFilter":null,"defaultSort":null,"defaultPageSize":null,"version":1,"updatedAt":"2026-05-21T00:00:00Z","updatedBy":"u-1"}"#;
+    let expected = r#"{"id":"v-1","entityType":"order","viewName":"default","layer":"global","properties":[{"key":"amount","visibility":"visible","order":2}],"version":1,"updatedAt":"2026-05-21T00:00:00Z","updatedBy":"u-1"}"#;
     assert_eq!(s, expected);
 }
 
