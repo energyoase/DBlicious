@@ -1228,3 +1228,208 @@ pub async fn fetch_entity_by_id(
         Entity { id: e.id, fields }
     }))
 }
+
+// =============================================================================
+// Q0005 — Named Views
+// =============================================================================
+
+const ENTITY_VIEW_QUERY: &str = r#"
+    query EntityView($entityType: String!, $viewName: String!) {
+        entityView(entityType: $entityType, viewName: $viewName) {
+            id entityType viewName layer ownerId
+            properties defaultFilter defaultSort defaultPageSize
+            version updatedAt updatedBy
+        }
+    }
+"#;
+
+const ENTITY_VIEWS_QUERY: &str = r#"
+    query EntityViews($entityType: String!) {
+        entityViews(entityType: $entityType) { viewName layers updatedAt }
+    }
+"#;
+
+const SAVE_ENTITY_VIEW_MUTATION: &str = r#"
+    mutation SaveEntityView($input: SaveEntityViewInput!) {
+        saveEntityView(input: $input) {
+            kind message
+            view { id entityType viewName layer ownerId properties defaultFilter defaultSort defaultPageSize version updatedAt updatedBy }
+        }
+    }
+"#;
+
+const REVERT_ENTITY_VIEW_MUTATION: &str = r#"
+    mutation RevertEntityView($entityType: String!, $viewName: String!, $layer: ViewLayer!, $ownerId: String) {
+        revertEntityView(entityType: $entityType, viewName: $viewName, layer: $layer, ownerId: $ownerId) { ok message }
+    }
+"#;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EntityViewVars<'a> {
+    entity_type: &'a str,
+    view_name:   &'a str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EntityViewsVars<'a> {
+    entity_type: &'a str,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EntityViewResp {
+    entity_view: Option<RawEntityView>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EntityViewsResp {
+    entity_views: Vec<RawEntityViewSummary>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawEntityViewSummary {
+    pub view_name:  String,
+    pub layers:     Vec<shared::view::ViewLayer>,
+    pub updated_at: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawEntityView {
+    id: String,
+    entity_type: String,
+    view_name:   String,
+    layer:    shared::view::ViewLayer,
+    owner_id:    Option<String>,
+    properties:        serde_json::Value,
+    default_filter:    Option<serde_json::Value>,
+    default_sort:      Option<serde_json::Value>,
+    default_page_size: Option<u32>,
+    version:    i32,
+    updated_at: String,
+    updated_by: Option<String>,
+}
+
+impl From<RawEntityView> for shared::view::EntityView {
+    fn from(r: RawEntityView) -> Self {
+        shared::view::EntityView {
+            id: r.id,
+            entity_type: r.entity_type,
+            view_name: r.view_name,
+            layer: r.layer,
+            owner_id: r.owner_id,
+            properties: serde_json::from_value(r.properties).unwrap_or_default(),
+            default_filter: r.default_filter.and_then(|v| serde_json::from_value(v).ok()),
+            default_sort:   r.default_sort.and_then(|v| serde_json::from_value(v).ok()),
+            default_page_size: r.default_page_size,
+            version: r.version,
+            updated_at: r.updated_at,
+            updated_by: r.updated_by,
+        }
+    }
+}
+
+pub async fn fetch_entity_view(
+    entity_type: &str,
+    view_name: &str,
+) -> Result<Option<shared::view::EntityView>, GqlError> {
+    let d: EntityViewResp =
+        execute(ENTITY_VIEW_QUERY, EntityViewVars { entity_type, view_name }).await?;
+    Ok(d.entity_view.map(Into::into))
+}
+
+pub async fn fetch_entity_views(
+    entity_type: &str,
+) -> Result<Vec<RawEntityViewSummary>, GqlError> {
+    let d: EntityViewsResp =
+        execute(ENTITY_VIEWS_QUERY, EntityViewsVars { entity_type }).await?;
+    Ok(d.entity_views)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveEntityViewInputClient<'a> {
+    pub entity_type:      &'a str,
+    pub view_name:        &'a str,
+    pub layer:            shared::view::ViewLayer,
+    pub owner_id:         Option<&'a str>,
+    pub payload:          serde_json::Value,
+    pub expected_version: Option<i32>,
+}
+
+#[derive(Serialize)]
+struct SaveVars<'a> {
+    input: SaveEntityViewInputClient<'a>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveEntityViewOutcomeRaw {
+    kind:    String,
+    message: Option<String>,
+    #[serde(default)]
+    view:    Option<RawEntityView>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveResp {
+    save_entity_view: SaveEntityViewOutcomeRaw,
+}
+
+pub struct SaveEntityViewOutcomeClient {
+    pub kind:    String,
+    pub message: Option<String>,
+    pub view:    Option<shared::view::EntityView>,
+}
+
+pub async fn save_entity_view(
+    input: SaveEntityViewInputClient<'_>,
+) -> Result<SaveEntityViewOutcomeClient, GqlError> {
+    let r: SaveResp = execute(SAVE_ENTITY_VIEW_MUTATION, SaveVars { input }).await?;
+    Ok(SaveEntityViewOutcomeClient {
+        kind:    r.save_entity_view.kind,
+        message: r.save_entity_view.message,
+        view:    r.save_entity_view.view.map(Into::into),
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RevertVars<'a> {
+    entity_type: &'a str,
+    view_name:   &'a str,
+    layer: shared::view::ViewLayer,
+    owner_id:    Option<&'a str>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RevertResp {
+    revert_entity_view: RevertEntityViewOutcomeClient,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevertEntityViewOutcomeClient {
+    pub ok: bool,
+    pub message: Option<String>,
+}
+
+pub async fn revert_entity_view(
+    entity_type: &str,
+    view_name: &str,
+    layer: shared::view::ViewLayer,
+    owner_id: Option<&str>,
+) -> Result<RevertEntityViewOutcomeClient, GqlError> {
+    let r: RevertResp = execute(
+        REVERT_ENTITY_VIEW_MUTATION,
+        RevertVars { entity_type, view_name, layer, owner_id },
+    )
+    .await?;
+    Ok(r.revert_entity_view)
+}
