@@ -1750,6 +1750,204 @@ async fn insert_seed_entity(
 }
 
 // =============================================================================
+// Q0005: Named Views — CRUD-Helpers
+// =============================================================================
+
+use shared::view::{EntityView, ViewLayer, ViewPropertyOverride};
+
+/// JSON-Form, die im `payload`-Feld der `entity_views`-Tabelle liegt.
+/// Nur das, was *nicht* in den eigenen Spalten redundant gehalten wird.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ViewPayload {
+    properties: Vec<ViewPropertyOverride>,
+    #[serde(default)]
+    default_filter: Option<shared::FilterCriteria>,
+    #[serde(default)]
+    default_sort: Option<shared::Sort>,
+    #[serde(default)]
+    default_page_size: Option<u32>,
+}
+
+pub struct EntityViewSummary {
+    pub view_name: String,
+    pub layers: Vec<ViewLayer>,
+    pub updated_at: String,
+}
+
+fn layer_str(l: ViewLayer) -> &'static str {
+    match l {
+        ViewLayer::Global => "global",
+        ViewLayer::Group => "group",
+        ViewLayer::User => "user",
+    }
+}
+
+fn layer_from_str(s: &str) -> Option<ViewLayer> {
+    match s {
+        "global" => Some(ViewLayer::Global),
+        "group" => Some(ViewLayer::Group),
+        "user" => Some(ViewLayer::User),
+        _ => None,
+    }
+}
+
+fn assert_layer_invariant(layer: ViewLayer, owner_id: Option<&str>) -> Result<(), String> {
+    let global_no_owner = layer == ViewLayer::Global && owner_id.is_none();
+    let scoped_has_owner =
+        matches!(layer, ViewLayer::Group | ViewLayer::User) && owner_id.is_some();
+    if global_no_owner || scoped_has_owner {
+        Ok(())
+    } else {
+        Err(format!(
+            "Invalides Layer/Owner-Paar: layer={layer:?}, owner_id={owner_id:?}"
+        ))
+    }
+}
+
+pub async fn upsert_entity_view(v: &EntityView) -> Result<(), String> {
+    assert_layer_invariant(v.layer, v.owner_id.as_deref())?;
+    let payload = ViewPayload {
+        properties: v.properties.clone(),
+        default_filter: v.default_filter.clone(),
+        default_sort: v.default_sort.clone(),
+        default_page_size: v.default_page_size,
+    };
+    let payload_json = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
+    let db = &conn();
+    let existing = entity::entity_views::Entity::find()
+        .filter(entity::entity_views::Column::EntityType.eq(v.entity_type.clone()))
+        .filter(entity::entity_views::Column::ViewName.eq(v.view_name.clone()))
+        .filter(entity::entity_views::Column::Layer.eq(layer_str(v.layer)))
+        .filter(match &v.owner_id {
+            Some(o) => entity::entity_views::Column::OwnerId.eq(o.clone()),
+            None => entity::entity_views::Column::OwnerId.is_null(),
+        })
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    match existing {
+        Some(row) => {
+            let mut am: entity::entity_views::ActiveModel = row.into();
+            am.payload = ActiveValue::Set(payload_json);
+            am.version = ActiveValue::Set(v.version);
+            am.updated_by = ActiveValue::Set(v.updated_by.clone());
+            am.updated_at = ActiveValue::Set(v.updated_at.clone());
+            am.update(db).await.map_err(|e| e.to_string())?;
+        }
+        None => {
+            entity::entity_views::ActiveModel {
+                id: ActiveValue::Set(v.id.clone()),
+                entity_type: ActiveValue::Set(v.entity_type.clone()),
+                view_name: ActiveValue::Set(v.view_name.clone()),
+                layer: ActiveValue::Set(layer_str(v.layer).into()),
+                owner_id: ActiveValue::Set(v.owner_id.clone()),
+                payload: ActiveValue::Set(payload_json),
+                version: ActiveValue::Set(v.version),
+                updated_by: ActiveValue::Set(v.updated_by.clone()),
+                updated_at: ActiveValue::Set(v.updated_at.clone()),
+            }
+            .insert(db)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+pub async fn find_entity_view(
+    entity_type: &str,
+    view_name: &str,
+    layer: ViewLayer,
+    owner_id: Option<&str>,
+) -> Result<Option<EntityView>, String> {
+    let db = &conn();
+    let row = entity::entity_views::Entity::find()
+        .filter(entity::entity_views::Column::EntityType.eq(entity_type))
+        .filter(entity::entity_views::Column::ViewName.eq(view_name))
+        .filter(entity::entity_views::Column::Layer.eq(layer_str(layer)))
+        .filter(match owner_id {
+            Some(o) => entity::entity_views::Column::OwnerId.eq(o),
+            None => entity::entity_views::Column::OwnerId.is_null(),
+        })
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(row.map(row_to_view))
+}
+
+pub async fn find_entity_views(entity_type: &str) -> Result<Vec<EntityViewSummary>, String> {
+    use std::collections::BTreeMap;
+    let db = &conn();
+    let rows = entity::entity_views::Entity::find()
+        .filter(entity::entity_views::Column::EntityType.eq(entity_type))
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut by_name: BTreeMap<String, EntityViewSummary> = BTreeMap::new();
+    for r in rows {
+        let layer = layer_from_str(&r.layer)
+            .ok_or_else(|| format!("Unbekannter Layer: '{}'", r.layer))?;
+        let entry = by_name.entry(r.view_name.clone()).or_insert_with(|| EntityViewSummary {
+            view_name: r.view_name.clone(),
+            layers: Vec::new(),
+            updated_at: r.updated_at.clone(),
+        });
+        if !entry.layers.contains(&layer) {
+            entry.layers.push(layer);
+        }
+        if r.updated_at > entry.updated_at {
+            entry.updated_at = r.updated_at;
+        }
+    }
+    Ok(by_name.into_values().collect())
+}
+
+pub async fn delete_entity_view(
+    entity_type: &str,
+    view_name: &str,
+    layer: ViewLayer,
+    owner_id: Option<&str>,
+) -> Result<(), String> {
+    let db = &conn();
+    entity::entity_views::Entity::delete_many()
+        .filter(entity::entity_views::Column::EntityType.eq(entity_type))
+        .filter(entity::entity_views::Column::ViewName.eq(view_name))
+        .filter(entity::entity_views::Column::Layer.eq(layer_str(layer)))
+        .filter(match owner_id {
+            Some(o) => entity::entity_views::Column::OwnerId.eq(o),
+            None => entity::entity_views::Column::OwnerId.is_null(),
+        })
+        .exec(db)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn row_to_view(r: entity::entity_views::Model) -> EntityView {
+    let payload: ViewPayload = serde_json::from_str(&r.payload).unwrap_or(ViewPayload {
+        properties: Vec::new(),
+        default_filter: None,
+        default_sort: None,
+        default_page_size: None,
+    });
+    EntityView {
+        id: r.id,
+        entity_type: r.entity_type,
+        view_name: r.view_name,
+        layer: layer_from_str(&r.layer).unwrap_or(ViewLayer::Global),
+        owner_id: r.owner_id,
+        properties: payload.properties,
+        default_filter: payload.default_filter,
+        default_sort: payload.default_sort,
+        default_page_size: payload.default_page_size,
+        version: r.version,
+        updated_by: r.updated_by,
+        updated_at: r.updated_at,
+    }
+}
+
+// =============================================================================
 // Tests
 // =============================================================================
 
