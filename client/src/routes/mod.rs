@@ -122,8 +122,55 @@ pub fn EntityListPage() -> impl IntoView {
         }
     });
 
-    // Unused-variable-Unterdrückung für Signale, die erst in L4 konsumiert werden.
-    let _ = current_view_version;
+    // Save-Callback: schickt pending_overrides an den Server und räumt den
+    // Edit-Mode auf — Konflikt-Fall zeigt Browser-Alert und aktualisiert
+    // die gespeicherte Version für den nächsten Save-Versuch.
+    let on_save: Callback<()> = Callback::new(move |_| {
+        let et = params.read().get("entity_type").unwrap_or_default();
+        let vn = view_name();
+        let expected = current_view_version.get();
+        let overrides: Vec<shared::view::ViewPropertyOverride> =
+            pending_overrides.with(|p| p.values().cloned().collect());
+        let payload = serde_json::json!({
+            "properties": overrides,
+            "defaultFilter": serde_json::Value::Null,
+            "defaultSort":   serde_json::Value::Null,
+            "defaultPageSize": serde_json::Value::Null,
+        });
+        leptos::task::spawn_local(async move {
+            let res = crate::graphql::queries::save_entity_view(
+                crate::graphql::queries::SaveEntityViewInputClient {
+                    entity_type: &et,
+                    view_name:   &vn,
+                    layer:       shared::view::ViewLayer::Global,
+                    owner_id:    None,
+                    payload,
+                    expected_version: expected,
+                }
+            ).await;
+            match res {
+                Ok(outcome) if outcome.kind == "OK" => {
+                    pending_overrides.update(|p| p.clear());
+                    edit_mode.set(false);
+                    open_popover_for.set(None);
+                    current_view.refetch();
+                }
+                Ok(outcome) if outcome.kind == "CONFLICT" => {
+                    if let Some(server_view) = outcome.view.as_ref() {
+                        current_view_version.set(Some(server_view.version));
+                    }
+                    let _ = web_sys::window()
+                        .and_then(|w| w.alert_with_message(
+                            "Konflikt: andere Bearbeitung wurde zwischenzeitlich gespeichert. Bitte neu laden und Edits nochmal anwenden."
+                        ).ok());
+                }
+                Ok(outcome) => {
+                    log::warn!("save_entity_view: {}: {:?}", outcome.kind, outcome.message);
+                }
+                Err(e) => log::error!("save_entity_view RPC: {e}"),
+            }
+        });
+    });
 
     view! {
         <div style=card>
@@ -234,9 +281,7 @@ pub fn EntityListPage() -> impl IntoView {
                                     {move || (edit_mode.get() && !pending_overrides.with(|p| p.is_empty())).then(|| {
                                         let save_btn = primary_btn.clone();
                                         view! {
-                                            <button style=save_btn on:click=move |_| {
-                                                // TODO L4: on_save callback
-                                            }>
+                                            <button style=save_btn on:click=move |_| on_save.run(())>
                                                 {move || t("table.actions.save-view")}
                                             </button>
                                         }
