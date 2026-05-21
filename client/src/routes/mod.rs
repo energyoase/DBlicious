@@ -122,8 +122,7 @@ pub fn EntityListPage() -> impl IntoView {
         }
     });
 
-    // Unused-variable-Unterdrückung für Signale, die erst in L2/L4 konsumiert werden.
-    let _ = edit_layer;
+    // Unused-variable-Unterdrückung für Signale, die erst in L4 konsumiert werden.
     let _ = current_view_version;
 
     view! {
@@ -193,6 +192,7 @@ pub fn EntityListPage() -> impl IntoView {
                     let design = use_design();
                     let primary_btn = design.button(crate::styling::ButtonVariant::Primary).inline.clone();
                     let secondary_btn = design.button(crate::styling::ButtonVariant::Secondary).inline.clone();
+                    let muted = design.text(TextVariant::Muted).inline.clone();
                     view! {
                         <div>
                             <h1 style=h1>{entity_type.clone()}</h1>
@@ -206,14 +206,49 @@ pub fn EntityListPage() -> impl IntoView {
                                 <TopMenu>
                                     <GlobalFilter/>
                                     {can_create.then(|| view! {
-                                        <a href=new_href style=primary_btn>
+                                        <a href=new_href style=primary_btn.clone()>
                                             {move || t("table.actions.new")}
                                         </a>
                                     })}
                                     {can_update.then(|| view! {
-                                        <a href=builder_href style=secondary_btn>
+                                        <a href=builder_href style=secondary_btn.clone()>
                                             {move || t("table.actions.builder")}
                                         </a>
+                                    })}
+                                    {can_update.then(|| {
+                                        let edit_mode_btn = secondary_btn.clone();
+                                        view! {
+                                            <button
+                                                style=edit_mode_btn
+                                                on:click=move |_| edit_mode.update(|b| *b = !*b)
+                                            >
+                                                {move || if edit_mode.get() {
+                                                    t("table.actions.discard-view")
+                                                } else {
+                                                    t("table.actions.edit-mode")
+                                                }}
+                                            </button>
+                                        }
+                                    })}
+                                    {move || (edit_mode.get() && !pending_overrides.with(|p| p.is_empty())).then(|| {
+                                        let save_btn = primary_btn.clone();
+                                        view! {
+                                            <button style=save_btn on:click=move |_| {
+                                                // TODO L4: on_save callback
+                                            }>
+                                                {move || t("table.actions.save-view")}
+                                            </button>
+                                        }
+                                    })}
+                                    {move || edit_mode.get().then(|| {
+                                        let muted_pill = muted.clone();
+                                        view! {
+                                            <span style=muted_pill>
+                                                {move || crate::t!("table.status.edit-layer", "layer" => format!("{:?}", edit_layer.get()))}
+                                                " · "
+                                                {move || crate::t!("table.status.pending", "n" => pending_overrides.with(|p| p.len()) as i64)}
+                                            </span>
+                                        }
                                     })}
                                 </TopMenu>
                                 <SelectionColumn mode=SelectionMode::Multi/>
