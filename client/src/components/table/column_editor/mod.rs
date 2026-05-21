@@ -90,3 +90,74 @@ mod tests {
         assert!(settings.property("foreign").is_some());
     }
 }
+
+/// Header-Bounding-Box im Viewport (px).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HeaderRect {
+    pub left:   f64,
+    pub right:  f64,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DragState {
+    pub from_index: usize,
+    pub pointer_x:  f64,
+}
+
+/// Berechnet die neue Spalten-Reihenfolge als Indexliste. Stable.
+///
+/// Inputs:
+///   - `headers`: aktuelle Header-Rects in Render-Reihenfolge
+///   - `drag`:    welche Spalte gerade gezogen wird + aktuelle Maus-X
+///
+/// Output: Vec<usize> der gleichen Laenge wie `headers`, jeweils Index in
+/// der urspruenglichen Liste. Beispiel: [0,1,2] -> dragged 0 nach Mitte
+/// von 2 -> [1,2,0].
+pub fn compute_reorder(headers: &[HeaderRect], drag: &DragState) -> Vec<usize> {
+    let n = headers.len();
+    if n == 0 || drag.from_index >= n { return (0..n).collect(); }
+    // Drop-Zone: ueber welchem Header ist die Maus?
+    let to_index = headers.iter().enumerate()
+        .find(|(_, r)| drag.pointer_x >= r.left && drag.pointer_x < r.right)
+        .map(|(i, _)| i)
+        .unwrap_or(if drag.pointer_x < headers[0].left { 0 } else { n - 1 });
+    let mut idx: Vec<usize> = (0..n).collect();
+    let item = idx.remove(drag.from_index);
+    let insert = to_index.min(idx.len());
+    idx.insert(insert, item);
+    idx
+}
+
+#[cfg(test)]
+mod reorder_tests {
+    use super::*;
+    fn r(l: f64) -> HeaderRect { HeaderRect { left: l, right: l + 100.0 } }
+
+    #[test]
+    fn drag_first_to_third_swaps_to_back() {
+        let h = vec![r(0.0), r(100.0), r(200.0)];
+        let ds = DragState { from_index: 0, pointer_x: 250.0 };
+        assert_eq!(compute_reorder(&h, &ds), vec![1, 2, 0]);
+    }
+
+    #[test]
+    fn drag_last_to_first_swaps_to_front() {
+        let h = vec![r(0.0), r(100.0), r(200.0)];
+        let ds = DragState { from_index: 2, pointer_x: 50.0 };
+        assert_eq!(compute_reorder(&h, &ds), vec![2, 0, 1]);
+    }
+
+    #[test]
+    fn drag_onto_self_is_noop() {
+        let h = vec![r(0.0), r(100.0), r(200.0)];
+        let ds = DragState { from_index: 1, pointer_x: 150.0 };
+        assert_eq!(compute_reorder(&h, &ds), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn pointer_left_of_all_drops_at_index_0() {
+        let h = vec![r(0.0), r(100.0)];
+        let ds = DragState { from_index: 1, pointer_x: -50.0 };
+        assert_eq!(compute_reorder(&h, &ds), vec![1, 0]);
+    }
+}
