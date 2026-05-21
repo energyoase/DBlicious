@@ -42,13 +42,61 @@ pub fn DashboardPage() -> impl IntoView {
 
 #[component]
 pub fn EntityListPage() -> impl IntoView {
+    use std::collections::HashMap;
     use crate::graphql::queries::{fetch_columns, fetch_settings};
+    use shared::view::{ViewLayer, ViewPropertyOverride};
 
     let params = use_params_map();
     let design = use_design();
     let card = design.surface(SurfaceLevel::Card).inline.clone();
     let h1 = design.text(TextVariant::H1).inline.clone();
     let auth = AuthContext::use_context();
+
+    // Aktiver View-Name aus dem Query-Parameter ?view=… (Default: "default").
+    let view_name = move || {
+        leptos_router::hooks::use_query_map()
+            .with(|q| q.get("view").map(|s| s.to_string()))
+            .unwrap_or_else(|| "default".into())
+    };
+
+    // View-Edit-State-Signale (werden in L2/L3/L4 genutzt).
+    let edit_mode: RwSignal<bool> = RwSignal::new(false);
+    let edit_layer: RwSignal<ViewLayer> = RwSignal::new(ViewLayer::Global);
+    let pending_overrides: RwSignal<HashMap<String, ViewPropertyOverride>> =
+        RwSignal::new(HashMap::new());
+    let open_popover_for: RwSignal<Option<(String, f64, f64)>> = RwSignal::new(None);
+    let current_view_version: RwSignal<Option<i32>> = RwSignal::new(None);
+
+    // Aktuelle Named View vom Server nachladen.
+    let current_view: LocalResource<Option<shared::view::EntityView>> =
+        LocalResource::new(move || {
+            let et = params.read().get("entity_type").unwrap_or_default();
+            let vn = view_name();
+            async move {
+                if et.is_empty() {
+                    None
+                } else {
+                    crate::graphql::queries::fetch_entity_view(&et, &vn)
+                        .await
+                        .ok()
+                        .flatten()
+                }
+            }
+        });
+
+    // Spiegelt die Server-Version in das current_view_version-Signal,
+    // damit der Save-Flow (L4) optimistic locking machen kann.
+    Effect::new(move |_| {
+        if let Some(wrapper) = current_view.get() {
+            if let Some(v) = wrapper.take() {
+                current_view_version.set(Some(v.version));
+            }
+        }
+    });
+
+    // Kontext fuer L3 (ColumnEditorPopover) und L2 (TopMenu edit-mode toggle).
+    provide_context::<RwSignal<bool>>(edit_mode);
+    provide_context::<RwSignal<Option<(String, f64, f64)>>>(open_popover_for);
 
     // Spalten-Metadaten vom Server nachladen (zuvor hartkodiert via column_set_for).
     let columns_resource: LocalResource<Vec<shared::ColumnMeta>> = LocalResource::new(move || {
@@ -73,6 +121,10 @@ pub fn EntityListPage() -> impl IntoView {
             }
         }
     });
+
+    // Unused-variable-Unterdrückung für Signale, die erst in L2/L4 konsumiert werden.
+    let _ = edit_layer;
+    let _ = current_view_version;
 
     view! {
         <div style=card>
@@ -110,6 +162,17 @@ pub fn EntityListPage() -> impl IntoView {
                 // Settings auf Spalten anwenden (Visibility, Order, MinWidth).
                 if let Some(s) = &settings {
                     apply_settings_to_columns(&mut columns, s);
+                }
+
+                // Pending Overrides aus dem Edit-Mode auf Spalten + Settings anwenden.
+                {
+                    use crate::components::table::apply_pending_overrides;
+                    let mut settings_for_overrides = settings.clone().unwrap_or_default();
+                    apply_pending_overrides(
+                        &mut columns,
+                        &mut settings_for_overrides,
+                        &pending_overrides.get(),
+                    );
                 }
 
                 let source = Rc::new(RemoteSource::new(entity_type.clone())) as Rc<dyn crate::components::table::DataSource>;
