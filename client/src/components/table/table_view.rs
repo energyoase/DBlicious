@@ -217,11 +217,32 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
         }
     };
 
+    // Edit-Mode-Kontext: wird von EntityListPage bereitgestellt (L1/L3).
+    let edit_mode_ctx = use_context::<RwSignal<bool>>();
+    let open_popover_ctx = use_context::<RwSignal<Option<(String, f64, f64)>>>();
+
     let key_for_click = column.key.clone();
+    let key_for_popover = column.key.clone();
     let cursor = if sortable { "pointer" } else { "default" };
     let combined_style = format!("{style} cursor: {cursor}; user-select: none;");
 
-    let on_click = move |_| {
+    let on_click = move |ev: web_sys::MouseEvent| {
+        // Popover-Logik: nur im Edit-Mode.
+        if let (Some(em), Some(pop)) = (edit_mode_ctx, open_popover_ctx) {
+            if em.get() {
+                use wasm_bindgen::JsCast;
+                let (top, left) = ev.current_target()
+                    .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+                    .map(|el| {
+                        let r = el.get_bounding_client_rect();
+                        (r.bottom(), r.left())
+                    })
+                    .unwrap_or((0.0, 0.0));
+                pop.set(Some((key_for_popover.clone(), top, left)));
+                return; // im Edit-Mode kein Sort auslösen
+            }
+        }
+        // Normaler Sort-Click (nur außerhalb Edit-Mode).
         if sortable {
             state.toggle_sort(&key_for_click);
         }

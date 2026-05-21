@@ -16,9 +16,9 @@ use leptos_router::hooks::use_params_map;
 use crate::auth::AuthContext;
 use crate::components::designer::Designer;
 use crate::components::table::{
-    filters::default_registry, BottomMenu, DeleteAction, EditAction, EntityTableShell,
-    GlobalFilter, PageSize, Pager, RemoteSource, RowActions, SelectionColumn, SelectionMode,
-    TableView, TopMenu,
+    filters::default_registry, BottomMenu, ColumnEditorPopover, DeleteAction, EditAction,
+    EntityTableShell, GlobalFilter, PageSize, Pager, RemoteSource, RowActions, SelectionColumn,
+    SelectionMode, TableView, TopMenu,
 };
 use crate::i18n::t;
 use crate::styling::{use_design, SurfaceLevel, TextVariant};
@@ -130,6 +130,7 @@ pub fn EntityListPage() -> impl IntoView {
             {move || {
                 let entity_type = params.read().get("entity_type").unwrap_or_default();
                 let h1 = h1.clone();
+
                 let entity_type_for_table = entity_type.clone();
                 let can_read = auth.is_allowed(&entity_type, shared::PermissionOp::Read);
 
@@ -266,6 +267,37 @@ pub fn EntityListPage() -> impl IntoView {
                     }.into_any()
                 }
             }}
+            // Popover: erscheint wenn ein Spalten-Header im Edit-Mode geklickt wird.
+            {move || open_popover_for.get().map(|(key, top, left)| {
+                use shared::view::ViewPropertyOverride;
+                // Aktuelle Spalten-Metadaten aus der Resource lesen (ohne pending Overrides —
+                // der Popover zeigt immer die Original-ColumnMeta als Basis).
+                let opt_columns = columns_resource.get().map(|r| r.take()).unwrap_or_default();
+                let Some(col) = opt_columns.iter().find(|c| c.key == key).cloned() else {
+                    return view! { <span style="display:none;"/> }.into_any();
+                };
+                let key_for_sig    = key.clone();
+                let key_for_change = key.clone();
+                let key_for_reset  = key.clone();
+                let ov_sig: Signal<Option<ViewPropertyOverride>> = Signal::derive(move || {
+                    pending_overrides.with(|p| p.get(&key_for_sig).cloned())
+                });
+                view! {
+                    <ColumnEditorPopover
+                        column=col
+                        current_override=ov_sig
+                        on_change=Callback::new(move |ov: ViewPropertyOverride| {
+                            pending_overrides.update(|m| { m.insert(key_for_change.clone(), ov); });
+                        })
+                        on_reset=Callback::new(move |_: ()| {
+                            pending_overrides.update(|m| { m.remove(&key_for_reset); });
+                        })
+                        on_close=Callback::new(move |_: ()| open_popover_for.set(None))
+                        top=top
+                        left=left
+                    />
+                }.into_any()
+            })}
         </div>
     }
 }

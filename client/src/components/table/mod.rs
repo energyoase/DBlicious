@@ -60,7 +60,7 @@ pub mod top_menu;
 pub mod view;
 
 pub use actions::{DeleteAction, EditAction, EntityAction, RowContext};
-pub use column_editor::{apply_pending_overrides, compute_reorder};
+pub use column_editor::{apply_pending_overrides, compute_reorder, ColumnEditorPopover};
 pub use bottom_menu::BottomMenu;
 pub use builder_preview::{
     synthesize_preview_rows, BuilderPreviewSource, DEFAULT_PREVIEW_ROWS,
