@@ -1001,6 +1001,52 @@ impl QueryRoot {
             .await
             .map(map_entity_design))
     }
+
+    // -- Q0005: Named Views --
+
+    async fn entity_view(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+        #[graphql(default = "default")]
+        view_name: String,
+    ) -> EntityViewGql {
+        use crate::AuthContext;
+        let auth = ctx.data_opt::<AuthContext>();
+        let user_ref = auth.and_then(|a| a.user.as_ref());
+        let resolved = crate::views::resolve_view(&entity_type, &view_name, user_ref).await;
+        EntityViewGql {
+            id:                format!("resolved:{entity_type}:{view_name}"),
+            entity_type:       resolved.entity_type,
+            view_name:         resolved.view_name,
+            layer:             GqlViewLayer::Global,
+            owner_id:          None,
+            properties:        async_graphql::Json(serde_json::to_value(resolved.properties).unwrap_or(serde_json::Value::Null)),
+            default_filter:    resolved.default_filter.map(|f| async_graphql::Json(serde_json::to_value(f).unwrap_or(serde_json::Value::Null))),
+            default_sort:      resolved.default_sort.map(|s| async_graphql::Json(serde_json::to_value(s).unwrap_or(serde_json::Value::Null))),
+            default_page_size: resolved.default_page_size,
+            version:           resolved.provenance.iter().map(|p| p.version).sum::<i32>(),
+            updated_at:        String::new(),
+            updated_by:        None,
+        }
+    }
+
+    async fn entity_views(
+        &self,
+        _ctx: &Context<'_>,
+        entity_type: String,
+    ) -> Vec<EntityViewSummaryGql> {
+        crate::data::find_entity_views(&entity_type)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|s| EntityViewSummaryGql {
+                view_name:  s.view_name,
+                layers:     s.layers.into_iter().map(GqlViewLayer::from).collect(),
+                updated_at: s.updated_at,
+            })
+            .collect()
+    }
 }
 
 pub struct MutationRoot;
@@ -1309,6 +1355,121 @@ impl MutationRoot {
         }
     }
 
+    // -- Q0005: Named Views --
+
+    async fn save_entity_view(
+        &self,
+        ctx: &Context<'_>,
+        input: SaveEntityViewInput,
+    ) -> SaveEntityViewResult {
+        use crate::AuthContext;
+        let auth = ctx.data_opt::<AuthContext>();
+        let Some(user) = auth.and_then(|a| a.user.as_ref()) else {
+            return SaveEntityViewResult {
+                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                message: Some("nicht authentifiziert".into()),
+            };
+        };
+        if !shared::is_allowed(user, &crate::data::groups().await, &input.entity_type, shared::PermissionOp::Update) {
+            return SaveEntityViewResult {
+                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                message: Some(format!("kein Update-Recht auf '{}'", input.entity_type)),
+            };
+        }
+
+        let layer: shared::view::ViewLayer = input.layer.into();
+        let owner_id = input.owner_id.clone();
+        let invariant_ok = (layer == shared::view::ViewLayer::Global && owner_id.is_none())
+            || (layer != shared::view::ViewLayer::Global && owner_id.is_some());
+        if !invariant_ok {
+            return SaveEntityViewResult {
+                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                message: Some("layer=global requires owner_id=null and vice versa".into()),
+            };
+        }
+
+        let existing = crate::data::find_entity_view(
+            &input.entity_type, &input.view_name, layer, owner_id.as_deref()
+        ).await.unwrap_or(None);
+        if let (Some(curr), Some(expected)) = (existing.as_ref(), input.expected_version) {
+            if curr.version != expected {
+                return SaveEntityViewResult {
+                    kind: SaveEntityViewResultKind::Conflict,
+                    view: Some(curr.clone().into()),
+                    message: Some(format!("expected_version={expected}, current={}", curr.version)),
+                };
+            }
+        }
+
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct PayloadIn {
+            properties: Vec<shared::view::ViewPropertyOverride>,
+            #[serde(default)] default_filter:    Option<shared::FilterCriteria>,
+            #[serde(default)] default_sort:      Option<shared::Sort>,
+            #[serde(default)] default_page_size: Option<u32>,
+        }
+        let p: PayloadIn = match serde_json::from_value(input.payload.0) {
+            Ok(p)  => p,
+            Err(e) => return SaveEntityViewResult {
+                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                message: Some(format!("payload-parse: {e}")),
+            },
+        };
+
+        let new_version = existing.as_ref().map(|v| v.version + 1).unwrap_or(1);
+        let id = existing.as_ref().map(|v| v.id.clone())
+            .unwrap_or_else(|| format!("v-{}", uuid::Uuid::new_v4()));
+        let v = shared::view::EntityView {
+            id,
+            entity_type: input.entity_type.clone(),
+            view_name:   input.view_name.clone(),
+            layer,
+            owner_id,
+            properties:        p.properties,
+            default_filter:    p.default_filter,
+            default_sort:      p.default_sort,
+            default_page_size: p.default_page_size,
+            version: new_version,
+            updated_at: chrono::Utc::now().to_rfc3339(),
+            updated_by: Some(user.id.clone()),
+        };
+        if let Err(e) = crate::data::upsert_entity_view(&v).await {
+            return SaveEntityViewResult {
+                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                message: Some(format!("save: {e}")),
+            };
+        }
+        SaveEntityViewResult {
+            kind: SaveEntityViewResultKind::Ok,
+            view: Some(v.into()),
+            message: None,
+        }
+    }
+
+    async fn revert_entity_view(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: String,
+        view_name:   String,
+        layer:       GqlViewLayer,
+        owner_id:    Option<String>,
+    ) -> RevertEntityViewResult {
+        use crate::AuthContext;
+        let auth = ctx.data_opt::<AuthContext>();
+        let Some(user) = auth.and_then(|a| a.user.as_ref()) else {
+            return RevertEntityViewResult { ok: false, message: Some("unauthenticated".into()) };
+        };
+        if !shared::is_allowed(user, &crate::data::groups().await, &entity_type, shared::PermissionOp::Update) {
+            return RevertEntityViewResult { ok: false, message: Some("forbidden".into()) };
+        }
+        let _ = user; // explicit silence for unused after gate
+        match crate::data::delete_entity_view(&entity_type, &view_name, layer.into(), owner_id.as_deref()).await {
+            Ok(_)  => RevertEntityViewResult { ok: true, message: None },
+            Err(e) => RevertEntityViewResult { ok: false, message: Some(e) },
+        }
+    }
+
     // -- Entity-CRUD --
 
     async fn create_entity(
@@ -1599,6 +1760,103 @@ impl MutationRoot {
             }),
         })
     }
+}
+
+// =============================================================================
+// Q0005 — Named Views
+// =============================================================================
+
+#[derive(async_graphql::Enum, Copy, Clone, PartialEq, Eq, Debug)]
+#[graphql(name = "ViewLayer")]
+pub enum GqlViewLayer { Global, Group, User }
+
+impl From<GqlViewLayer> for shared::view::ViewLayer {
+    fn from(v: GqlViewLayer) -> Self {
+        match v {
+            GqlViewLayer::Global => shared::view::ViewLayer::Global,
+            GqlViewLayer::Group  => shared::view::ViewLayer::Group,
+            GqlViewLayer::User   => shared::view::ViewLayer::User,
+        }
+    }
+}
+impl From<shared::view::ViewLayer> for GqlViewLayer {
+    fn from(v: shared::view::ViewLayer) -> Self {
+        match v {
+            shared::view::ViewLayer::Global => GqlViewLayer::Global,
+            shared::view::ViewLayer::Group  => GqlViewLayer::Group,
+            shared::view::ViewLayer::User   => GqlViewLayer::User,
+        }
+    }
+}
+
+#[derive(async_graphql::SimpleObject, Clone)]
+pub struct EntityViewGql {
+    pub id:                String,
+    pub entity_type:       String,
+    pub view_name:         String,
+    pub layer:             GqlViewLayer,
+    pub owner_id:          Option<String>,
+    /// Sparse Property-Overrides als JSON-Blob — analog zu ColumnMeta.fieldType.
+    pub properties:        async_graphql::Json<serde_json::Value>,
+    pub default_filter:    Option<async_graphql::Json<serde_json::Value>>,
+    pub default_sort:      Option<async_graphql::Json<serde_json::Value>>,
+    pub default_page_size: Option<u32>,
+    pub version:           i32,
+    pub updated_at:        String,
+    pub updated_by:        Option<String>,
+}
+
+impl From<shared::view::EntityView> for EntityViewGql {
+    fn from(v: shared::view::EntityView) -> Self {
+        EntityViewGql {
+            id:                v.id,
+            entity_type:       v.entity_type,
+            view_name:         v.view_name,
+            layer:             v.layer.into(),
+            owner_id:          v.owner_id,
+            properties:        async_graphql::Json(serde_json::to_value(v.properties).unwrap_or(serde_json::Value::Null)),
+            default_filter:    v.default_filter.map(|f| async_graphql::Json(serde_json::to_value(f).unwrap_or(serde_json::Value::Null))),
+            default_sort:      v.default_sort.map(|s| async_graphql::Json(serde_json::to_value(s).unwrap_or(serde_json::Value::Null))),
+            default_page_size: v.default_page_size,
+            version:           v.version,
+            updated_at:        v.updated_at,
+            updated_by:        v.updated_by,
+        }
+    }
+}
+
+#[derive(async_graphql::SimpleObject)]
+pub struct EntityViewSummaryGql {
+    pub view_name:  String,
+    pub layers:     Vec<GqlViewLayer>,
+    pub updated_at: String,
+}
+
+#[derive(async_graphql::InputObject)]
+pub struct SaveEntityViewInput {
+    pub entity_type:      String,
+    pub view_name:        String,
+    pub layer:            GqlViewLayer,
+    pub owner_id:         Option<String>,
+    /// JSON-Blob `{ properties, defaultFilter, defaultSort, defaultPageSize }`
+    pub payload:          async_graphql::Json<serde_json::Value>,
+    pub expected_version: Option<i32>,
+}
+
+#[derive(async_graphql::Enum, Copy, Clone, PartialEq, Eq, Debug)]
+pub enum SaveEntityViewResultKind { Ok, Conflict, Forbidden }
+
+#[derive(async_graphql::SimpleObject)]
+pub struct SaveEntityViewResult {
+    pub kind:    SaveEntityViewResultKind,
+    pub view:    Option<EntityViewGql>,
+    pub message: Option<String>,
+}
+
+#[derive(async_graphql::SimpleObject)]
+pub struct RevertEntityViewResult {
+    pub ok:      bool,
+    pub message: Option<String>,
 }
 
 /// Hilfsfunktion: Plugin-Validation-Fehler in das ValidationResult-Wire-
