@@ -16,9 +16,9 @@ use leptos_router::hooks::use_params_map;
 use crate::auth::AuthContext;
 use crate::components::designer::Designer;
 use crate::components::table::{
-    filters::default_registry, BottomMenu, ColumnEditorPopover, DeleteAction, EditAction,
-    EntityTableShell, GlobalFilter, PageSize, Pager, RemoteSource, RowActions, SelectionColumn,
-    SelectionMode, TableView, TopMenu,
+    filters::default_registry, BottomMenu, BuilderPreviewSource, ColumnEditorPopover, DeleteAction,
+    EditAction, EntityTableShell, GlobalFilter, PageSize, Pager, RemoteSource, RowActions,
+    SelectionColumn, SelectionMode, TableView, TopMenu, DEFAULT_PREVIEW_ROWS,
 };
 use crate::i18n::t;
 use crate::styling::{use_design, SurfaceLevel, TextVariant};
@@ -222,7 +222,12 @@ pub fn EntityListPage() -> impl IntoView {
                     );
                 }
 
-                let source = Rc::new(RemoteSource::new(entity_type.clone())) as Rc<dyn crate::components::table::DataSource>;
+                let source: Rc<dyn crate::components::table::DataSource> = if edit_mode.get() {
+                    let preview_columns = columns.clone();
+                    Rc::new(BuilderPreviewSource::from_columns(&preview_columns, DEFAULT_PREVIEW_ROWS))
+                } else {
+                    Rc::new(RemoteSource::new(entity_type.clone()))
+                };
 
                 if columns.is_empty() {
                     view! {
