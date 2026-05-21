@@ -23,6 +23,7 @@ pub mod audit_log;
 pub mod db_schemas;
 pub mod entities;
 pub mod entity_designs;
+pub mod entity_views;
 pub mod groups;
 pub mod metadata_editor;
 pub mod metadata_settings;
