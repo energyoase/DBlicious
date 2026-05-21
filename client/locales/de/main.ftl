@@ -153,3 +153,41 @@ builder-status-saving = Wird gespeichert…
 builder-status-saved = Gespeichert (Version { $version })
 builder-status-conflict = Konflikt — Server hat Version { $version }
 builder-status-error = Fehler: { $message }
+
+## Column-Editor (Q0005)
+column-editor-title        = Spalte „{ $name }"
+column-editor-visibility   = Sichtbar
+column-editor-position     = Position
+column-editor-min-width    = Min-Breite
+column-editor-label        = Label
+column-editor-sortable     = Sortierbar
+column-editor-filter       = Filter
+column-editor-format       = Format
+column-editor-reset        = Zurücksetzen
+column-editor-preview      = Vorschau
+
+table-actions-edit-mode    = Layout bearbeiten
+table-actions-save-view    = Speichern
+table-actions-discard-view = Verwerfen
+table-status-edit-layer    = Layer: { $layer }
+table-status-pending       = { $n } ungespeicherte Änderungen
+table-fallback-view        = Ansicht „{ $name }" nicht gefunden — zeige Default
+
+## Filter-Labels
+filter-contains = Enthält
+filter-equals   = Gleich
+filter-range    = Bereich
+
+## Formatter-Labels
+formatter-money-symbol    = EUR-Symbol €
+formatter-money-code      = EUR-Code
+formatter-money-decimals  = Nur Dezimalen
+formatter-decimal-default = Standard
+formatter-decimal-2       = 2 Nachkommastellen
+formatter-date-iso        = ISO (YYYY-MM-DD)
+formatter-date-local      = Lokal
+formatter-datetime-iso    = ISO Datum+Zeit
+formatter-datetime-local  = Lokal Datum+Zeit
+formatter-int-default     = Standard
+formatter-bool-yesno      = Ja / Nein
+formatter-text-plain      = Klartext

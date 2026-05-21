@@ -153,3 +153,41 @@ designer-column-add_hint = Columns
 designer-column-toggle_pk = Toggle primary key
 designer-port-tooltip = Click in link mode to create a relation
 designer-relation-tooltip = Click to remove the relation
+
+## Column-Editor (Q0005)
+column-editor-title        = Column "{ $name }"
+column-editor-visibility   = Visible
+column-editor-position     = Position
+column-editor-min-width    = Min width
+column-editor-label        = Label
+column-editor-sortable     = Sortable
+column-editor-filter       = Filter
+column-editor-format       = Format
+column-editor-reset        = Reset
+column-editor-preview      = Preview
+
+table-actions-edit-mode    = Edit layout
+table-actions-save-view    = Save
+table-actions-discard-view = Discard
+table-status-edit-layer    = Layer: { $layer }
+table-status-pending       = { $n } unsaved changes
+table-fallback-view        = View "{ $name }" not found — showing default
+
+## Filter-Labels
+filter-contains = Contains
+filter-equals   = Equals
+filter-range    = Range
+
+## Formatter-Labels
+formatter-money-symbol    = EUR symbol €
+formatter-money-code      = EUR code
+formatter-money-decimals  = Decimals only
+formatter-decimal-default = Default
+formatter-decimal-2       = 2 decimals
+formatter-date-iso        = ISO (YYYY-MM-DD)
+formatter-date-local      = Local
+formatter-datetime-iso    = ISO Date+Time
+formatter-datetime-local  = Local Date+Time
+formatter-int-default     = Default
+formatter-bool-yesno      = Yes / No
+formatter-text-plain      = Plain text

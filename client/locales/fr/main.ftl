@@ -153,3 +153,41 @@ builder-status-saving = Enregistrement…
 builder-status-saved = Enregistré (version { $version })
 builder-status-conflict = Conflit — le serveur a la version { $version }
 builder-status-error = Erreur : { $message }
+
+## Column-Editor (Q0005)
+column-editor-title        = Colonne « { $name } »
+column-editor-visibility   = Visible
+column-editor-position     = Position
+column-editor-min-width    = Largeur min
+column-editor-label        = Libellé
+column-editor-sortable     = Triable
+column-editor-filter       = Filtre
+column-editor-format       = Format
+column-editor-reset        = Réinitialiser
+column-editor-preview      = Aperçu
+
+table-actions-edit-mode    = Modifier la mise en page
+table-actions-save-view    = Enregistrer
+table-actions-discard-view = Annuler
+table-status-edit-layer    = Couche : { $layer }
+table-status-pending       = { $n } modifications non enregistrées
+table-fallback-view        = Vue « { $name } » introuvable — affichage par défaut
+
+## Filter-Labels
+filter-contains = Contient
+filter-equals   = Égal
+filter-range    = Plage
+
+## Formatter-Labels
+formatter-money-symbol    = Symbole € EUR
+formatter-money-code      = Code EUR
+formatter-money-decimals  = Décimales uniquement
+formatter-decimal-default = Par défaut
+formatter-decimal-2       = 2 décimales
+formatter-date-iso        = ISO (AAAA-MM-JJ)
+formatter-date-local      = Local
+formatter-datetime-iso    = ISO Date+Heure
+formatter-datetime-local  = Local Date+Heure
+formatter-int-default     = Par défaut
+formatter-bool-yesno      = Oui / Non
+formatter-text-plain      = Texte brut
