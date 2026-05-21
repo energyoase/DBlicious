@@ -21,6 +21,7 @@ pub mod source;
 pub mod tabs;
 pub mod translatable;
 pub mod validation;
+pub mod view;
 
 pub use auth::EffectivePermission;
 pub use builder::{EventKind, EventTrigger, GuardExpr, TriggerTarget};
@@ -51,6 +52,7 @@ pub use translatable::{
     TranslatableValue,
 };
 pub use validation::{Severity, ValidationMessage, ValidationResult};
+pub use view::{EntityView, ResolvedLayerRef, ViewLayer, ViewPropertyOverride};
 
 /// Knoten in der rekursiven Navigationshierarchie.
 ///
