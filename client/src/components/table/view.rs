@@ -71,6 +71,7 @@ pub fn EntityTable(
 
     let design = use_design();
     let table_style = design.table().inline.clone();
+    let scroll_container_style = design.table_scroll_container().inline.clone();
     let header_row_style = design.table_header_row().inline.clone();
     let cell_style_for_actions = design.table_cell().inline.clone();
     let header_cell_actions = design.table_header_cell().inline.clone();
@@ -93,7 +94,7 @@ pub fn EntityTable(
             />
 
             // ---------- Eigentliche Tabelle ----------
-            <div style="overflow-x: auto;">
+            <div style=scroll_container_style>
                 <table style=table_style>
                     <thead>
                         <tr style=header_row_style>

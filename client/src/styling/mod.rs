@@ -134,6 +134,10 @@ pub trait DesignSystem: Send + Sync {
     fn nav_item(&self, depth: usize, active: bool) -> Style;
     fn nav_group(&self, depth: usize) -> Style;
     fn table(&self) -> Style;
+    /// Wrapper-Element um `<table>`. Begrenzt Hoehe und erzeugt einen
+    /// eigenen Scroll-Bereich, damit der horizontale Scrollbalken am
+    /// Tabellen-Boden im Viewport sichtbar bleibt.
+    fn table_scroll_container(&self) -> Style;
     fn table_header_row(&self) -> Style;
     fn table_header_cell(&self) -> Style;
     fn table_row(&self, even: bool) -> Style;

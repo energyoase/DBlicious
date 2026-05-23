@@ -30,4 +30,10 @@ impl Tokens {
     // Schrift
     pub const FONT_FAMILY: &'static str =
         r#"system-ui, -apple-system, "Segoe UI", Roboto, sans-serif"#;
+
+    // Tabellen-Scroll-Container: max-height limitiert die Tabelle so, dass der
+    // horizontale Scrollbalken am Tabellen-Boden im Viewport sichtbar bleibt
+    // (Vertikal-Scroll wandert in den Container). Der Abzug deckt grob
+    // Sidebar-Top, Page-H1, Toolbar, Pager und Card-Padding ab.
+    pub const TABLE_SCROLL_MAX_HEIGHT: &'static str = "calc(100vh - 18rem)";
 }

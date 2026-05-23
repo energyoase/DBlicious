@@ -1,7 +1,7 @@
 ---
 id: Q0008
 created: 2026-05-23T00:00:00Z
-status: new
+status: done
 priority: low
 title: "Named Views: Popover-Inputs aus gespeicherter Server-View seeden (I3 aus Q0005-Review)"
 spec: docs/superpowers/specs/2026-05-21-q0005-named-views-design.md

@@ -1,7 +1,7 @@
 ---
 id: Q0002
 created: 2026-05-20T22:00:00Z
-status: new
+status: done
 priority: medium
 title: "EntityTable: horizontale Scrollbar bei langen Tabellen nicht sichtbar"
 spec: null

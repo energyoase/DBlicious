@@ -40,10 +40,48 @@ pub fn DashboardPage() -> impl IntoView {
     }
 }
 
+/// Sucht in einem Navigations-Baum (auch geschachtelt) den ersten Knoten,
+/// dessen aufgeloeste `Link`-Route exakt `route` ist, und liefert dessen
+/// `labelKey`. Wird vom H1-Title-Lookup der `EntityListPage` benutzt, damit
+/// der Seiten-Titel mit der Sidebar-Beschriftung uebereinstimmt (Q0006).
+fn find_nav_label_key(nodes: &[shared::NavigationNode], route: &str) -> Option<String> {
+    for n in nodes {
+        if let shared::MenuAction::Link { route: r } = n.resolved_action() {
+            if r == route {
+                return Some(n.label_key.clone());
+            }
+        }
+        if let Some(found) = find_nav_label_key(&n.children, route) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+/// H1-Titel einer Entity-Listen-Seite: aus Nav-`labelKey` aufgeloest,
+/// Fallback auf den `entity_type`-Slug solange Nav noch laedt oder die
+/// Entity dort nicht verlinkt ist.
+fn entity_list_h1_title(
+    entity_type: &str,
+    nav_resource: LocalResource<Vec<shared::NavigationNode>>,
+) -> String {
+    if entity_type.is_empty() {
+        return String::new();
+    }
+    let route = format!("/entities/{entity_type}");
+    match nav_resource
+        .get()
+        .and_then(|r| find_nav_label_key(&r.take(), &route))
+    {
+        Some(k) => t(&k),
+        None => entity_type.to_string(),
+    }
+}
+
 #[component]
 pub fn EntityListPage() -> impl IntoView {
     use std::collections::HashMap;
-    use crate::graphql::queries::{fetch_columns, fetch_settings};
+    use crate::graphql::queries::{fetch_columns, fetch_navigation, fetch_settings};
     use shared::view::{ViewLayer, ViewPropertyOverride};
 
     let params = use_params_map();
@@ -109,6 +147,12 @@ pub fn EntityListPage() -> impl IntoView {
             }
         }
     });
+
+    // Navigations-Baum fuer den H1-Titel-Lookup (Q0006): aktive Route
+    // → Nav-Knoten → labelKey → t(). Solange Nav noch laedt, faellt der
+    // Title auf den entity_type-Slug zurueck.
+    let nav_resource: LocalResource<Vec<shared::NavigationNode>> =
+        LocalResource::new(|| async { fetch_navigation().await.unwrap_or_default() });
 
     // Settings nachladen, damit Spalten gefiltert/sortiert werden koennen.
     let settings_resource: LocalResource<Option<shared::EntitySettings>> = LocalResource::new(move || {
@@ -186,9 +230,10 @@ pub fn EntityListPage() -> impl IntoView {
                 let settings_loaded = settings_resource.get();
 
                 if !can_read {
+                    let et_h1 = entity_type.clone();
                     return view! {
                         <div>
-                            <h1 style=h1>{entity_type.clone()}</h1>
+                            <h1 style=h1>{move || entity_list_h1_title(&et_h1, nav_resource)}</h1>
                             <p>{move || t("error.validation")}</p>
                         </div>
                     }.into_any();
@@ -196,9 +241,10 @@ pub fn EntityListPage() -> impl IntoView {
 
                 let (Some(mut columns), Some(settings_opt)) =
                     (columns_loaded, settings_loaded) else {
+                    let et_h1 = entity_type.clone();
                     return view! {
                         <div>
-                            <h1 style=h1>{entity_type.clone()}</h1>
+                            <h1 style=h1>{move || entity_list_h1_title(&et_h1, nav_resource)}</h1>
                             <p>{move || t("table.loading")}</p>
                         </div>
                     }.into_any();
@@ -252,9 +298,10 @@ pub fn EntityListPage() -> impl IntoView {
                 };
 
                 if columns.is_empty() {
+                    let et_h1 = entity_type.clone();
                     view! {
                         <div>
-                            <h1 style=h1>{entity_type.clone()}</h1>
+                            <h1 style=h1>{move || entity_list_h1_title(&et_h1, nav_resource)}</h1>
                             <p>{move || t("table.empty")}</p>
                         </div>
                     }.into_any()
@@ -268,9 +315,10 @@ pub fn EntityListPage() -> impl IntoView {
                     let primary_btn = design.button(crate::styling::ButtonVariant::Primary).inline.clone();
                     let secondary_btn = design.button(crate::styling::ButtonVariant::Secondary).inline.clone();
                     let muted = design.text(TextVariant::Muted).inline.clone();
+                    let et_h1 = entity_type.clone();
                     view! {
                         <div>
-                            <h1 style=h1>{entity_type.clone()}</h1>
+                            <h1 style=h1>{move || entity_list_h1_title(&et_h1, nav_resource)}</h1>
                             <EntityTableShell
                                 columns=columns
                                 source=source
@@ -351,8 +399,17 @@ pub fn EntityListPage() -> impl IntoView {
                 let key_for_sig    = key.clone();
                 let key_for_change = key.clone();
                 let key_for_reset  = key.clone();
+                // Fallback-Kette: pending Override → server-gespeicherter
+                // View-Override → None. Sonst zeigt der Popover „leer", obwohl
+                // der Server bereits einen Override hält (Q0008).
                 let ov_sig: Signal<Option<ViewPropertyOverride>> = Signal::derive(move || {
-                    pending_overrides.with(|p| p.get(&key_for_sig).cloned())
+                    if let Some(ov) = pending_overrides.with(|p| p.get(&key_for_sig).cloned()) {
+                        return Some(ov);
+                    }
+                    current_view
+                        .get()
+                        .and_then(|w| w.take())
+                        .and_then(|v| v.properties.into_iter().find(|ov| ov.key == key_for_sig))
                 });
                 view! {
                     <ColumnEditorPopover

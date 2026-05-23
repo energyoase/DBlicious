@@ -1,7 +1,7 @@
 ---
 id: Q0006
 created: 2026-05-21T12:35:00Z
-status: new
+status: done
 priority: medium
 title: "EntityListPage: H1 zeigt entity_type roh; Spalten-Header zeigen rohe i18n-Keys"
 spec: null

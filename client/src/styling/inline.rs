@@ -131,6 +131,13 @@ impl DesignSystem for InlineDesign {
         Style::inline("width: 100%; border-collapse: separate; border-spacing: 0;")
     }
 
+    fn table_scroll_container(&self) -> Style {
+        Style::inline(format!(
+            "overflow: auto; max-height: {};",
+            Tokens::TABLE_SCROLL_MAX_HEIGHT
+        ))
+    }
+
     fn table_header_row(&self) -> Style {
         Style::inline(format!(
             "background: {}; text-align: left;",

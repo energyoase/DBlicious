@@ -1,7 +1,7 @@
 ---
 id: Q0003
 created: 2026-05-21T00:00:00Z
-status: new
+status: done
 priority: high
 title: "BuilderPage Auth-Gate prüft Wildcard \"*\" — sollte per-Entity prüfen (analog EditorPage)"
 spec: null

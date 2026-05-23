@@ -21,6 +21,7 @@ pub fn TableView() -> impl IntoView {
     let shell = use_shell();
     let design = use_design();
     let table_style = design.table().inline.clone();
+    let scroll_container_style = design.table_scroll_container().inline.clone();
     let header_row_style = design.table_header_row().inline.clone();
     let header_cell_actions = design.table_header_cell().inline.clone();
     // Styles vorab clonen, damit nachfolgende Closures `design` nicht
@@ -47,7 +48,7 @@ pub fn TableView() -> impl IntoView {
     let columns_for_filter_row = columns.clone();
     let filters_for_row = filters.clone();
     view! {
-        <div style="overflow-x: auto;">
+        <div style=scroll_container_style>
             <table style=table_style>
                 <thead>
                     <tr style=header_row_style>
