@@ -13,7 +13,7 @@
 use std::path::PathBuf;
 
 use async_graphql::http::GraphiQLSource;
-use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
+use async_graphql_axum::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 use axum::{
     extract::State,
     http::HeaderMap,
@@ -45,7 +45,12 @@ struct Args {
 }
 
 async fn graphiql() -> impl IntoResponse {
-    Html(GraphiQLSource::build().endpoint("/graphql").finish())
+    Html(
+        GraphiQLSource::build()
+            .endpoint("/graphql")
+            .subscription_endpoint("/graphql/ws")
+            .finish(),
+    )
 }
 
 async fn graphql_handler(
@@ -138,6 +143,8 @@ async fn main() {
     let app = Router::new()
         .route("/", get(graphiql))
         .route("/graphql", post(graphql_handler))
+        // Phase 1.6: WebSocket-Subscriptions (entityDesignUpdated).
+        .route_service("/graphql/ws", GraphQLSubscription::new(schema.clone()))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(schema);

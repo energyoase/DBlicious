@@ -1994,3 +1994,43 @@ fn plugin_errors_to_validation(
         .collect();
     serde_json::json!({ "messages": messages })
 }
+
+// =============================================================================
+// Phase 1.6 — Subscriptions
+// =============================================================================
+
+pub struct SubscriptionRoot;
+
+#[async_graphql::Subscription]
+impl SubscriptionRoot {
+    /// Streamt `DesignUpdate`-Events, sobald eine neue Builder-Design-
+    /// Version gespeichert wird. Wenn `entity_type` gesetzt ist, werden
+    /// nur Events fuer diesen Typ geliefert; ohne den Filter kommt jeder
+    /// Save aller Typen rein.
+    ///
+    /// Lagged Subscriber (Channel-Overflow) verlieren Events still — kein
+    /// Crash, kein Error-Frame.
+    async fn entity_design_updated(
+        &self,
+        entity_type: Option<String>,
+    ) -> impl futures_util::Stream<Item = crate::events::DesignUpdate> {
+        let mut rx = crate::events::subscribe_design_updates();
+        async_stream::stream! {
+            loop {
+                match rx.recv().await {
+                    Ok(ev) => {
+                        if entity_type.as_deref().is_none_or(|t| t == ev.entity_type) {
+                            yield ev;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                        // Subscriber zu langsam — Events verloren, aber
+                        // weiterhoeren.
+                        continue;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        }
+    }
+}

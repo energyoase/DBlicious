@@ -1514,6 +1514,7 @@ pub async fn entity_design_version(
 ///
 /// Liefert `Err(SaveDesignError::Conflict { current })` wenn die Server-Sicht
 /// abweicht (klassisches optimistic locking).
+#[derive(Debug)]
 pub enum SaveDesignError {
     Conflict { current_version: Option<i32> },
     Locked,
@@ -1555,6 +1556,8 @@ pub async fn save_entity_design(
     }
     .insert(&conn())
     .await?;
+    // Phase 1.6: Live-Reload-Subscribers benachrichtigen.
+    crate::events::publish_design_update(entity_type, next_version);
     Ok(model)
 }
 
