@@ -388,15 +388,15 @@ Liefert der Server fuer ein Property mehrere erlaubte Varianten zurueck, darf de
 |---|---|---|---|---|
 | 1.7.5 | State-Machine-Engine: pro Entity-Typ optionale `state_machine`-Konfiguration mit Transitionen, Guards (Mini-DSL wie `GuardExpr`), Permission pro Uebergang | L | neu: `shared/src/state_machine.rs`, `server/src/sm/` | Invoice geht nur per `post`-Transition von `draft` → `posted`; Permission `Invoice.post` erforderlich; Audit-Eintrag pro Transition |
 | 1.7.6 | Approval-Workflow auf State-Machine: Multi-Stage-Approvals, Delegation, Stellvertreter-Regelung | M | wie 1.7.5 + `server/src/approval/` | Bestellung > X € braucht Vorgesetzten-Bestaetigung; Delegations-Pfad transparent im Audit |
-| 1.7.7 | Background-Job-Scheduler: cron-style + adhoc; Retries; Audit pro Job; Job-Code ist Plugin oder Builtin | L | neu: `server/src/jobs/`, neue Tabellen `jobs`/`job_runs` | Mahnlauf laeuft nightly; Retry bei Fehler; Audit zeigt Erfolg/Fail/Duration |
+| 1.7.7 | Background-Job-Scheduler: cron-style + adhoc; Retries; Audit pro Job; Job-Code ist Plugin oder Builtin | L | `server/src/jobs/`, `server/src/entity/{jobs,job_runs}.rs`; Tests `server/tests/jobs.rs`. MVP: trigger_now + Retry + Audit (eigene Tabelle job_runs wegen duration_ms + attempt). Cron-Loop + Plugin/Script-Handler als Folge-Items. | 🟡 MVP done; Cron-Loop offen |
 
 #### C — Dokumente & Kommunikation
 
 | # | Paket | Groesse | Bezug | Akzeptanz |
 |---|---|---|---|---|
-| 1.7.8 | File-Storage-Abstraction mit pluggable Backends (Local-FS, S3, MinIO); Anhang-Tabelle `attachments(entity_type, entity_id, blob_ref, mime, size, hash)` | M | neu: `server/src/storage/`; `host.storage.put/get/delete`-Host-Functions | Rechnung mit Beleg-PDF speicherbar; Backend per Config waehlbar; Hash-Check beim Lesen |
-| 1.7.9 | PDF-Generierung via Template (typst preferred, fallback wkhtmltopdf); Templates im neuen `pdf_templates`-Eintrag oder per Designer pflegbar | M | neu: `server/src/pdf/` | Rechnungs-PDF generiert sich auf Knopfdruck; Template per Designer bearbeitbar |
-| 1.7.10 | Email-Versand mit SMTP-Config + Template-Rendering; Bounce-Handling; Versand-Audit; Doku-Pflichthinweis fuer DKIM/SPF | M | neu: `server/src/email/`; `host.email.send`-Host-Function | Rechnung wird mit PDF-Anhang an Kunde verschickt; Versand-Audit nachvollziehbar |
+| 1.7.8 | File-Storage-Abstraction mit pluggable Backends (Local-FS, S3, MinIO); Anhang-Tabelle `attachments(entity_type, entity_id, blob_ref, mime, size, hash)` | M | `server/src/storage/{mod,local_fs}.rs`, `server/src/entity/attachments.rs`; sha2 dep; Tests `server/tests/attachments.rs`. Local-FS-Backend; S3/MinIO als Folge-Items (Trait ist vorbereitet). host.storage.*-Host-Functions kommen mit Plugins (Phase 2). | 🟡 Trait + Local-FS; S3 offen |
+| 1.7.9 | PDF-Generierung via Template (typst preferred, fallback wkhtmltopdf); Templates im neuen `pdf_templates`-Eintrag oder per Designer pflegbar | M | `server/src/pdf/{mod,stub}.rs`; Tests `server/tests/pdf_stub.rs`. PdfRenderer-Trait + StubRenderer (ASCII-PDF mit `%PDF-`-Magic) heute; Typst-Backend als Folge-Item — typst-Crate ~30MB. pdf_templates-Tabelle + Designer als Folge. | 🟡 Trait + Stub; Typst-Backend offen |
+| 1.7.10 | Email-Versand mit SMTP-Config + Template-Rendering; Bounce-Handling; Versand-Audit; Doku-Pflichthinweis fuer DKIM/SPF | M | `server/src/email/{mod,stub}.rs`; Audit kind=`email_sent`/`email_failed`; Tests `server/tests/email_stub.rs`. EmailSender-Trait + StubSender. SMTP via lettre + Bounce-Handling + DKIM/SPF-Doku als Folge-Items. | 🟡 Trait + Stub + Audit; SMTP offen |
 | 1.7.11 | Digitale Signatur (eIDAS-fortgeschritten) via X.509-Keypair pro Tenant/User; Pflicht ab XRechnung-Versand | M | neu: `server/src/signing/`, integriert in 1.7.9 + 1.7.10 | Signierte XRechnung-XML wird von externem Validator akzeptiert |
 
 #### D — Reporting & Search
@@ -405,7 +405,7 @@ Liefert der Server fuer ein Property mehrere erlaubte Varianten zurueck, darf de
 |---|---|---|---|---|
 | 1.7.12 | Aggregation-Queries: GraphQL-Resolver `entityAggregation(entity_type, group_by, measures: [{kind, field}])` mit Sum/Avg/Count/Min/Max/Pivot | M | `server/src/schema.rs` | Umsatz pro Monat per einem GraphQL-Call moeglich; Group-By auf Joins (Kunde) funktioniert |
 | 1.7.13 | Volltextsuche: SQLite FTS5 ueber `entities`-Tabelle und ausgewaehlte typisierte Tabellen; konfigurierbar pro Entity-Typ | M | `server/src/search/` | Globale Suchbox findet "Rechnung 2024-0042" oder "Mueller GmbH" ueber alle Entities |
-| 1.7.14 | Excel/CSV-Bulk-Export pro Entity-Liste mit aktiven Filtern/Sortierung; Permission-gegated | S | `server/src/export/` | Steuerberater bekommt Jahres-Rechnungs-Liste als CSV; Excel mit korrekten Datentypen |
+| 1.7.14 | Excel/CSV-Bulk-Export pro Entity-Liste mit aktiven Filtern/Sortierung; Permission-gegated | S | `server/src/export/mod.rs` (entries_to_csv + export_csv); 7 Inline-Tests (RFC-4180). Excel/XLSX als Folge-Item (rust_xlsxwriter ~5MB); Filter/Sort-Pushdown ist bereits in entities_page_raw, Resolver-Anbindung an Filter-UI Folge. | 🟡 CSV; XLSX offen |
 | 1.7.15 | Bulk-Import mit Validierung, Dry-Run, transaktionalem Rollback; CSV/Excel; pro-Spalten-Mapping-UI | M | neu: `server/src/import/`; CLI + UI | 5000 Kunden aus CSV importierbar mit Validierungs-Report; Fehler rollbacken |
 
 #### E — Compliance & Recht
