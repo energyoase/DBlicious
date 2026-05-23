@@ -62,6 +62,22 @@ lettre = { version = "0.11", default-features = false, features = [
     "tokio1-rustls-tls",
     "hostname",
 ] }
+# 1.7.8 S3/MinIO-Backend fuer File-Storage. aws-sdk-s3 ist offiziell
+# und MinIO-kompatibel ueber `endpoint_url` + `force_path_style`.
+# `rustls`-Feature passt zur restlichen TLS-Stack-Wahl (lettre/sea-orm/
+# reqwest); `behavior-version-latest` schaltet das aktuelle Default-
+# Verhalten der SDK fest, damit Builds reproduzierbar bleiben.
+aws-config = { version = "1", default-features = false, features = [
+    "rustls",
+    "rt-tokio",
+    "behavior-version-latest",
+] }
+aws-sdk-s3 = { version = "1", default-features = false, features = [
+    "rustls",
+    "rt-tokio",
+    "behavior-version-latest",
+] }
+aws-credential-types = "1"
 
 [dev-dependencies]
 serial_test = "3"

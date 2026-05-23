@@ -1,7 +1,7 @@
 //! File-Storage-Abstraktion (Phase 1.7.8).
 //!
-//! Trait-basiert, damit Backends (Local-FS heute; S3/MinIO als Folge-
-//! Items) ohne Code-Aenderung an den Konsumenten austauschbar sind.
+//! Trait-basiert, damit Backends (Local-FS und S3/MinIO heute) ohne
+//! Code-Aenderung an den Konsumenten austauschbar sind.
 //!
 //! Verbindung zur DB: pro Upload eine `attachments`-Row, die das Entity-
 //! Instance referenziert und den `blob_ref` (Backend-Schluessel) +
@@ -9,6 +9,7 @@
 //! den tatsaechlichen Inhalt.
 
 pub mod local_fs;
+pub mod s3;
 
 use async_trait::async_trait;
 use sha2::{Digest, Sha256};
@@ -33,19 +34,19 @@ pub enum StorageError {
 #[derive(Debug, Clone)]
 pub struct UploadInput<'a> {
     pub entity_type: &'a str,
-    pub entity_id:   &'a str,
-    pub filename:    Option<&'a str>,
-    pub mime:        &'a str,
-    pub bytes:       &'a [u8],
+    pub entity_id: &'a str,
+    pub filename: Option<&'a str>,
+    pub mime: &'a str,
+    pub bytes: &'a [u8],
 }
 
 /// Ergebnis eines `put`-Aufrufs.
 #[derive(Debug, Clone)]
 pub struct UploadResult {
     pub attachment_id: String,
-    pub blob_ref:      String,
-    pub hash:          String,
-    pub size_bytes:    i64,
+    pub blob_ref: String,
+    pub hash: String,
+    pub size_bytes: i64,
 }
 
 /// Storage-Backend.
@@ -91,43 +92,48 @@ pub enum AttachmentError {
 }
 
 pub async fn put(
-    conn:    &DatabaseConnection,
+    conn: &DatabaseConnection,
     storage: &dyn Storage,
-    input:   UploadInput<'_>,
-    actor:   Option<&str>,
+    input: UploadInput<'_>,
+    actor: Option<&str>,
 ) -> Result<UploadResult, AttachmentError> {
-    let id   = ulid::Ulid::new().to_string();
+    let id = ulid::Ulid::new().to_string();
     let hash = sha256_hex(input.bytes);
     let blob_ref = format!("{}/{}/{}", input.entity_type, input.entity_id, id);
     storage.put(&blob_ref, input.bytes).await?;
 
     let size = input.bytes.len() as i64;
-    let now  = chrono::Utc::now().to_rfc3339();
+    let now = chrono::Utc::now().to_rfc3339();
     attachments::ActiveModel {
-        id:          ActiveValue::Set(id.clone()),
+        id: ActiveValue::Set(id.clone()),
         entity_type: ActiveValue::Set(input.entity_type.to_string()),
-        entity_id:   ActiveValue::Set(input.entity_id.to_string()),
-        blob_ref:    ActiveValue::Set(blob_ref.clone()),
-        mime:        ActiveValue::Set(input.mime.to_string()),
-        filename:    ActiveValue::Set(input.filename.map(String::from)),
-        size_bytes:  ActiveValue::Set(size),
-        hash:        ActiveValue::Set(hash.clone()),
-        created_at:  ActiveValue::Set(now),
-        created_by:  ActiveValue::Set(actor.map(String::from)),
-        tenant_id:   ActiveValue::Set(None),
+        entity_id: ActiveValue::Set(input.entity_id.to_string()),
+        blob_ref: ActiveValue::Set(blob_ref.clone()),
+        mime: ActiveValue::Set(input.mime.to_string()),
+        filename: ActiveValue::Set(input.filename.map(String::from)),
+        size_bytes: ActiveValue::Set(size),
+        hash: ActiveValue::Set(hash.clone()),
+        created_at: ActiveValue::Set(now),
+        created_by: ActiveValue::Set(actor.map(String::from)),
+        tenant_id: ActiveValue::Set(None),
     }
     .insert(conn)
     .await?;
 
-    Ok(UploadResult { attachment_id: id, blob_ref, hash, size_bytes: size })
+    Ok(UploadResult {
+        attachment_id: id,
+        blob_ref,
+        hash,
+        size_bytes: size,
+    })
 }
 
 /// Liefert (Bytes, attachments::Model). Prueft den SHA-256-Hash gegen
 /// die DB-Spalte — `Err(StorageError::HashMismatch)` wenn der Blob
 /// veraendert wurde.
 pub async fn get(
-    conn:          &DatabaseConnection,
-    storage:       &dyn Storage,
+    conn: &DatabaseConnection,
+    storage: &dyn Storage,
     attachment_id: &str,
 ) -> Result<(Vec<u8>, attachments::Model), AttachmentError> {
     let m = attachments::Entity::find_by_id(attachment_id.to_string())
@@ -140,15 +146,15 @@ pub async fn get(
         return Err(AttachmentError::Storage(StorageError::HashMismatch {
             blob_ref: m.blob_ref.clone(),
             expected: m.hash.clone(),
-            actual:   actual_hash,
+            actual: actual_hash,
         }));
     }
     Ok((bytes, m))
 }
 
 pub async fn delete(
-    conn:          &DatabaseConnection,
-    storage:       &dyn Storage,
+    conn: &DatabaseConnection,
+    storage: &dyn Storage,
     attachment_id: &str,
 ) -> Result<bool, AttachmentError> {
     let m = attachments::Entity::find_by_id(attachment_id.to_string())
@@ -156,14 +162,16 @@ pub async fn delete(
         .await?;
     let Some(m) = m else { return Ok(false) };
     storage.delete(&m.blob_ref).await?;
-    attachments::Entity::delete_by_id(attachment_id.to_string()).exec(conn).await?;
+    attachments::Entity::delete_by_id(attachment_id.to_string())
+        .exec(conn)
+        .await?;
     Ok(true)
 }
 
 pub async fn list_for_entity(
-    conn:        &DatabaseConnection,
+    conn: &DatabaseConnection,
     entity_type: &str,
-    entity_id:   &str,
+    entity_id: &str,
 ) -> Result<Vec<attachments::Model>, AttachmentError> {
     Ok(attachments::Entity::find()
         .filter(attachments::Column::EntityType.eq(entity_type))
