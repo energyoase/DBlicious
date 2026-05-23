@@ -1084,6 +1084,391 @@ impl QueryRoot {
             })
             .collect())
     }
+
+    // -- Q0009: Scripts (Phase 6) --
+
+    /// Liefert einen einzelnen Script-Head-Eintrag inkl. aller Wire-Felder.
+    /// `None`, wenn die ID unbekannt ist.
+    async fn script(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+    ) -> async_graphql::Result<Option<ScriptGql>> {
+        // Lesen ist authentifiziert (Skripte koennen Permissions enthalten),
+        // aber wir verlangen kein Entity-Recht — Skripte sind ein eigener
+        // Resource-Kind. Heute reicht "eingeloggt".
+        let _ = ctx
+            .data::<AuthContext>()?
+            .user
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+        use sea_orm::EntityTrait;
+        let db = crate::db::conn();
+        let row = crate::entity::script::Entity::find_by_id(id)
+            .one(&db)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+        Ok(row.as_ref().map(script_model_to_gql))
+    }
+
+    /// Liste aller Skripte mit optionalem Filter (state/slot/tier).
+    async fn scripts(
+        &self,
+        ctx: &Context<'_>,
+        filter: Option<ScriptFilterGql>,
+    ) -> async_graphql::Result<Vec<ScriptGql>> {
+        let _ = ctx
+            .data::<AuthContext>()?
+            .user
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+        use sea_orm::EntityTrait;
+        let db = crate::db::conn();
+        let all = crate::entity::script::Entity::find()
+            .all(&db)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+        let filter = filter.unwrap_or_default();
+        let out = all
+            .iter()
+            .filter(|m| match &filter.state {
+                Some(s) => &m.state == s,
+                None => true,
+            })
+            .filter(|m| match &filter.slot {
+                Some(_slot_filter) if m.kind != "provider" => false,
+                Some(slot_filter) => {
+                    // Slot lebt heute im manifest_json nicht — wir scannen
+                    // den Source-Tag-String, der im manifest_json mit dem
+                    // Loader auch nicht steht. Wir akzeptieren das als
+                    // Wildcard-No-Op fuer jetzt: solange wir keinen
+                    // serialisierten `kind={slot:...}`-Blob in der DB
+                    // halten, kann der Filter nur den `provider`-Tag
+                    // matchen. Slot-Filter setzt voraus, dass der Caller
+                    // separat `kind`-Tags filtert.
+                    let _ = slot_filter;
+                    true
+                }
+                None => true,
+            })
+            .filter(|m| match &filter.tier {
+                Some(t) => {
+                    // Tier aus dem Manifest-JSON ziehen.
+                    let manifest: serde_json::Value =
+                        serde_json::from_str(&m.manifest_json).unwrap_or(serde_json::Value::Null);
+                    manifest
+                        .get("tier")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s == t)
+                        .unwrap_or(false)
+                }
+                None => true,
+            })
+            .map(script_model_to_gql)
+            .collect();
+        Ok(out)
+    }
+
+    /// Einzelne historische Version eines Skripts.
+    async fn script_version(
+        &self,
+        ctx: &Context<'_>,
+        id: String,
+        version: i32,
+    ) -> async_graphql::Result<Option<ScriptVersionGql>> {
+        let _ = ctx
+            .data::<AuthContext>()?
+            .user
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+        let db = crate::db::conn();
+        let row = crate::entity::script_version::Entity::find()
+            .filter(crate::entity::script_version::Column::ScriptId.eq(id))
+            .filter(crate::entity::script_version::Column::Version.eq(version))
+            .one(&db)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+        Ok(row.as_ref().map(script_version_model_to_gql))
+    }
+
+    /// Letzte Audit-Eintraege fuer ein Skript. `limit` defaultet auf 50.
+    async fn script_audit_log(
+        &self,
+        ctx: &Context<'_>,
+        script_id: String,
+        limit: Option<i32>,
+    ) -> async_graphql::Result<Vec<ScriptAuditEntryGql>> {
+        let _ = ctx
+            .data::<AuthContext>()?
+            .user
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+        let db = crate::db::conn();
+        let limit = limit.unwrap_or(50).max(1) as u64;
+        let rows = crate::entity::script_audit_log::Entity::find()
+            .filter(crate::entity::script_audit_log::Column::ScriptId.eq(script_id))
+            .order_by_desc(crate::entity::script_audit_log::Column::Id)
+            .limit(limit)
+            .all(&db)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+        Ok(rows.iter().map(script_audit_model_to_gql).collect())
+    }
+}
+
+// =============================================================================
+// Q0009 — Scripts (Phase 6)
+// =============================================================================
+//
+// Wire-Strategie wie bei `ColumnMeta.field_type` und `Entity.fields`: alles,
+// was als getaggter Enum (Manifest, Capability-Tokens, ScriptKind, ScriptError)
+// oder als dynamische Map (tokens_used) auftritt, wird als `Json<Value>`
+// ausgeliefert. So muss `async-graphql` keine Unions modellieren, der Client
+// deserialisiert per `serde` aus `shared::script::*`.
+
+#[derive(async_graphql::Enum, Copy, Clone, PartialEq, Eq, Debug)]
+#[graphql(name = "ScriptState")]
+pub enum GqlScriptState {
+    Draft,
+    Active,
+    Locked,
+}
+
+impl From<shared::script::ScriptState> for GqlScriptState {
+    fn from(s: shared::script::ScriptState) -> Self {
+        match s {
+            shared::script::ScriptState::Draft => GqlScriptState::Draft,
+            shared::script::ScriptState::Active => GqlScriptState::Active,
+            shared::script::ScriptState::Locked => GqlScriptState::Locked,
+        }
+    }
+}
+
+#[derive(Clone, SimpleObject)]
+#[graphql(name = "Script")]
+pub struct ScriptGql {
+    pub id: String,
+    /// `ScriptKind`-Wire-Form als JSON (`{"kind":"provider","slot":"formatter"}`).
+    pub kind: Json<serde_json::Value>,
+    pub source: String,
+    pub version: i32,
+    pub state: GqlScriptState,
+    /// `ScriptManifest` als JSON-Blob (analog zu `ColumnMeta.fieldType`).
+    pub manifest: Json<serde_json::Value>,
+    /// `ScriptError` als JSON, oder NULL bei `state=Active`.
+    pub last_error: Option<Json<serde_json::Value>>,
+    pub created_by: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, SimpleObject)]
+#[graphql(name = "ScriptVersion")]
+pub struct ScriptVersionGql {
+    pub script_id: String,
+    pub version: i32,
+    pub source: String,
+    pub manifest: Json<serde_json::Value>,
+    pub state_at_save: GqlScriptState,
+    pub last_error: Option<Json<serde_json::Value>>,
+    pub created_by: String,
+    pub created_at: String,
+}
+
+#[derive(Clone, SimpleObject)]
+#[graphql(name = "ScriptAuditEntry")]
+pub struct ScriptAuditEntryGql {
+    pub id: i64,
+    pub script_id: String,
+    pub script_version: i32,
+    pub run_id: String,
+    pub user_id: Option<String>,
+    pub started_at: String,
+    pub finished_at: String,
+    pub outcome: String,
+    /// `tokens_used`-Array (JSON) — siehe `script_audit_log.tokens_used`.
+    pub tokens_used: Json<serde_json::Value>,
+    pub custom_events: Json<serde_json::Value>,
+}
+
+#[derive(Clone, SimpleObject)]
+#[graphql(name = "ScriptPreview")]
+pub struct ScriptPreviewGql {
+    /// Engine-Output als JSON (`{"value": ...}`) — `None` bei Fehler.
+    pub output: Option<Json<serde_json::Value>>,
+    /// `ScriptError` als JSON, `None` bei Erfolg.
+    pub error: Option<Json<serde_json::Value>>,
+    /// Tokens-Used wie in `script_audit_log.tokens_used`.
+    pub tokens_used: Json<serde_json::Value>,
+    pub run_id: String,
+    pub duration_ms: i64,
+}
+
+#[derive(async_graphql::InputObject)]
+#[graphql(name = "SaveScriptInput")]
+pub struct SaveScriptInputGql {
+    /// `None` ⇒ neuer Eintrag. `Some(id)` ⇒ Update der existierenden Head-
+    /// Zeile (Version monotone +1).
+    pub id: Option<String>,
+    pub source: String,
+    /// `ScriptManifest` als JSON.
+    pub manifest: Json<serde_json::Value>,
+    /// `ScriptKind` als JSON.
+    pub kind: Json<serde_json::Value>,
+}
+
+#[derive(async_graphql::InputObject)]
+#[graphql(name = "PreviewScriptRunInput")]
+pub struct PreviewScriptRunInputGql {
+    pub script_id: String,
+    /// `ScriptCtx`-ergaenzende Argumente als JSON. Heute durchgereicht aber
+    /// noch nicht im Engine-Run benutzt — reserved fuer spaetere Phasen.
+    pub args: Option<Json<serde_json::Value>>,
+}
+
+#[derive(async_graphql::InputObject, Default)]
+#[graphql(name = "ScriptFilter")]
+pub struct ScriptFilterGql {
+    /// Filter nach `state` — `"draft"`/`"active"`/`"locked"`.
+    pub state: Option<String>,
+    /// Filter nach `kind.slot` (nur fuer `kind="provider"`).
+    pub slot: Option<String>,
+    /// Filter nach `manifest.tier` — `"reader"`/`"author"`/`"developer"`/`"admin"`.
+    pub tier: Option<String>,
+}
+
+fn script_model_to_gql(m: &crate::entity::script::Model) -> ScriptGql {
+    let manifest: serde_json::Value =
+        serde_json::from_str(&m.manifest_json).unwrap_or(serde_json::Value::Null);
+    let last_error: Option<serde_json::Value> = m
+        .last_error
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok());
+
+    // `kind` in der DB ist nur der camelCase-Tag (z.B. "provider"). Wir
+    // rekonstruieren das vollstaendige `ScriptKind`-JSON aus Tag +
+    // Manifest-Feldern, falls vorhanden. Fuer `provider` muessen wir den
+    // `slot` aus dem Manifest mit dem Default `"formatter"` ergaenzen, weil
+    // die DB den nicht separat fuehrt — der Loader/Save-Pfad hingegen
+    // serialisiert `ScriptKind` voll und wir reichen es via `manifest_json`-
+    // schema-Erweiterung in einer kuenftigen Phase nach. Heute geben wir
+    // mindestens den `kind`-Tag zurueck, damit der Client `ScriptKind`
+    // deserialisieren kann.
+    let kind: serde_json::Value = serde_json::json!({ "kind": m.kind });
+
+    ScriptGql {
+        id: m.id.clone(),
+        kind: Json(kind),
+        source: m.source.clone(),
+        version: m.version,
+        state: parse_state_str(&m.state),
+        manifest: Json(manifest),
+        last_error: last_error.map(Json),
+        created_by: m.created_by.clone(),
+        created_at: m.created_at.clone(),
+        updated_at: m.updated_at.clone(),
+    }
+}
+
+fn parse_state_str(s: &str) -> GqlScriptState {
+    match s {
+        "active" => GqlScriptState::Active,
+        "locked" => GqlScriptState::Locked,
+        _ => GqlScriptState::Draft,
+    }
+}
+
+fn script_version_model_to_gql(m: &crate::entity::script_version::Model) -> ScriptVersionGql {
+    let manifest: serde_json::Value =
+        serde_json::from_str(&m.manifest_json).unwrap_or(serde_json::Value::Null);
+    let last_error: Option<serde_json::Value> = m
+        .last_error
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok());
+    ScriptVersionGql {
+        script_id: m.script_id.clone(),
+        version: m.version,
+        source: m.source.clone(),
+        manifest: Json(manifest),
+        state_at_save: parse_state_str(&m.state_at_save),
+        last_error: last_error.map(Json),
+        created_by: m.saved_by.clone(),
+        created_at: m.saved_at.clone(),
+    }
+}
+
+fn script_audit_model_to_gql(m: &crate::entity::script_audit_log::Model) -> ScriptAuditEntryGql {
+    let tokens_used: serde_json::Value =
+        serde_json::from_str(&m.tokens_used).unwrap_or(serde_json::Value::Array(Vec::new()));
+    let custom_events: serde_json::Value =
+        serde_json::from_str(&m.custom_events).unwrap_or(serde_json::Value::Array(Vec::new()));
+    ScriptAuditEntryGql {
+        id: m.id,
+        script_id: m.script_id.clone(),
+        script_version: m.script_version,
+        run_id: m.run_id.clone(),
+        user_id: m.user_id.clone(),
+        started_at: m.started_at.clone(),
+        finished_at: m.finished_at.clone(),
+        outcome: m.outcome.clone(),
+        tokens_used: Json(tokens_used),
+        custom_events: Json(custom_events),
+    }
+}
+
+fn script_value_to_json(v: &shared::script::ScriptValue) -> serde_json::Value {
+    match v {
+        shared::script::ScriptValue::String(s) => serde_json::json!({ "value": s }),
+        shared::script::ScriptValue::Number(n) => serde_json::json!({ "value": n }),
+        shared::script::ScriptValue::Bool(b) => serde_json::json!({ "value": b }),
+        shared::script::ScriptValue::Json(j) => serde_json::json!({ "value": j }),
+        shared::script::ScriptValue::Unit => serde_json::json!({ "value": null }),
+    }
+}
+
+/// No-op `HostApi` fuer den `previewScriptRun`-Pfad.
+///
+/// Liefert leere Antworten und lehnt jeden Schreib-Call ab, sodass ein
+/// Preview niemals an einem echten DB-Patch oder einer Audit-Zeile haengen
+/// bleibt. Wird ausschliesslich vom Mutator [`MutationRoot::preview_script_run`]
+/// instantiiert. Fuer richtige Runs gibt es einen separaten Host (Phase 7+).
+struct PreviewHostApi;
+
+impl shared::script::engine::HostApi for PreviewHostApi {
+    fn db_fetch(
+        &self,
+        _query: &serde_json::Value,
+    ) -> Result<serde_json::Value, shared::script::ScriptError> {
+        Ok(serde_json::Value::Array(Vec::new()))
+    }
+    fn db_patch(
+        &self,
+        _entity_type: &str,
+        _id: &str,
+        _patch: &serde_json::Value,
+    ) -> Result<(), shared::script::ScriptError> {
+        Err(shared::script::ScriptError::CapabilityDenied {
+            token: shared::script::CapabilityToken::WriteEntity { validated: true },
+        })
+    }
+    fn i18n_t(
+        &self,
+        key: &str,
+        _args: &serde_json::Value,
+    ) -> Result<String, shared::script::ScriptError> {
+        Ok(format!("[t:{key}]"))
+    }
+    fn audit_log(
+        &self,
+        _event: &str,
+        _payload: &serde_json::Value,
+    ) -> Result<(), shared::script::ScriptError> {
+        // Preview unterdrueckt Audit-Schreiben, statt zu fehlen — sonst
+        // explodiert ein Skript, das einfach `audit.log()` aufruft.
+        Ok(())
+    }
 }
 
 pub struct MutationRoot;
@@ -1993,6 +2378,194 @@ impl MutationRoot {
         crate::sequences::next_number(&conn, &scope, year_for_db)
             .await
             .map_err(|e| async_graphql::Error::new(format!("{e}")))
+    }
+
+    // -- Q0009: Scripts (Phase 6) --
+
+    /// Speichert ein Skript ueber die `save_script`-Pipeline. Bei Compile-/
+    /// Manifest-/Tier-Fehler liefert der zurueckgegebene `Script` `state=Draft`
+    /// und `lastError`-JSON — kein GraphQL-Error.
+    async fn save_script(
+        &self,
+        ctx: &Context<'_>,
+        input: SaveScriptInputGql,
+    ) -> async_graphql::Result<ScriptGql> {
+        let auth = ctx
+            .data::<AuthContext>()?
+            .user
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?
+            .clone();
+
+        // Manifest + Kind aus JSON deserialisieren — Parse-Fehler an dieser
+        // Stelle sind Caller-Fehler (kein Script-Fehler).
+        let manifest: shared::script::ScriptManifest =
+            serde_json::from_value(input.manifest.0)
+                .map_err(|e| async_graphql::Error::new(format!("invalid_manifest: {e}")))?;
+        let kind: shared::script::ScriptKind = serde_json::from_value(input.kind.0)
+            .map_err(|e| async_graphql::Error::new(format!("invalid_kind: {e}")))?;
+
+        // ID generieren, falls Create.
+        let (id_str, prev_version) = match input.id {
+            Some(id) => {
+                use sea_orm::EntityTrait;
+                let db = crate::db::conn();
+                let existing = crate::entity::script::Entity::find_by_id(id.clone())
+                    .one(&db)
+                    .await
+                    .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+                let prev = existing.map(|r| r.version as u32);
+                (id, prev)
+            }
+            None => (format!("scr-{}", ulid::Ulid::new()), None),
+        };
+
+        // User-Tier aus AuthContext — heute Admin, sobald der User in
+        // `g-admin` ist. Sonst Author (Default). Eine richtige Mapping-
+        // Tabelle kommt mit der Permission-Phase 3.
+        let user_tier = if auth.group_ids.iter().any(|g| g == "g-admin") {
+            shared::script::ScriptTier::Admin
+        } else {
+            shared::script::ScriptTier::Author
+        };
+
+        let db = crate::db::conn();
+        let result = crate::script::save::save_script(
+            &db,
+            crate::script::save::SaveInput {
+                id: shared::script::ScriptId(id_str.clone()),
+                source: input.source,
+                manifest,
+                kind,
+                user: user_tier,
+                user_id: auth.id.clone(),
+                prev_version,
+            },
+        )
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("{e}")))?;
+
+        // Frisch geschriebene Head-Row lesen (das Save-Resultat traegt nicht
+        // alle DB-Felder — der einfachste, korrekte Pfad ist ein Re-Read).
+        use sea_orm::EntityTrait;
+        let row = crate::entity::script::Entity::find_by_id(id_str.clone())
+            .one(&db)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?
+            .ok_or_else(|| async_graphql::Error::new("save_script: read-back fehlgeschlagen"))?;
+        let _ = result; // saved-state ist im Row mit drin.
+        Ok(script_model_to_gql(&row))
+    }
+
+    /// Fuehrt ein Skript probehalber aus, OHNE eine Audit-Zeile zu schreiben.
+    ///
+    /// `WriteEntity`-Capability ist hier hart verboten: ein Preview darf
+    /// keine Seiteneffekte auf Entities erzeugen, selbst wenn der Tier des
+    /// Users das normalerweise erlauben wuerde. Skripte mit
+    /// `WriteEntity` im Manifest erhalten `error.kind="capabilityDenied"`.
+    async fn preview_script_run(
+        &self,
+        ctx: &Context<'_>,
+        input: PreviewScriptRunInputGql,
+    ) -> async_graphql::Result<ScriptPreviewGql> {
+        let auth = ctx
+            .data::<AuthContext>()?
+            .user
+            .as_ref()
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?
+            .clone();
+        let _args = input.args.map(|j| j.0).unwrap_or(serde_json::Value::Null);
+
+        // Script aus DB ziehen + in shared::script::Script konvertieren.
+        use sea_orm::EntityTrait;
+        let db = crate::db::conn();
+        let row = crate::entity::script::Entity::find_by_id(input.script_id.clone())
+            .one(&db)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))?
+            .ok_or_else(|| async_graphql::Error::new("script_not_found"))?;
+
+        let manifest: shared::script::ScriptManifest =
+            serde_json::from_str(&row.manifest_json)
+                .map_err(|e| async_graphql::Error::new(format!("manifest_parse: {e}")))?;
+        let kind: shared::script::ScriptKind =
+            serde_json::from_value(serde_json::json!({ "kind": row.kind.clone() }))
+                .unwrap_or(shared::script::ScriptKind::Component {
+                    entry: "render".into(),
+                });
+        let state = match row.state.as_str() {
+            "active" => shared::script::ScriptState::Active,
+            "locked" => shared::script::ScriptState::Locked,
+            _ => shared::script::ScriptState::Draft,
+        };
+        let script = shared::script::Script {
+            id: shared::script::ScriptId(row.id.clone()),
+            kind,
+            manifest: manifest.clone(),
+            source: row.source.clone(),
+            version: row.version as u32,
+            state,
+            last_error: row
+                .last_error
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok()),
+            created_by: row.created_by.clone(),
+            created_at: row.created_at.clone(),
+            updated_at: row.updated_at.clone(),
+        };
+
+        // Hartes Preview-Gate: WriteEntity ist verboten.
+        if manifest
+            .capabilities
+            .iter()
+            .any(|t| matches!(t, shared::script::CapabilityToken::WriteEntity { .. }))
+        {
+            let err = shared::script::ScriptError::CapabilityDenied {
+                token: shared::script::CapabilityToken::WriteEntity { validated: true },
+            };
+            let err_json = serde_json::to_value(&err).unwrap_or(serde_json::Value::Null);
+            return Ok(ScriptPreviewGql {
+                output: None,
+                error: Some(Json(err_json)),
+                tokens_used: Json(serde_json::Value::Array(Vec::new())),
+                run_id: ulid::Ulid::new().to_string(),
+                duration_ms: 0,
+            });
+        }
+
+        // Engine + Host vorbereiten. Preview nutzt einen No-op-Host:
+        // `db.entities(...)` liefert leere Arrays, `db.patch(...)` ist
+        // hartes Deny, `audit.log()` ist ein No-op. Spaetere Phase kann
+        // hier den echten Server-Host einhaengen.
+        use shared::script::engine::ScriptEngine;
+        let host = PreviewHostApi;
+        let ctx_script = shared::script::engine::ScriptCtx {
+            user_id: Some(auth.id.clone()),
+            tenant_id: None,
+            locale: auth.locale.clone().unwrap_or_else(|| "en".into()),
+        };
+
+        let rec = crate::script::run::run_preview(
+            &script,
+            ctx_script,
+            &host,
+            |engine, ast, _sb, ctx| engine.run(ast, &host, ctx.clone()),
+        );
+
+        let error_json = rec
+            .error
+            .as_ref()
+            .map(|e| serde_json::to_value(e).unwrap_or(serde_json::Value::Null))
+            .map(Json);
+        let output_json = rec.value.as_ref().map(|v| Json(script_value_to_json(v)));
+
+        Ok(ScriptPreviewGql {
+            output: output_json,
+            error: error_json,
+            tokens_used: Json(rec.tokens_used),
+            run_id: rec.run_id,
+            duration_ms: rec.duration_ms,
+        })
     }
 }
 
