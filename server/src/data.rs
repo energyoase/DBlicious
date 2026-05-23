@@ -1558,6 +1558,32 @@ pub async fn save_entity_design(
     Ok(model)
 }
 
+/// Loescht alle `entity_designs`-Eintraege fuer einen `entity_type`.
+/// Idempotent — Rueckgabe ist die Anzahl geloeschter Zeilen (0 wenn keine
+/// existierten). Wird von `dblicious design reset` benutzt.
+pub async fn delete_all_entity_designs(
+    entity_type: &str,
+) -> Result<u64, sea_orm::DbErr> {
+    let res = entity::entity_designs::Entity::delete_many()
+        .filter(entity::entity_designs::Column::EntityType.eq(entity_type))
+        .exec(&conn())
+        .await?;
+    Ok(res.rows_affected)
+}
+
+/// Zaehlt vorhandene `entity_designs`-Eintraege fuer einen `entity_type`.
+/// Dient dry-run-Anzeigen (CLI), um zu zeigen, wie viele Zeilen ein Reset
+/// loeschen *wuerde*.
+pub async fn count_entity_designs(
+    entity_type: &str,
+) -> Result<u64, sea_orm::DbErr> {
+    use sea_orm::PaginatorTrait;
+    entity::entity_designs::Entity::find()
+        .filter(entity::entity_designs::Column::EntityType.eq(entity_type))
+        .count(&conn())
+        .await
+}
+
 /// Schreibt den State einer alten Version als *neue* Version.
 pub async fn revert_entity_design(
     entity_type: &str,

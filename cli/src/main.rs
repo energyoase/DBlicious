@@ -52,6 +52,26 @@ enum Top {
     /// `security/{users,groups}.{json,toml}`-Format in das Phase-0.7-Format
     /// (`permissions.json`, `roles.json`, `role_assignments.json`).
     MigrateSecurity(MigrateSecurityArgs),
+    /// Builder-Design-Verwaltung (Phase 1.6).
+    Design {
+        #[command(subcommand)]
+        cmd: DesignCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum DesignCmd {
+    /// Alle Builder-State-Versionen eines Entity-Typs verwerfen. Beim
+    /// naechsten Server-Start wird aus dem `--data-dir`-Loader-Snapshot neu
+    /// geseedet (Version 0). Idempotent.
+    Reset {
+        /// Entity-Typ, dessen Design zurueckgesetzt werden soll.
+        entity_type: String,
+        /// Nicht schreiben — nur ausgeben, wie viele Versionen geloescht
+        /// wuerden.
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 #[derive(clap::Args)]
@@ -156,7 +176,29 @@ async fn main() -> Result<()> {
     match cli.cmd {
         Top::User { cmd } => handle_user(cmd).await,
         Top::Group { cmd } => handle_group(cmd).await,
+        Top::Design { cmd } => handle_design(cmd).await,
         Top::MigrateSecurity(_) => unreachable!("migrate-security wurde oben behandelt"),
+    }
+}
+
+async fn handle_design(cmd: DesignCmd) -> Result<()> {
+    match cmd {
+        DesignCmd::Reset { entity_type, dry_run } => {
+            let count = data::count_entity_designs(&entity_type)
+                .await
+                .map_err(|e| anyhow!("count entity_designs: {e}"))?;
+            if dry_run {
+                println!(
+                    "[dry-run] wuerde {count} Version(en) fuer entity_type='{entity_type}' loeschen"
+                );
+                return Ok(());
+            }
+            let deleted = data::delete_all_entity_designs(&entity_type)
+                .await
+                .map_err(|e| anyhow!("delete entity_designs: {e}"))?;
+            println!("{deleted} Version(en) fuer entity_type='{entity_type}' geloescht");
+            Ok(())
+        }
     }
 }
 
