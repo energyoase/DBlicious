@@ -186,7 +186,7 @@ pub async fn persist_save(
     let last_error_json = prepared
         .last_error
         .as_ref()
-        .map(|e| serde_json::to_string(e))
+        .map(serde_json::to_string)
         .transpose()
         .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
 

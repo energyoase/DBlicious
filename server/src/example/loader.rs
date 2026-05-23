@@ -237,7 +237,9 @@ fn load_scripts(dir: &Path) -> Result<BTreeMap<String, ScriptSeed>> {
                 (
                     None,
                     Some(format!("manifest file missing for script '{stem}'")),
-                    shared::script::ScriptKind::Component { entry: String::new() },
+                    shared::script::ScriptKind::Component {
+                        entry: String::new(),
+                    },
                 )
             }
             Some(p) => match super::format::read_typed::<ScriptDescriptorFile>(&p) {
@@ -245,7 +247,9 @@ fn load_scripts(dir: &Path) -> Result<BTreeMap<String, ScriptSeed>> {
                 Err(e) => (
                     None,
                     Some(format!("{e:#}")),
-                    shared::script::ScriptKind::Component { entry: String::new() },
+                    shared::script::ScriptKind::Component {
+                        entry: String::new(),
+                    },
                 ),
             },
         };

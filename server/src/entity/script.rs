@@ -5,21 +5,20 @@
 //! schreibt der Sandbox-Driver einen Eintrag in [`super::script_audit_log`].
 //!
 //! Felder:
-//!   - `id`          ID gemaess [`shared::script::ScriptId`].
-//!   - `kind`        `provider`/`component`/`wasm` — gespeichert als
-//!                   camelCase-String, in [`crate::script::save::row_to_script`]
-//!                   gegen das Manifest abgeglichen.
-//!   - `manifest`    `shared::script::ScriptManifest` als JSON.
-//!   - `source`      Rhai-Source (bei `wasm` ein leerer String — Spec §11).
-//!   - `version`     Monotone Versionsnummer. `save_script` rejiziert
-//!                   nicht-monoton wachsende Versionen.
-//!   - `state`       `draft`/`active`/`locked` (lowercase, vgl.
-//!                   `ScriptState`-Wire-Format).
-//!   - `last_error`  Optional letzter Compile-/Manifest-/Tier-Fehler
-//!                   (als JSON). Wird beim erfolgreichen Save geleert.
-//!   - `created_by`  User-ID des Anlegers.
-//!   - `created_at`  ISO-8601 UTC (RFC-3339).
-//!   - `updated_at`  ISO-8601 UTC (RFC-3339).
+//!   - `id` — ID gemaess [`shared::script::ScriptId`].
+//!   - `kind` — `provider`/`component`/`wasm`, gespeichert als
+//!     camelCase-String und gegen das Manifest abgeglichen.
+//!   - `manifest` — `shared::script::ScriptManifest` als JSON.
+//!   - `source` — Rhai-Source (bei `wasm` ein leerer String — Spec §11).
+//!   - `version` — Monotone Versionsnummer. `save_script` rejiziert
+//!     nicht-monoton wachsende Versionen.
+//!   - `state` — `draft`/`active`/`locked` (lowercase, vgl.
+//!     `ScriptState`-Wire-Format).
+//!   - `last_error` — Optional letzter Compile-/Manifest-/Tier-Fehler
+//!     (als JSON). Wird beim erfolgreichen Save geleert.
+//!   - `created_by` — User-ID des Anlegers.
+//!   - `created_at` — ISO-8601 UTC (RFC-3339).
+//!   - `updated_at` — ISO-8601 UTC (RFC-3339).
 
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};

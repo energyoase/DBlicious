@@ -65,7 +65,9 @@ async fn script_table_round_trip_insert_fetch_mutate() {
     let mut am: script::ActiveModel = fetched.into();
     am.version = Set(2);
     am.state = Set("draft".into());
-    am.last_error = Set(Some(r#"{"kind":"parseFailed","line":1,"col":2,"msg":"x"}"#.into()));
+    am.last_error = Set(Some(
+        r#"{"kind":"parseFailed","line":1,"col":2,"msg":"x"}"#.into(),
+    ));
     let _ = am.update(&db).await.expect("update script");
 
     // ---- re-fetch ----
@@ -94,7 +96,11 @@ async fn script_version_table_supports_composite_pk_history() {
             version: Set(v),
             manifest_json: Set("{}".into()),
             source: Set(format!("/* v{v} */").into()),
-            state_at_save: Set(if v == 2 { "draft".into() } else { "active".into() }),
+            state_at_save: Set(if v == 2 {
+                "draft".into()
+            } else {
+                "active".into()
+            }),
             last_error: Set(if v == 2 {
                 Some(r#"{"kind":"manifestInvalid","reason":{"reason":"x"}}"#.into())
             } else {

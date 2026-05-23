@@ -71,8 +71,7 @@ fn loader_marks_missing_manifest_as_draft_error() {
     let dir = std::env::temp_dir().join("dblicious_loader_script_no_manifest");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(dir.join("scripts")).expect("temp/scripts dir");
-    fs::write(dir.join("scripts").join("orphan.rhai"), "fn x() { 1 }")
-        .expect("write rhai");
+    fs::write(dir.join("scripts").join("orphan.rhai"), "fn x() { 1 }").expect("write rhai");
 
     let set = example::load(&dir).expect("laden");
     assert_eq!(set.scripts.len(), 1);
@@ -91,8 +90,7 @@ fn loader_marks_unparseable_manifest_as_draft_error() {
     let dir = std::env::temp_dir().join("dblicious_loader_script_bad_manifest");
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(dir.join("scripts")).expect("temp/scripts dir");
-    fs::write(dir.join("scripts").join("broken.rhai"), "fn x() { 1 }")
-        .expect("write rhai");
+    fs::write(dir.join("scripts").join("broken.rhai"), "fn x() { 1 }").expect("write rhai");
     // Bewusst kaputt: kein gueltiges JSON.
     fs::write(
         dir.join("scripts").join("broken.manifest.json"),

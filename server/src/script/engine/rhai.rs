@@ -114,22 +114,20 @@ pub fn analyze_lift_capability(ast: &RhaiAst) -> bool {
     use std::cell::Cell;
     let lift_capable = Cell::new(true);
     let mut visit = |path: &[ASTNode]| -> bool {
-        if let Some(node) = path.last() {
-            if let ASTNode::Expr(Expr::MethodCall(call, _)) = node {
-                // Method-Calls: `obj.method(args)` — name traegt nur den
-                // Method-Anteil, nicht den vollqualifizierten Pfad. Daher
-                // matcht "entities" auch `db.entities()` und (theoretisch)
-                // `something_else.entities()`. Wir akzeptieren das: der
-                // Server registriert `entities`/`entity` nur auf `db`, ein
-                // anderer Receiver wuerde im Compile-Pfad scheitern.
-                let name = call.name.as_str();
-                if name == "entities" || name == "entity" {
-                    if let Some(first) = call.args.first() {
-                        if !matches!(first, Expr::StringConstant(..)) {
-                            lift_capable.set(false);
-                            // Walk terminieren: ein dynamischer Arg reicht.
-                            return false;
-                        }
+        if let Some(ASTNode::Expr(Expr::MethodCall(call, _))) = path.last() {
+            // Method-Calls: `obj.method(args)` — name traegt nur den
+            // Method-Anteil, nicht den vollqualifizierten Pfad. Daher
+            // matcht "entities" auch `db.entities()` und (theoretisch)
+            // `something_else.entities()`. Wir akzeptieren das: der
+            // Server registriert `entities`/`entity` nur auf `db`, ein
+            // anderer Receiver wuerde im Compile-Pfad scheitern.
+            let name = call.name.as_str();
+            if name == "entities" || name == "entity" {
+                if let Some(first) = call.args.first() {
+                    if !matches!(first, Expr::StringConstant(..)) {
+                        lift_capable.set(false);
+                        // Walk terminieren: ein dynamischer Arg reicht.
+                        return false;
                     }
                 }
             }
