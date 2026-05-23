@@ -6,6 +6,7 @@
 
 pub mod engine;
 pub mod host;
+pub mod run;
 pub mod sandbox;
 pub mod save;
 
