@@ -909,7 +909,11 @@ impl QueryRoot {
         require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
         let auth = ctx.data_opt::<AuthContext>();
         let user_ref = auth.and_then(|a| a.user.as_ref());
-        let resolved = crate::views::resolve_view(&entity_type, "default", user_ref).await;
+        let mut resolved = crate::views::resolve_view(&entity_type, "default", user_ref).await;
+        // I1: Unbekannte Override-Keys (Spec E1) vor der Auslieferung entfernen.
+        let known_keys: Vec<String> = crate::data::columns_for(&entity_type)
+            .into_iter().map(|c| c.key).collect();
+        crate::views::strip_unknown_keys(&mut resolved.properties, &known_keys, &entity_type, "default");
         // Wenn keine Layer vorliegen, ist provenance leer — gib None zurueck,
         // damit der Client auf Default-Verhalten faellt.
         // F1 (loader bootstrap) wird entity_views beim Start befuellen, sodass
@@ -1030,12 +1034,18 @@ impl QueryRoot {
         entity_type: String,
         #[graphql(default = "default")]
         view_name: String,
-    ) -> EntityViewGql {
+    ) -> async_graphql::Result<EntityViewGql> {
+        // I4: Read-Gate — wie entity_settings, entity_editor usw.
+        require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
         use crate::AuthContext;
         let auth = ctx.data_opt::<AuthContext>();
         let user_ref = auth.and_then(|a| a.user.as_ref());
-        let resolved = crate::views::resolve_view(&entity_type, &view_name, user_ref).await;
-        EntityViewGql {
+        let mut resolved = crate::views::resolve_view(&entity_type, &view_name, user_ref).await;
+        // I1: Unbekannte Override-Keys (Spec E1) vor der Auslieferung entfernen.
+        let known_keys: Vec<String> = crate::data::columns_for(&entity_type)
+            .into_iter().map(|c| c.key).collect();
+        crate::views::strip_unknown_keys(&mut resolved.properties, &known_keys, &entity_type, &view_name);
+        Ok(EntityViewGql {
             id:                format!("resolved:{entity_type}:{view_name}"),
             entity_type:       resolved.entity_type,
             view_name:         resolved.view_name,
@@ -1045,18 +1055,23 @@ impl QueryRoot {
             default_filter:    resolved.default_filter.map(|f| async_graphql::Json(serde_json::to_value(f).unwrap_or(serde_json::Value::Null))),
             default_sort:      resolved.default_sort.map(|s| async_graphql::Json(serde_json::to_value(s).unwrap_or(serde_json::Value::Null))),
             default_page_size: resolved.default_page_size,
-            version:           resolved.provenance.iter().map(|p| p.version).sum::<i32>(),
+            version:           resolved.provenance.iter()
+                .find(|p| p.layer == shared::view::ViewLayer::Global)
+                .map(|p| p.version)
+                .unwrap_or(0),
             updated_at:        String::new(),
             updated_by:        None,
-        }
+        })
     }
 
     async fn entity_views(
         &self,
-        _ctx: &Context<'_>,
+        ctx: &Context<'_>,
         entity_type: String,
-    ) -> Vec<EntityViewSummaryGql> {
-        crate::data::find_entity_views(&entity_type)
+    ) -> async_graphql::Result<Vec<EntityViewSummaryGql>> {
+        // I4: Read-Gate — wie entity_settings, entity_editor usw.
+        require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
+        Ok(crate::data::find_entity_views(&entity_type)
             .await
             .unwrap_or_default()
             .into_iter()
@@ -1065,7 +1080,7 @@ impl QueryRoot {
                 layers:     s.layers.into_iter().map(GqlViewLayer::from).collect(),
                 updated_at: s.updated_at,
             })
-            .collect()
+            .collect())
     }
 }
 
@@ -1408,6 +1423,34 @@ impl MutationRoot {
             };
         }
 
+        // C3: Besitzer-Pruefung — verhindert fremde Layer-Schreibzugriffe.
+        match layer {
+            shared::view::ViewLayer::User => {
+                let target = owner_id.as_deref();
+                if target != Some(user.id.as_str())
+                    && !shared::is_allowed(user, &crate::data::groups().await, "*", shared::PermissionOp::Update)
+                {
+                    return SaveEntityViewResult {
+                        kind: SaveEntityViewResultKind::Forbidden, view: None,
+                        message: Some("layer ownership mismatch".into()),
+                    };
+                }
+            }
+            shared::view::ViewLayer::Group => {
+                let target = owner_id.as_deref();
+                let is_member = target.map(|g| user.group_ids.iter().any(|x| x == g)).unwrap_or(false);
+                if !is_member
+                    && !shared::is_allowed(user, &crate::data::groups().await, "*", shared::PermissionOp::Update)
+                {
+                    return SaveEntityViewResult {
+                        kind: SaveEntityViewResultKind::Forbidden, view: None,
+                        message: Some("layer ownership mismatch".into()),
+                    };
+                }
+            }
+            shared::view::ViewLayer::Global => {} // bereits durch entity Update-Recht abgedeckt
+        }
+
         let existing = crate::data::find_entity_view(
             &input.entity_type, &input.view_name, layer, owner_id.as_deref()
         ).await.unwrap_or(None);
@@ -1483,8 +1526,31 @@ impl MutationRoot {
         if !shared::is_allowed(user, &crate::data::groups().await, &entity_type, shared::PermissionOp::Update) {
             return RevertEntityViewResult { ok: false, message: Some("forbidden".into()) };
         }
-        let _ = user; // explicit silence for unused after gate
-        match crate::data::delete_entity_view(&entity_type, &view_name, layer.into(), owner_id.as_deref()).await {
+
+        // C3: Besitzer-Pruefung — verhindert fremde Layer-Schreibzugriffe.
+        let layer_typed: shared::view::ViewLayer = layer.into();
+        match layer_typed {
+            shared::view::ViewLayer::User => {
+                let target = owner_id.as_deref();
+                if target != Some(user.id.as_str())
+                    && !shared::is_allowed(user, &crate::data::groups().await, "*", shared::PermissionOp::Update)
+                {
+                    return RevertEntityViewResult { ok: false, message: Some("layer ownership mismatch".into()) };
+                }
+            }
+            shared::view::ViewLayer::Group => {
+                let target = owner_id.as_deref();
+                let is_member = target.map(|g| user.group_ids.iter().any(|x| x == g)).unwrap_or(false);
+                if !is_member
+                    && !shared::is_allowed(user, &crate::data::groups().await, "*", shared::PermissionOp::Update)
+                {
+                    return RevertEntityViewResult { ok: false, message: Some("layer ownership mismatch".into()) };
+                }
+            }
+            shared::view::ViewLayer::Global => {} // bereits durch entity Update-Recht abgedeckt
+        }
+
+        match crate::data::delete_entity_view(&entity_type, &view_name, layer_typed, owner_id.as_deref()).await {
             Ok(_)  => RevertEntityViewResult { ok: true, message: None },
             Err(e) => RevertEntityViewResult { ok: false, message: Some(e) },
         }

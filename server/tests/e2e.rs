@@ -1598,8 +1598,8 @@ async fn entity_view_returns_resolved_default_for_authenticated_user() {
     let ev = &v["entityView"];
     assert_eq!(ev["entityType"], json!("product"));
     assert_eq!(ev["viewName"], json!("default"));
-    // Version ist die Summe aller Layer-Versionen.
-    // F1 seeded version=0 → Summe ist 0.
+    // Version ist die des Global-Layers (MVP-Save-Target).
+    // F1 seeded version=0 → Global-Version ist 0.
     assert!(ev["version"].as_i64().is_some());
 }
 
