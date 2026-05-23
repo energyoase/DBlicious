@@ -28,6 +28,50 @@ fn rhai_engine_compiles_trivial_script() {
 }
 
 #[test]
+fn rhai_engine_actually_evaluates_arithmetic() {
+    // B2-Regression: `new_raw()` ohne registrierte Packages hat in Rhai 1.x
+    // KEINE eingebaute Arithmetik — `40 + 2` parst, aber der eval-Pfad
+    // muesste fehlschlagen. Dieser Test jagt das Skript wirklich durch
+    // `run()` und prueft das numerische Ergebnis (nicht nur Compile).
+    use shared::script::engine::{ScriptCtx, ScriptValue};
+    let engine = server::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let ast = engine.compile("40 + 2", &manifest).expect("compile");
+    let host = shared::script::testing::MockHostApi::new();
+    let val = engine
+        .run(&ast, &host, ScriptCtx::default())
+        .expect("eval 40+2 muss durchlaufen");
+    assert_eq!(val, ScriptValue::Number(42.0));
+}
+
+#[test]
+fn rhai_engine_evaluates_string_and_array_ops() {
+    // B2: BasicString + BasicArray muessen geladen sein.
+    use shared::script::engine::{ScriptCtx, ScriptValue};
+    let engine = server::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    // Array-len + String-Ergebnis: prueft BasicArray (len) + Logic (if).
+    let ast = engine
+        .compile("let xs = [1, 2, 3]; if xs.len() == 3 { \"ok\" } else { \"no\" }", &manifest)
+        .expect("compile");
+    let host = shared::script::testing::MockHostApi::new();
+    let val = engine
+        .run(&ast, &host, ScriptCtx::default())
+        .expect("eval array/string muss durchlaufen");
+    assert_eq!(val, ScriptValue::String("ok".into()));
+}
+
+#[test]
 fn rhai_engine_rejects_eval_symbol() {
     let engine = server::script::engine::RhaiEngine::new();
     let manifest = ScriptManifest {

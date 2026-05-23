@@ -11,6 +11,10 @@
 
 use std::sync::Arc;
 
+use rhai::packages::{
+    ArithmeticPackage, BasicArrayPackage, BasicMapPackage, BasicStringPackage, LogicPackage,
+    Package,
+};
 use rhai::{ASTNode, Engine, EvalAltResult, Expr, AST};
 
 use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
@@ -45,7 +49,20 @@ impl Default for RhaiEngine {
 }
 
 fn configure_strict(engine: &mut Engine) {
-    // Symbol-Disable (Spec §7.5).
+    // Spec §5.1: kontrollierte Sprach-Packages. `Engine::new_raw()` bringt
+    // in Rhai 1.x KEINE eingebauten Funktionen mit — kein `.len()`, kein
+    // String-Concat, keine Map-Ops. Wir laden genau die fuenf erlaubten
+    // Packages, bewusst NICHT `StandardPackage` (das brächte u.a.
+    // print-/file-/eval-nahe Funktionen, die wir gerade ausschliessen).
+    ArithmeticPackage::new().register_into_engine(engine);
+    LogicPackage::new().register_into_engine(engine);
+    BasicStringPackage::new().register_into_engine(engine);
+    BasicArrayPackage::new().register_into_engine(engine);
+    BasicMapPackage::new().register_into_engine(engine);
+
+    // Symbol-Disable (Spec §7.5). Nach der Package-Registrierung, damit ein
+    // Package das Symbol nicht versehentlich re-aktiviert (tut keines der
+    // fuenf, aber die Reihenfolge macht die Garantie explizit).
     engine.disable_symbol("eval");
     engine.disable_symbol("import");
     engine.disable_symbol("print");

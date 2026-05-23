@@ -33,6 +33,35 @@ fn rhai_engine_compiles_trivial_script() {
 }
 
 #[test]
+fn rhai_engine_actually_evaluates_arithmetic_and_array_ops() {
+    // B2-Regression (Client-Pendant): die fuenf Sprach-Packages muessen
+    // geladen sein, sonst fehlt selbst `.len()` auf Arrays.
+    use shared::script::engine::{ScriptCtx, ScriptValue};
+    let engine = client::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let host = shared::script::testing::MockHostApi::new();
+
+    let ast = engine.compile("40 + 2", &manifest).expect("compile");
+    assert_eq!(
+        engine.run(&ast, &host, ScriptCtx::default()).expect("eval"),
+        ScriptValue::Number(42.0)
+    );
+
+    let ast2 = engine
+        .compile("let xs = [1, 2, 3]; if xs.len() == 3 { \"ok\" } else { \"no\" }", &manifest)
+        .expect("compile");
+    assert_eq!(
+        engine.run(&ast2, &host, ScriptCtx::default()).expect("eval array"),
+        ScriptValue::String("ok".into())
+    );
+}
+
+#[test]
 fn rhai_engine_rejects_eval_symbol() {
     let engine = client::script::engine::RhaiEngine::new();
     let manifest = ScriptManifest {

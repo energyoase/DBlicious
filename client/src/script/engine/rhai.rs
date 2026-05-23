@@ -15,6 +15,10 @@
 
 use std::sync::Arc;
 
+use rhai::packages::{
+    ArithmeticPackage, BasicArrayPackage, BasicMapPackage, BasicStringPackage, LogicPackage,
+    Package,
+};
 use rhai::{Engine, EvalAltResult, AST};
 
 use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
@@ -50,6 +54,16 @@ impl Default for RhaiEngine {
 }
 
 fn configure_strict(engine: &mut Engine) {
+    // Spec §5.1: kontrollierte Sprach-Packages (identisch zum Server).
+    // `Engine::new_raw()` bringt in Rhai 1.x keine eingebauten Funktionen
+    // mit — kein `.len()`, kein String-Concat, keine Map-Ops. Wir laden
+    // genau die fuenf erlaubten Packages, bewusst NICHT `StandardPackage`.
+    ArithmeticPackage::new().register_into_engine(engine);
+    LogicPackage::new().register_into_engine(engine);
+    BasicStringPackage::new().register_into_engine(engine);
+    BasicArrayPackage::new().register_into_engine(engine);
+    BasicMapPackage::new().register_into_engine(engine);
+
     // Symbol-Disable (Spec §7.5).
     engine.disable_symbol("eval");
     engine.disable_symbol("import");

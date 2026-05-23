@@ -27,7 +27,7 @@ pub trait ScriptEngine {
 }
 
 /// Rueckgabewert eines Skript-Runs — engine-neutral.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ScriptValue {
     String(String),
     Number(f64),
