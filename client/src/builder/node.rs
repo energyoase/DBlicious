@@ -114,6 +114,29 @@ impl BoundField {
     }
 }
 
+/// Spezialisierte Knoten-Variante. Default `Generic` haelt die heutige
+/// nicht-getaggte Form (`{"id": 42, ...}`) am Vertrag. Neue Varianten
+/// werden additiv ergaenzt — `skip_serializing_if = "NodeKind::is_generic"`
+/// laesst die alte Wire-Form unveraendert.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum NodeKind {
+    Generic,
+    Script(shared::script::ScriptNodeRef),
+}
+
+impl Default for NodeKind {
+    fn default() -> Self {
+        NodeKind::Generic
+    }
+}
+
+impl NodeKind {
+    pub fn is_generic(&self) -> bool {
+        matches!(self, NodeKind::Generic)
+    }
+}
+
 /// Knoten des UI-Trees.
 ///
 /// Die Feldreihenfolge entspricht dem Roadmap-Beispiel-JSON. Optional-Felder
@@ -136,6 +159,11 @@ pub struct UiNode {
     pub draggable: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<UiNode>,
+    /// Spezialisierte Variante (Q0009). Default ist `NodeKind::Generic`,
+    /// damit das bisherige Wire-Format unveraendert bleibt — das Feld
+    /// wird dann ueber `skip_serializing_if` weggelassen.
+    #[serde(default, skip_serializing_if = "NodeKind::is_generic")]
+    pub kind: NodeKind,
 }
 
 impl UiNode {
@@ -149,6 +177,7 @@ impl UiNode {
             event_trigger: None,
             draggable: false,
             children: Vec::new(),
+            kind: NodeKind::default(),
         }
     }
 
@@ -226,6 +255,7 @@ mod tests {
             }),
             draggable: false,
             children: Vec::new(),
+            kind: NodeKind::default(),
         };
         let v = serde_json::to_value(&node).unwrap();
         // ID transparent als Zahl, eventTrigger camelCase, children weggelassen.
@@ -236,6 +266,22 @@ mod tests {
         assert_eq!(v["eventTrigger"]["event"], json!({"kind": "click"}));
         assert_eq!(v["draggable"], json!(false));
         assert!(v.get("children").is_none(), "leere children weglassen: {v}");
+        // Default NodeKind::Generic muss weggelassen werden, damit der
+        // alte Wire-Vertrag (`{"id": 42, ...}` ohne `kind`) gilt.
+        assert!(v.get("kind").is_none(), "default kind muss weggelassen werden: {v}");
+    }
+
+    #[test]
+    fn ui_node_script_variant_serializes_with_kind_script() {
+        use shared::script::{ScriptId, ScriptNodeRef};
+        let mut node = UiNode::new(NodeId(7));
+        node.kind = NodeKind::Script(ScriptNodeRef {
+            script_id: ScriptId("sales-dashboard".into()),
+            version_pin: None,
+        });
+        let v = serde_json::to_value(&node).unwrap();
+        assert_eq!(v["kind"]["type"], json!("script"));
+        assert_eq!(v["kind"]["scriptId"], json!("sales-dashboard"));
     }
 
     #[test]

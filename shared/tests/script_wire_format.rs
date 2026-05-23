@@ -161,6 +161,24 @@ fn script_state_serializes_lowercase() {
 }
 
 #[test]
+fn script_node_ref_serializes_camelcase_and_omits_unset_pin() {
+    use shared::script::{ScriptId, ScriptNodeRef};
+    let r = ScriptNodeRef {
+        script_id: ScriptId("s-1".into()),
+        version_pin: None,
+    };
+    let v = serde_json::to_value(&r).unwrap();
+    assert_eq!(v, json!({"scriptId": "s-1"}));
+
+    let r2 = ScriptNodeRef {
+        script_id: ScriptId("s-2".into()),
+        version_pin: Some(7),
+    };
+    let v2 = serde_json::to_value(&r2).unwrap();
+    assert_eq!(v2, json!({"scriptId": "s-2", "versionPin": 7}));
+}
+
+#[test]
 fn script_id_is_transparent_string() {
     use shared::script::ScriptId;
     let id = ScriptId("abc123".into());

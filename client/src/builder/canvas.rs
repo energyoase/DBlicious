@@ -108,6 +108,7 @@ pub fn BuilderCanvas() -> impl IntoView {
                 event_trigger: None,
                 draggable: true,
                 children: Vec::new(),
+                kind: Default::default(),
             });
             selected.set(Some(id));
         });
