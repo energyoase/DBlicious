@@ -930,6 +930,7 @@ impl QueryRoot {
             properties:          resolved.properties,
             field_type_defaults: Default::default(),
             binding:             None,
+            append_only:         false,
         };
         Ok(Some(map_settings(settings)))
     }
@@ -1657,6 +1658,10 @@ impl MutationRoot {
         expected_hash: Option<String>,
     ) -> async_graphql::Result<EntityChangeResult> {
         let actor = require_permission(ctx, &entity_type, shared::PermissionOp::Update).await?;
+        // Phase 1.7.4: GoBD-Schutz greift VOR allen anderen Checks.
+        data::check_gobd_protected(&entity_type)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("gobd_protected: {}", e.entity_type)))?;
         let expected_hash_u64 = expected_hash.as_deref().and_then(|s| s.parse::<u64>().ok());
         if let Some(expected) = expected_hash_u64 {
             if let Some(current_hash) = data::current_hash(&entity_type, &id).await {
@@ -1819,6 +1824,10 @@ impl MutationRoot {
         expected_hash: Option<String>,
     ) -> async_graphql::Result<EntityChangeResult> {
         require_permission(ctx, &entity_type, shared::PermissionOp::Delete).await?;
+        // Phase 1.7.4: GoBD-Schutz greift VOR allen anderen Checks.
+        data::check_gobd_protected(&entity_type)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("gobd_protected: {}", e.entity_type)))?;
         let expected_hash_u64 = expected_hash.as_deref().and_then(|s| s.parse::<u64>().ok());
         if let Some(expected) = expected_hash_u64 {
             if let Some(current_hash) = data::current_hash(&entity_type, &id).await {

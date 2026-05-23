@@ -143,7 +143,15 @@ pub struct EntitySettings {
     /// Binding (managed-sqlite, generische entities-Tabelle).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub binding: Option<crate::source::EntityBinding>,
+    /// Phase 1.7.4: GoBD-Unveraenderbarkeit. Wenn `true`, lehnen die
+    /// CRUD-Resolver Update + Delete mit `gobd_protected`-Fehler ab.
+    /// Aenderung nur ueber Storno-Operation (neue Gegenbuchung, alter
+    /// Datensatz bleibt) zulaessig.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub append_only: bool,
 }
+
+fn is_false(b: &bool) -> bool { !b }
 
 impl EntitySettings {
     pub fn property(&self, key: &str) -> Option<&PropertySettings> {

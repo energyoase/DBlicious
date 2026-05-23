@@ -471,6 +471,13 @@ pub async fn update_entity(
     field_patch: serde_json::Value,
     actor_user_id: Option<&str>,
 ) -> Option<Entity> {
+    if is_append_only(entity_type).await {
+        // Phase 1.7.4: GoBD-Schutz — Updates blockiert. Aufrufer (Resolver)
+        // muss `gobd_protected`-Fehler propagieren; hier wird das durch
+        // `None` signalisiert. Strenger Pfad ueber GraphQL-Error siehe
+        // [`check_gobd_protected`].
+        return None;
+    }
     let binding = binding_for(entity_type);
     let source = { crate::source::registry().route(&binding).ok()? };
     let entity_id = shared::source::EntityId::decode(id);
@@ -488,6 +495,9 @@ pub async fn update_entity(
 }
 
 pub async fn delete_entity(entity_type: &str, id: &str) -> bool {
+    if is_append_only(entity_type).await {
+        return false;
+    }
     let binding = binding_for(entity_type);
     let source = match { crate::source::registry().route(&binding) } {
         Ok(s) => s,
@@ -495,6 +505,32 @@ pub async fn delete_entity(entity_type: &str, id: &str) -> bool {
     };
     let entity_id = shared::source::EntityId::decode(id);
     source.delete(&binding, &entity_id).await.unwrap_or(false)
+}
+
+/// Phase 1.7.4: liest `EntitySettings.append_only`. Heute kommt der
+/// Wert ausschliesslich aus dem `--data-dir`-Loader-Snapshot. False bei
+/// fehlenden Settings.
+pub async fn is_append_only(entity_type: &str) -> bool {
+    settings_for_async(entity_type)
+        .await
+        .map(|s| s.append_only)
+        .unwrap_or(false)
+}
+
+/// Strenger Pfad fuer Resolver, die `gobd_protected`-GraphQL-Errors
+/// liefern muessen statt None/false zurueckzugeben.
+pub async fn check_gobd_protected(entity_type: &str) -> Result<(), GobdProtectedError> {
+    if is_append_only(entity_type).await {
+        Err(GobdProtectedError { entity_type: entity_type.to_string() })
+    } else {
+        Ok(())
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("gobd_protected: entity_type '{entity_type}' is append-only — Storno required")]
+pub struct GobdProtectedError {
+    pub entity_type: String,
 }
 
 // =============================================================================

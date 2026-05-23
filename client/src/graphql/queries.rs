@@ -768,6 +768,9 @@ pub async fn fetch_settings(entity_type: &str) -> Result<Option<EntitySettings>,
         field_type_defaults: std::collections::BTreeMap::new(),
         // Phase 0.6: binding wird ueber GraphQL noch nicht exponiert.
         binding: None,
+        // Phase 1.7.4: append_only wird ueber GraphQL noch nicht exponiert;
+        // Client behandelt es konservativ als false. Der Server enforced ihn.
+        append_only: false,
     }))
 }
 
