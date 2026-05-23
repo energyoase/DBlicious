@@ -25,6 +25,8 @@ regex = "1.10"
 sea-orm = { version = "1.1", default-features = false, features = [
     "runtime-tokio-rustls",
     "sqlx-sqlite",
+    "sqlx-postgres",
+    "sqlx-mysql",
     "macros",
     "with-json",
     "with-chrono",

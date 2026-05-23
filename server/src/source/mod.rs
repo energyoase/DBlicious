@@ -9,6 +9,8 @@ pub mod config;
 pub mod managed_sqlite;
 pub mod foreign_sqlite;
 pub mod introspect;
+pub mod mysql;
+pub mod postgres;
 pub mod sql;
 
 use std::collections::BTreeMap;
@@ -190,6 +192,18 @@ pub async fn boot_registry(
                     SourceError::Other(format!("source '{name}' (foreign-sqlite) requires url"))
                 })?;
                 Box::new(crate::source::foreign_sqlite::ForeignSqliteSource::new(name.clone(), url))
+            }
+            "postgres" => {
+                let url = cfg.url.clone().ok_or_else(|| {
+                    SourceError::Other(format!("source '{name}' (postgres) requires url"))
+                })?;
+                Box::new(crate::source::postgres::PostgresSource::new(name.clone(), url))
+            }
+            "mysql" => {
+                let url = cfg.url.clone().ok_or_else(|| {
+                    SourceError::Other(format!("source '{name}' (mysql) requires url"))
+                })?;
+                Box::new(crate::source::mysql::MySqlSource::new(name.clone(), url))
             }
             other => return Err(SourceError::Other(format!("unknown source kind: {other}"))),
         };
