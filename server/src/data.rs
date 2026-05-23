@@ -419,9 +419,13 @@ pub async fn entities_page(
             items: p
                 .items
                 .into_iter()
-                .map(|e| Entity {
-                    id: e.id,
-                    fields: Json(serde_json::Value::Object(e.fields)),
+                .map(|e| {
+                    let mut fields = e.fields;
+                    apply_int_enum_decode(entity_type, &mut fields);
+                    Entity {
+                        id: e.id,
+                        fields: Json(serde_json::Value::Object(fields)),
+                    }
                 })
                 .collect(),
             total_count: p.total_count as i64,
@@ -445,10 +449,14 @@ pub async fn entity_by_id(entity_type: &str, id: &str) -> Option<Entity> {
     let source = { crate::source::registry().route(&binding).ok()? };
     let entity_id = shared::source::EntityId::decode(id);
     match source.get(&binding, &entity_id).await {
-        Ok(Some(e)) => Some(Entity {
-            id: e.id,
-            fields: Json(serde_json::Value::Object(e.fields)),
-        }),
+        Ok(Some(e)) => {
+            let mut fields = e.fields;
+            apply_int_enum_decode(entity_type, &mut fields);
+            Some(Entity {
+                id: e.id,
+                fields: Json(serde_json::Value::Object(fields)),
+            })
+        }
         _ => None,
     }
 }
@@ -480,6 +488,66 @@ pub async fn merged_fields(
     base
 }
 
+/// G7: Liefert `(key, values)` fuer alle `FieldType::IntEnum`-Spalten eines
+/// Entity-Typs. Liest die rohen `shared::ColumnMeta` aus dem installierten
+/// Set (nicht ueber [`columns_for`], das `field_type` zu JSON verflacht).
+fn int_enum_specs(entity_type: &str) -> Vec<(String, Vec<shared::IntEnumValue>)> {
+    let Some(set) = crate::example::current() else {
+        return Vec::new();
+    };
+    let Some(et) = set.entities.get(entity_type) else {
+        return Vec::new();
+    };
+    et.columns
+        .iter()
+        .filter_map(|c| match &c.field_type {
+            shared::FieldType::IntEnum { values } => Some((c.key.clone(), values.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// G7 Read-Pfad: DB-Integer -> wire_name-String fuer jede IntEnum-Spalte.
+fn apply_int_enum_decode(
+    entity_type: &str,
+    fields: &mut serde_json::Map<String, serde_json::Value>,
+) {
+    for (key, values) in int_enum_specs(entity_type) {
+        if let Some(stored) = fields.get(&key) {
+            let wired = crate::int_enum::decode(stored, &values);
+            fields.insert(key, wired);
+        }
+    }
+}
+
+/// G7 Write-Pfad: wire_name-String -> DB-Integer. Nur String-Werte werden
+/// konvertiert; bereits numerische Werte (Seed/CLI) bleiben unangetastet.
+/// Unbekannte Namen werden vom Validierungs-Gate ([`validate_against_editor`])
+/// bereits abgelehnt; auf diesem nicht erreichbaren Pfad wird der Wert geloggt
+/// und unveraendert gelassen statt still falsch gespeichert.
+fn apply_int_enum_encode(
+    entity_type: &str,
+    fields: &mut serde_json::Map<String, serde_json::Value>,
+) {
+    for (key, values) in int_enum_specs(entity_type) {
+        let Some(incoming) = fields.get(&key) else {
+            continue;
+        };
+        if !incoming.is_string() {
+            continue;
+        }
+        let incoming = incoming.clone();
+        match crate::int_enum::encode(&incoming, &values) {
+            Ok(stored) => {
+                fields.insert(key, stored);
+            }
+            Err(e) => {
+                tracing::warn!(target: "server::data", "int_enum encode skip {key}: {e}");
+            }
+        }
+    }
+}
+
 pub async fn create_entity(
     entity_type: &str,
     id: Option<String>,
@@ -487,10 +555,11 @@ pub async fn create_entity(
     actor_user_id: Option<&str>,
 ) -> Entity {
     let binding = binding_for(entity_type);
-    let fields_map = match fields {
+    let mut fields_map = match fields {
         serde_json::Value::Object(m) => m,
         _ => serde_json::Map::new(),
     };
+    apply_int_enum_encode(entity_type, &mut fields_map);
     let source = {
         let reg = crate::source::registry();
         match reg.route(&binding) {
@@ -538,10 +607,11 @@ pub async fn update_entity(
     let binding = binding_for(entity_type);
     let source = { crate::source::registry().route(&binding).ok()? };
     let entity_id = shared::source::EntityId::decode(id);
-    let patch = match field_patch {
+    let mut patch = match field_patch {
         serde_json::Value::Object(m) => m,
         _ => return None,
     };
+    apply_int_enum_encode(entity_type, &mut patch);
     match source
         .update(&binding, &entity_id, patch, actor_user_id)
         .await
@@ -1148,6 +1218,17 @@ pub fn validate_against_editor(
     use shared::ValidationMessage;
 
     let mut result = shared::ValidationResult::default();
+
+    // G7: ein eingehender IntEnum-Wert muss ein bekannter wire_name sein.
+    // Laeuft unabhaengig vom EditorMeta (Spalten tragen den FieldType).
+    for (key, values) in int_enum_specs(entity_type) {
+        if let Some(serde_json::Value::String(s)) = fields.get(&key) {
+            if !s.is_empty() && !values.iter().any(|v| &v.wire_name == s) {
+                result.push(ValidationMessage::error(key.clone(), "validation.enum_value"));
+            }
+        }
+    }
+
     let Some(meta) = editor_for(entity_type) else {
         return result;
     };

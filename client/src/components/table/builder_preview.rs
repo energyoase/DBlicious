@@ -131,6 +131,13 @@ fn placeholder_value(ft: &FieldType, row_index: usize) -> Value {
                 Value::String(values[(i as usize) % values.len()].clone())
             }
         }
+        FieldType::IntEnum { values } => {
+            if values.is_empty() {
+                Value::Null
+            } else {
+                Value::String(values[(i as usize) % values.len()].wire_name.clone())
+            }
+        }
     }
 }
 

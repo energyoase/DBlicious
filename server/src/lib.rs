@@ -16,6 +16,7 @@ pub mod events;
 pub mod example;
 pub mod export;
 pub mod fx;
+pub mod int_enum;
 pub mod jobs;
 pub mod pdf;
 pub mod period_locks;

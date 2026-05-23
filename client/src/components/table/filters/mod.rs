@@ -62,7 +62,7 @@ fn default_id_for(ft: &FieldType) -> Option<&'static str> {
             Some(number_range::ID)
         }
         FieldType::Boolean => Some(bool_equals::ID),
-        FieldType::Enum { .. } => Some(enum_in::ID),
+        FieldType::Enum { .. } | FieldType::IntEnum { .. } => Some(enum_in::ID),
         FieldType::Date | FieldType::DateTime => Some(date_range::ID),
         FieldType::Reference { .. } | FieldType::Collection { .. } => None,
     }
