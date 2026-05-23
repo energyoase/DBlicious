@@ -48,11 +48,18 @@ sha2 = "0.10"
 # Wir akzeptieren 5-Feld-Format (`* * * * *`) und prefixen intern mit "0 "
 # (Sekunden-Feld), damit das gewohnte UNIX-Cron-Format reicht.
 cron = "0.12"
+# 1.7.14 XLSX-Export — typisierte Zellen (String/Number/Bool). Reines
+# Write-API; Read-Tests laufen via `calamine` als dev-dep.
+rust_xlsxwriter = "0.79"
 
 [dev-dependencies]
 serial_test = "3"
 tempfile = "3"
 shared = { path = "../shared", features = ["testing"] }
+# 1.7.14 XLSX-Tests: Roundtrip-Reader fuer das von rust_xlsxwriter
+# erzeugte Workbook. Wir nutzen nur das Reader-Subset, daher keine
+# zusaetzlichen Features.
+calamine = "0.30"
 # Cross-Crate Symmetry-Test (Q0009 Phase 4): bringt
 # `client::script::ClientHostApiRegistry` ueber den `rlib`-Pfad in den
 # Test-Build. Keine Run-Time-Beziehung zwischen den Binaries.
