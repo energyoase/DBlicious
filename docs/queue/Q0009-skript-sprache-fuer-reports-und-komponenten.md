@@ -1,7 +1,7 @@
 ---
 id: Q0009
 created: 2026-05-23T00:00:00Z
-status: executing
+status: done
 priority: medium
 title: "Skript-Sprache für Reports, Custom-Komponenten und Capability-Provider (Rhai-Engine, später WASM)"
 spec: docs/superpowers/specs/2026-05-23-q0009-skript-sprache-design.md
@@ -106,3 +106,11 @@ Architektur-Eckpunkte (Details im Spec):
 - 2026-05-23T00:00:00Z — manual: created (status=brainstormed, spec=docs/superpowers/specs/2026-05-23-q0009-skript-sprache-design.md)
 - 2026-05-23T00:00:00Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0009-skript-sprache-fuer-reports-und-komponenten.md (sub-agent commit=7d5e2973)
 - 2026-05-23T00:00:00Z — ccm-execute: status planned → executing (approval via ccm-plan §9, WIP gestasht)
+- 2026-05-23T00:00:00Z — ccm-execute: Phase 1 done (8 commits, 21 tests) — df047a1..d13f52a
+- 2026-05-23T00:00:00Z — ccm-execute: Phase 2 done (8 commits, 20 tests) — e60e49b..167b570
+- 2026-05-23T00:00:00Z — ccm-execute: Phase 3 done (5 commits, 20 tests) — 5569f75..fde269c
+- 2026-05-23T00:00:00Z — ccm-execute: Phase 4 done (4 commits, 21 tests) — 070743a..4eae75d
+- 2026-05-23T00:00:00Z — ccm-execute: Phase 5 done (4 commits) — 3e185fa..b6df6ac
+- 2026-05-23T00:00:00Z — ccm-execute: Phase 6 done (6 commits, 5 tests) — f673e3a..ed1af62
+- 2026-05-23T00:00:00Z — ccm-execute: status executing → done, final_sha=4cba6b2. Verification-Gate: alle 87 Q0009-Tests isoliert grün (shared 21, server_engine 19, persistence 4, loader 3, save 10, run 3, symmetry 2, graphql 5, client 20). Workspace-Run zeigte 3 flaky-Fails in cli/migrate_security (Concurrency-Lock mit Parallel-Session, isoliert grün bestätigt — pre-existing, Commit 816a485, nicht Q0009). clippy/fmt-Baseline → Q0010.
+- 2026-05-23T00:00:00Z — HINWEIS: security_review.required=true — Item NICHT nach done/ verschoben. Ausstehend: /ccm-review Q0009 + /ccm-security-review Q0009 vor Archivierung.
