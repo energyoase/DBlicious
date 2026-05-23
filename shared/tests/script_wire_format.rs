@@ -91,6 +91,48 @@ fn unknown_capability_kind_fails_to_deserialize() {
     assert!(r.is_err(), "unbekannter kind muss Fehler werfen");
 }
 
+#[test]
+fn manifest_serializes_camelcase_with_pinned_fields() {
+    use shared::script::{ScriptManifest, UiPrimitive};
+    let m = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ReadOwnEntities, CapabilityToken::ReadI18n],
+        ui_primitives: vec![UiPrimitive::Text],
+        timeout_ms: Some(100),
+        memory_kb: None,
+        lift_capable: true,
+    };
+    let v = serde_json::to_value(&m).unwrap();
+    assert_eq!(v["manifestVersion"], json!(1));
+    assert_eq!(v["tier"], json!("reader"));
+    assert_eq!(v["capabilities"][0], json!({"kind": "readOwnEntities"}));
+    assert_eq!(v["uiPrimitives"], json!(["text"]));
+    assert_eq!(v["timeoutMs"], json!(100));
+    assert_eq!(v["liftCapable"], json!(true));
+    assert!(
+        v.get("memoryKb").is_none(),
+        "memoryKb soll weggelassen werden: {v}"
+    );
+}
+
+#[test]
+fn manifest_roundtrips_through_json() {
+    use shared::script::{ScriptManifest, UiPrimitive};
+    let m = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Author,
+        capabilities: vec![CapabilityToken::ReadAllEntitiesWhereAllowed],
+        ui_primitives: vec![UiPrimitive::Vstack, UiPrimitive::Text, UiPrimitive::Table],
+        timeout_ms: Some(500),
+        memory_kb: Some(16_000),
+        lift_capable: false,
+    };
+    let s = serde_json::to_string(&m).unwrap();
+    let back: ScriptManifest = serde_json::from_str(&s).unwrap();
+    assert_eq!(m, back);
+}
+
 /// Exhaustiveness-Anker: wenn jemand eine neue Variante hinzufuegt, muss
 /// hier ein Eintrag dazu. Bricht den Build absichtlich.
 #[test]
