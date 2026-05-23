@@ -320,6 +320,35 @@ fn host_audit_log_via_mock_records_event() {
     assert_eq!(log[0].1, serde_json::json!({"x": 1}));
 }
 
+// ----------------------------------------------------------------------------
+// Phase 2.8 — ServerHostApiRegistry + Symmetrie-Anker
+// ----------------------------------------------------------------------------
+
+#[test]
+fn server_host_api_registry_lists_required_functions() {
+    use shared::script::HostApiRegistry;
+    let fns = server::script::ServerHostApiRegistry::functions();
+    let names: Vec<_> = fns.iter().map(|f| f.name).collect();
+    assert!(names.contains(&"db.entities"), "fehlt: db.entities in {names:?}");
+    assert!(names.contains(&"db.patch"),    "fehlt: db.patch in {names:?}");
+    assert!(names.contains(&"ui.text"),     "fehlt: ui.text in {names:?}");
+    assert!(names.contains(&"ui.vstack"),   "fehlt: ui.vstack in {names:?}");
+    assert!(names.contains(&"ctx.t"),       "fehlt: ctx.t in {names:?}");
+    assert!(names.contains(&"audit.log"),   "fehlt: audit.log in {names:?}");
+}
+
+#[test]
+fn server_host_api_registry_marks_server_only_correctly() {
+    use shared::script::HostApiRegistry;
+    let fns = server::script::ServerHostApiRegistry::functions();
+    let patch = fns.iter().find(|f| f.name == "db.patch").expect("db.patch present");
+    assert!(patch.server_only, "db.patch muss server_only sein");
+    let audit = fns.iter().find(|f| f.name == "audit.log").expect("audit.log present");
+    assert!(audit.server_only, "audit.log muss server_only sein");
+    let text = fns.iter().find(|f| f.name == "ui.text").expect("ui.text present");
+    assert!(!text.server_only, "ui.text ist client-faehig");
+}
+
 #[test]
 fn engine_max_operations_kicks_in_on_runaway_loop() {
     let engine = server::script::engine::RhaiEngine::new();
