@@ -15,6 +15,7 @@ nav-sales = Ventes
 nav-orders = Commandes
 nav-customers = Clients
 nav-designer = Concepteur de schéma
+nav-builder = ⚙ Mise en page
 
 ## Table
 table-empty = Aucun enregistrement disponible.

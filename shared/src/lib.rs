@@ -88,6 +88,54 @@ impl NavigationNode {
         }
         MenuAction::from_route(self.route.clone())
     }
+
+    /// Wenn dieser Knoten auf eine `/entities/<type>`-Route zeigt, liefert
+    /// `<type>`. Sonst `None`. Wird vom Designer-Sub-Link-Augmentor (Q0004)
+    /// genutzt.
+    pub fn entity_type_from_route(&self) -> Option<String> {
+        let route = match self.resolved_action() {
+            MenuAction::Link { route } => route,
+            _ => return None,
+        };
+        let rest = route.strip_prefix("/entities/")?;
+        let t = rest.split(['/', '?']).next().unwrap_or(rest);
+        if t.is_empty() {
+            None
+        } else {
+            Some(t.to_string())
+        }
+    }
+}
+
+/// Augmentiert einen Navigations-Baum: jeder Knoten, dessen Route auf
+/// `/entities/<type>` zeigt, bekommt einen zusaetzlichen Kind-Knoten
+/// „Designer" (`/builder/<type>`). Bestehende Children bleiben unveraendert,
+/// der Designer-Link wird ans Ende angefuegt. Ein bereits vorhandener
+/// Designer-Knoten desselben Typs wird nicht dupliziert.
+///
+/// Permission-Gating uebernimmt der Client (`is_visible` prueft `Update`
+/// auf den Entity-Typ und blendet den Sub-Link sonst aus).
+pub fn augment_with_designer_links(nodes: Vec<NavigationNode>) -> Vec<NavigationNode> {
+    nodes.into_iter().map(augment_node).collect()
+}
+
+fn augment_node(mut n: NavigationNode) -> NavigationNode {
+    n.children = augment_with_designer_links(std::mem::take(&mut n.children));
+    if let Some(entity_type) = n.entity_type_from_route() {
+        let designer_id = format!("{}__designer", n.id);
+        let already = n.children.iter().any(|c| c.id == designer_id);
+        if !already {
+            n.children.push(NavigationNode {
+                id:        designer_id,
+                label_key: "nav.builder".into(),
+                route:     Some(format!("/builder/{entity_type}")),
+                icon:      None,
+                children:  Vec::new(),
+                action:    None,
+            });
+        }
+    }
+    n
 }
 
 /// Beschreibt den fachlichen Typ einer Tabellenspalte.

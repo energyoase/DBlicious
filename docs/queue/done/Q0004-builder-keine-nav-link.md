@@ -1,7 +1,7 @@
 ---
 id: Q0004
 created: 2026-05-21T00:00:00Z
-status: new
+status: done
 priority: medium
 title: "Builder/Designer ist nicht aus der Navigation erreichbar"
 spec: null

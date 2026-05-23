@@ -63,6 +63,12 @@ fn is_visible(node: &NavigationNode, auth: &AuthContext) -> bool {
             let entity_type = rest.split(['/', '?']).next().unwrap_or(rest);
             return auth.is_allowed(entity_type, PermissionOp::Read);
         }
+        if let Some(rest) = route.strip_prefix("/builder/") {
+            // Designer-Sub-Link (Q0004 Option C): Update-Recht analog zur
+            // Auth-Gate-Pruefung in `BuilderPage`.
+            let entity_type = rest.split(['/', '?']).next().unwrap_or(rest);
+            return auth.is_allowed(entity_type, PermissionOp::Update);
+        }
     }
     true
 }

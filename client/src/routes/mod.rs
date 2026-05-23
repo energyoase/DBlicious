@@ -16,9 +16,10 @@ use leptos_router::hooks::use_params_map;
 use crate::auth::AuthContext;
 use crate::components::designer::Designer;
 use crate::components::table::{
-    filters::default_registry, BottomMenu, BuilderPreviewSource, ColumnEditorPopover, DeleteAction,
-    EditAction, EntityTableShell, GlobalFilter, PageSize, Pager, RemoteSource, RowActions,
-    SelectionColumn, SelectionMode, TableView, TopMenu, DEFAULT_PREVIEW_ROWS,
+    filters::default_registry, ActiveDrag, BottomMenu, BuilderPreviewSource, ColumnEditorPopover,
+    DeleteAction, DragReorderCtx, EditAction, EntityTableShell, GlobalFilter, PageSize, Pager,
+    RemoteSource, RowActions, SelectionColumn, SelectionMode, TableView, TopMenu,
+    DEFAULT_PREVIEW_ROWS,
 };
 use crate::i18n::t;
 use crate::styling::{use_design, SurfaceLevel, TextVariant};
@@ -135,6 +136,29 @@ pub fn EntityListPage() -> impl IntoView {
     // Kontext fuer L3 (ColumnEditorPopover) und L2 (TopMenu edit-mode toggle).
     provide_context::<RwSignal<bool>>(edit_mode);
     provide_context::<RwSignal<Option<(String, f64, f64)>>>(open_popover_for);
+
+    // Q0007: Drag-Reorder-Kontext fuer Spaltenheader. Commit-Callback
+    // schreibt eine `order`-Override fuer jede umgeordnete Spalte in
+    // `pending_overrides`. Save-Flow (L4) persistiert wie bei den anderen
+    // Header-Popover-Edits.
+    let drag_reorder_active: RwSignal<Option<ActiveDrag>> = RwSignal::new(None);
+    let drag_commit = Callback::new(move |updates: Vec<(String, i32)>| {
+        pending_overrides.update(|m| {
+            for (key, order) in updates {
+                let entry = m
+                    .entry(key.clone())
+                    .or_insert_with(|| shared::view::ViewPropertyOverride {
+                        key: key.clone(),
+                        ..Default::default()
+                    });
+                entry.order = Some(order);
+            }
+        });
+    });
+    provide_context(DragReorderCtx {
+        active_drag: drag_reorder_active,
+        commit:      drag_commit,
+    });
 
     // Spalten-Metadaten vom Server nachladen (zuvor hartkodiert via column_set_for).
     let columns_resource: LocalResource<Vec<shared::ColumnMeta>> = LocalResource::new(move || {

@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use shared::{ColumnMeta, Entity, SortDirection};
 
 use super::actions::RowContext;
+use super::column_editor::{compute_reorder, ActiveDrag, DragReorderCtx, HeaderRect};
 use super::filters::{resolve_filter_id, FilterContext};
 use super::formatters::FieldCell;
 use super::selection::SelectionMode;
@@ -221,13 +222,27 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
     // Edit-Mode-Kontext: wird von EntityListPage bereitgestellt (L1/L3).
     let edit_mode_ctx = use_context::<RwSignal<bool>>();
     let open_popover_ctx = use_context::<RwSignal<Option<(String, f64, f64)>>>();
+    let reorder_ctx = use_context::<DragReorderCtx>();
 
     let key_for_click = column.key.clone();
     let key_for_popover = column.key.clone();
+    let key_for_drag = column.key.clone();
     let cursor = if sortable { "pointer" } else { "default" };
-    let combined_style = format!("{style} cursor: {cursor}; user-select: none;");
+    let combined_style = format!("{style} cursor: {cursor}; user-select: none; touch-action: none;");
+
+    // Marker, damit `pointerdown` weiss, ob er einen Drag gestartet hat
+    // und der spaetere `click` deshalb keinen Popover oeffnen darf.
+    let drag_started: RwSignal<bool> = RwSignal::new(false);
+    // Mindest-Distanz in px, ab der ein pointermove als Drag gilt — sonst
+    // ist es ein normaler Klick (Sort/Popover).
+    const DRAG_THRESHOLD_PX: f64 = 4.0;
 
     let on_click = move |ev: web_sys::MouseEvent| {
+        // Click direkt nach Drag schluckt das Event.
+        if drag_started.get() {
+            drag_started.set(false);
+            return;
+        }
         // Popover-Logik: nur im Edit-Mode.
         if let (Some(em), Some(pop)) = (edit_mode_ctx, open_popover_ctx) {
             if em.get() {
@@ -249,8 +264,98 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
         }
     };
 
+    // pointerdown: nur wirken, wenn Edit-Mode aktiv und Reorder-Ctx providet.
+    let key_pd = key_for_drag.clone();
+    let on_pointer_down = move |ev: web_sys::PointerEvent| {
+        let Some(em) = edit_mode_ctx else { return };
+        if !em.get() {
+            return;
+        }
+        let Some(ctx) = reorder_ctx else { return };
+        use wasm_bindgen::JsCast;
+        // Eigene <th>-Element holen, daraus den umliegenden <tr> finden und
+        // alle Daten-Headers (= mit data-col) einsammeln. Selection- und
+        // Action-Headers tragen das Attribut nicht.
+        let Some(target) = ev
+            .current_target()
+            .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+        else {
+            return;
+        };
+        let Some(row) = target.parent_element() else { return };
+        let cells = row.query_selector_all("th[data-col]").ok();
+        let Some(cells) = cells else { return };
+        let mut keys: Vec<String> = Vec::with_capacity(cells.length() as usize);
+        let mut rects: Vec<HeaderRect> = Vec::with_capacity(cells.length() as usize);
+        let mut from_index: Option<usize> = None;
+        for i in 0..cells.length() {
+            let Some(node) = cells.item(i) else { continue };
+            let Ok(el) = node.dyn_into::<web_sys::Element>() else { continue };
+            let col_key = el.get_attribute("data-col").unwrap_or_default();
+            let r = el.get_bounding_client_rect();
+            if col_key == key_pd {
+                from_index = Some(keys.len());
+            }
+            keys.push(col_key);
+            rects.push(HeaderRect { left: r.left(), right: r.right() });
+        }
+        let Some(from_index) = from_index else { return };
+        ctx.active_drag.set(Some(ActiveDrag {
+            from_index,
+            keys,
+            rects,
+            pointer_x: ev.client_x() as f64,
+        }));
+        // Pointer-Capture: nachfolgende move/up gehen an dieses Element,
+        // egal wo die Maus ist (Standard-Web-Pattern).
+        let _ = target.set_pointer_capture(ev.pointer_id());
+    };
+
+    let on_pointer_move = move |ev: web_sys::PointerEvent| {
+        let Some(ctx) = reorder_ctx else { return };
+        ctx.active_drag.update(|opt| {
+            if let Some(d) = opt {
+                let dx = (ev.client_x() as f64 - d.pointer_x).abs();
+                if dx >= DRAG_THRESHOLD_PX {
+                    drag_started.set(true);
+                }
+                d.pointer_x = ev.client_x() as f64;
+            }
+        });
+    };
+
+    let on_pointer_up = move |_ev: web_sys::PointerEvent| {
+        let Some(ctx) = reorder_ctx else { return };
+        let Some(active) = ctx.active_drag.get() else { return };
+        ctx.active_drag.set(None);
+        // Wenn kein wirklicher Drag entstanden ist (Threshold unterschritten),
+        // ueberlassen wir das Event dem `on_click`.
+        if !drag_started.get() {
+            return;
+        }
+        let order = compute_reorder(&active.rects, &active.drag_state());
+        // Vergleich mit Identitaet — kein Commit, wenn unveraendert.
+        let unchanged = order.iter().enumerate().all(|(i, j)| i == *j);
+        if unchanged {
+            return;
+        }
+        let updates: Vec<(String, i32)> = order
+            .into_iter()
+            .enumerate()
+            .map(|(new_pos, orig_idx)| (active.keys[orig_idx].clone(), new_pos as i32))
+            .collect();
+        ctx.commit.run(updates);
+    };
+
     view! {
-        <th style=combined_style on:click=on_click>
+        <th
+            attr:data-col=column.key.clone()
+            style=combined_style
+            on:click=on_click
+            on:pointerdown=on_pointer_down
+            on:pointermove=on_pointer_move
+            on:pointerup=on_pointer_up
+        >
             {move || t(&label_key)}{sort_indicator}
         </th>
     }

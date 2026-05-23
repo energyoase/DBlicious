@@ -1,7 +1,7 @@
 ---
 id: Q0005
 created: 2026-05-21T00:00:00Z
-status: new
+status: done
 priority: high
 title: "In-Place Column-Editor auf EntityTable (Header-Klick → Position/Visibility/Filter/Format)"
 spec: null

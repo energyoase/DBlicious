@@ -38,7 +38,10 @@ pub fn navigation_tree() -> Vec<NavigationNode> {
     let Some(set) = crate::example::current() else {
         return Vec::new();
     };
-    set.navigation.into_iter().map(convert_nav_node).collect()
+    // Q0004 Option C: jeder Entity-Link bekommt einen Designer-Sub-Link.
+    // Permission-Gating macht der Client.
+    let augmented = shared::augment_with_designer_links(set.navigation);
+    augmented.into_iter().map(convert_nav_node).collect()
 }
 
 fn convert_nav_node(n: shared::NavigationNode) -> NavigationNode {

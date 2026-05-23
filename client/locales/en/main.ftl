@@ -15,6 +15,7 @@ nav-sales = Sales
 nav-orders = Orders
 nav-customers = Customers
 nav-designer = Schema designer
+nav-builder = ⚙ Layout
 
 ## Table
 table-empty = No records available.

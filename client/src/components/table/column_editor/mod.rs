@@ -107,6 +107,35 @@ pub struct DragState {
     pub pointer_x:  f64,
 }
 
+/// Snapshot eines laufenden Reorder-Drags. Wird beim `pointerdown` auf einem
+/// Header gefuellt und beim `pointerup` ausgewertet. Haelt absichtlich alle
+/// Daten kopiert (Keys + Rects), damit pointermove keinen DOM-Lookup mehr
+/// braucht.
+#[derive(Debug, Clone)]
+pub struct ActiveDrag {
+    pub from_index: usize,
+    pub keys:       Vec<String>,
+    pub rects:      Vec<HeaderRect>,
+    pub pointer_x:  f64,
+}
+
+impl ActiveDrag {
+    pub fn drag_state(&self) -> DragState {
+        DragState { from_index: self.from_index, pointer_x: self.pointer_x }
+    }
+}
+
+/// Context, den die `EntityListPage` providet. Header-Cells lesen
+/// `active_drag`, setzen es bei `pointerdown` und rufen `commit` beim
+/// `pointerup` mit der berechneten neuen Reihenfolge auf.
+#[derive(Clone, Copy)]
+pub struct DragReorderCtx {
+    pub active_drag: leptos::prelude::RwSignal<Option<ActiveDrag>>,
+    /// Wird mit `(key, new_order)`-Paaren fuer jede Spalte aufgerufen,
+    /// deren Position sich geaendert hat.
+    pub commit: leptos::prelude::Callback<Vec<(String, i32)>>,
+}
+
 /// Berechnet die neue Spalten-Reihenfolge als Indexliste. Stable.
 ///
 /// Inputs:
