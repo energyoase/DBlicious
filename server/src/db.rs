@@ -103,6 +103,9 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::period_locks::Entity),
         // Phase 1.7.6: Approval-Workflow.
         schema.create_table_from_entity(entity::approvals::Entity),
+        // Phase 1.7.7: Background-Jobs.
+        schema.create_table_from_entity(entity::jobs::Entity),
+        schema.create_table_from_entity(entity::job_runs::Entity),
         // Phase 1.6: Builder-Design-Persistenz.
         schema.create_table_from_entity(entity::entity_designs::Entity),
         // Phase 1.5.3: Per-User-Wahl der Implementations-IDs.

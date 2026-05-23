@@ -14,6 +14,7 @@ pub mod entity;
 pub mod events;
 pub mod example;
 pub mod fx;
+pub mod jobs;
 pub mod period_locks;
 pub mod plugins;
 pub mod schema;

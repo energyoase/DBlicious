@@ -26,6 +26,8 @@ pub mod entities;
 pub mod entity_designs;
 pub mod entity_views;
 pub mod fx_rates;
+pub mod job_runs;
+pub mod jobs;
 pub mod groups;
 pub mod metadata_editor;
 pub mod metadata_settings;
