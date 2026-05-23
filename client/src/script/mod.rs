@@ -18,6 +18,7 @@ pub mod audit_queue;
 pub mod data_source;
 pub mod engine;
 pub mod host;
+pub mod provider_lookup;
 pub mod registry;
 pub mod sandbox;
 
