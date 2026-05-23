@@ -16,15 +16,15 @@ requirements: null
 assigned_worker: null
 type: feature
 review:
-  status: null
-  reviewer: null
-  notes_path: null
-  requested_at: null
-  decided_at: null
+  status: revise
+  reviewer: claude
+  notes_path: docs/reviews/Q0009-review.md
+  requested_at: 2026-05-23T00:00:00Z
+  decided_at: 2026-05-23T00:00:00Z
 security_review:
   required: true
-  status: null
-  notes_path: null
+  status: flagged
+  notes_path: docs/reviews/Q0009-review.md
 diagnosis_path: null
 design_path: docs/superpowers/specs/2026-05-23-q0009-skript-sprache-design.md
 linked_issue: null
@@ -114,3 +114,4 @@ Architektur-Eckpunkte (Details im Spec):
 - 2026-05-23T00:00:00Z — ccm-execute: Phase 6 done (6 commits, 5 tests) — f673e3a..ed1af62
 - 2026-05-23T00:00:00Z — ccm-execute: status executing → done, final_sha=4cba6b2. Verification-Gate: alle 87 Q0009-Tests isoliert grün (shared 21, server_engine 19, persistence 4, loader 3, save 10, run 3, symmetry 2, graphql 5, client 20). Workspace-Run zeigte 3 flaky-Fails in cli/migrate_security (Concurrency-Lock mit Parallel-Session, isoliert grün bestätigt — pre-existing, Commit 816a485, nicht Q0009). clippy/fmt-Baseline → Q0010.
 - 2026-05-23T00:00:00Z — HINWEIS: security_review.required=true — Item NICHT nach done/ verschoben. Ausstehend: /ccm-review Q0009 + /ccm-security-review Q0009 vor Archivierung.
+- 2026-05-23T00:00:00Z — ccm-review: Verdict NEEDS-WORK (review.status=revise, security_review.status=flagged), notes=docs/reviews/Q0009-review.md. 3 Blocker (B1 unmaskable nicht enforced, B2 new_raw ohne packages, B3 Sandbox-Gate nicht im run-Pfad verdrahtet) + 5 should-fix (S4 token_eq Tier-Bypass u.a.). Architektur solide, aber Skript-Ausführung funktional unvollständig + Enforcement-Bugs vor produktiver Nutzung zu fixen.
