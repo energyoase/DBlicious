@@ -18,7 +18,10 @@ pub mod audit_queue;
 pub mod data_source;
 pub mod engine;
 pub mod host;
+pub mod registry;
 pub mod sandbox;
+
+pub use registry::ScriptRegistry;
 
 /// Client-seitige Auflistung aller Host-Funktionen. Pendant ist
 /// `server::script::ServerHostApiRegistry`. Der `HostApiRegistry`-
