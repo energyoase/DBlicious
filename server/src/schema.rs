@@ -1878,6 +1878,35 @@ impl MutationRoot {
         })
     }
 
+    // -- Phase 1.7.2: FX-Rates --
+
+    /// Schreibt einen Wechselkurs `(date, from→to)`. Permission-Gate:
+    /// `Resource::Action{name:"fx.upsert"}` mit `Op::Execute`.
+    async fn upsert_fx_rate(
+        &self,
+        ctx:    &Context<'_>,
+        date:   String,
+        from:   String,
+        to:     String,
+        rate:   f64,
+        source: String,
+    ) -> async_graphql::Result<bool> {
+        let auth = ctx.data::<AuthContext>().ok();
+        let user = auth.and_then(|a| a.user.as_ref()).ok_or_else(|| {
+            async_graphql::Error::new("unauthenticated")
+        })?;
+        let resource = shared::auth::Resource::Action { name: "fx.upsert".into() };
+        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await {
+            Ok(shared::auth::Effect::Allow) => {}
+            _ => return Err(async_graphql::Error::new("forbidden")),
+        }
+        let conn = crate::db::conn();
+        crate::fx::upsert_rate(&conn, &date, &from, &to, rate, &source)
+            .await
+            .map(|_| true)
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))
+    }
+
     // -- Phase 1.7.1: Number-Sequences --
 
     /// Liefert die naechste Nummer fuer `scope` (+ optionalem Fiskaljahr)

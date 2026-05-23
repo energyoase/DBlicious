@@ -12,6 +12,7 @@ pub mod ddl;
 pub mod entity;
 pub mod events;
 pub mod example;
+pub mod fx;
 pub mod plugins;
 pub mod schema;
 pub mod script;
