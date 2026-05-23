@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::builder::guard::GuardExpr;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct StateMachine {
     /// Erlaubte States. Der Resolver akzeptiert nur Werte aus dieser Liste
@@ -41,6 +41,17 @@ pub struct StateMachine {
 }
 
 fn default_state_field() -> String { "state".to_string() }
+
+impl Default for StateMachine {
+    fn default() -> Self {
+        Self {
+            states: Vec::new(),
+            initial: None,
+            state_field: default_state_field(),
+            transitions: Vec::new(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
