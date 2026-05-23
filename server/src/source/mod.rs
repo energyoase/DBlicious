@@ -9,6 +9,7 @@ pub mod config;
 pub mod managed_sqlite;
 pub mod foreign_sqlite;
 pub mod introspect;
+pub mod sql;
 
 use std::collections::BTreeMap;
 
