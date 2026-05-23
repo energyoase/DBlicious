@@ -15,6 +15,7 @@ pub mod events;
 pub mod example;
 pub mod fx;
 pub mod jobs;
+pub mod pdf;
 pub mod period_locks;
 pub mod storage;
 pub mod plugins;
