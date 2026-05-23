@@ -129,7 +129,10 @@ async fn save_script_with_invalid_manifest_yields_draft_with_last_error() {
     assert_eq!(v["saveScript"]["id"], json!("gql-bad"));
     assert_eq!(v["saveScript"]["state"], json!("DRAFT"));
     let last_err = &v["saveScript"]["lastError"];
-    assert!(!last_err.is_null(), "lastError muss gesetzt sein: {last_err}");
+    assert!(
+        !last_err.is_null(),
+        "lastError muss gesetzt sein: {last_err}"
+    );
     // `kind` ist entweder "tierExceeded" oder "manifestInvalid" je nachdem
     // wo die Validierung kippt — beide signalisieren Draft.
     let kind = last_err["kind"].as_str().unwrap_or("");
@@ -257,7 +260,8 @@ async fn preview_script_run_rejects_write_entity_capability() {
     let sv = save.data.into_json().unwrap();
     // Skript muss aktiv sein — sonst pruefen wir den Preview-Pfad nicht.
     assert_eq!(
-        sv["saveScript"]["state"], json!("ACTIVE"),
+        sv["saveScript"]["state"],
+        json!("ACTIVE"),
         "save-state war nicht ACTIVE: {sv:?}"
     );
 

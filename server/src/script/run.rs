@@ -216,12 +216,7 @@ where
         Ok(ast) => {
             let mut sb = Sandbox::new(&script.manifest);
             match body(&engine, &ast, &mut sb, &ctx) {
-                Ok(v) => (
-                    "ok".to_string(),
-                    Some(v),
-                    None,
-                    sb.token_uses().to_vec(),
-                ),
+                Ok(v) => ("ok".to_string(), Some(v), None, sb.token_uses().to_vec()),
                 Err(e) => (
                     outcome_tag(&Some(e.clone())).to_string(),
                     None,
@@ -239,8 +234,7 @@ where
     // serialisieren — wir parsen es danach gleich wieder zu serde_json::Value
     // zurueck, damit GraphQL Json<Value> ohne Doppelserialisierung serialisieren
     // kann.
-    let tokens_json_str = tokens_used_to_json(&token_uses)
-        .unwrap_or_else(|_| "[]".to_string());
+    let tokens_json_str = tokens_used_to_json(&token_uses).unwrap_or_else(|_| "[]".to_string());
     let tokens_used: serde_json::Value =
         serde_json::from_str(&tokens_json_str).unwrap_or(serde_json::Value::Array(Vec::new()));
 
