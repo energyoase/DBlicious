@@ -72,10 +72,9 @@ fn sandbox_denies_call_when_token_not_in_manifest() {
         ..Default::default()
     };
     let mut sb = Sandbox::new(&manifest);
-    let res = sb.gate(
-        &CapabilityToken::WriteEntity { validated: true },
-        || Ok::<_, shared::script::ScriptError>(42),
-    );
+    let res = sb.gate(&CapabilityToken::WriteEntity { validated: true }, || {
+        Ok::<_, shared::script::ScriptError>(42)
+    });
     assert!(matches!(
         res,
         Err(shared::script::ScriptError::CapabilityDenied { .. })
@@ -194,10 +193,7 @@ fn host_i18n_t_uses_host_api_translation() {
 fn host_db_fetch_via_mock_returns_seeded_array() {
     use server::script::host::db::DbHost;
     let mock = shared::script::testing::MockHostApi::new();
-    mock.seed_entities(
-        "product",
-        serde_json::json!([{"id": "p-1", "price": 100}]),
-    );
+    mock.seed_entities("product", serde_json::json!([{"id": "p-1", "price": 100}]));
     let h = DbHost::new(&mock);
     let res = h.fetch_entities("product", &serde_json::json!({})).unwrap();
     assert_eq!(res, serde_json::json!([{"id": "p-1", "price": 100}]));
@@ -263,7 +259,9 @@ fn host_ui_text_returns_uitree_subtree() {
         ..Default::default()
     };
     let mut ui = UiHost::new(&manifest);
-    let node = ui.text("Hallo", &serde_json::json!({"size": "h2"})).unwrap();
+    let node = ui
+        .text("Hallo", &serde_json::json!({"size": "h2"}))
+        .unwrap();
     assert_eq!(node["type"], serde_json::Value::String("text".into()));
     assert_eq!(node["text"], serde_json::Value::String("Hallo".into()));
 }
@@ -329,23 +327,41 @@ fn server_host_api_registry_lists_required_functions() {
     use shared::script::HostApiRegistry;
     let fns = server::script::ServerHostApiRegistry::functions();
     let names: Vec<_> = fns.iter().map(|f| f.name).collect();
-    assert!(names.contains(&"db.entities"), "fehlt: db.entities in {names:?}");
-    assert!(names.contains(&"db.patch"),    "fehlt: db.patch in {names:?}");
-    assert!(names.contains(&"ui.text"),     "fehlt: ui.text in {names:?}");
-    assert!(names.contains(&"ui.vstack"),   "fehlt: ui.vstack in {names:?}");
-    assert!(names.contains(&"ctx.t"),       "fehlt: ctx.t in {names:?}");
-    assert!(names.contains(&"audit.log"),   "fehlt: audit.log in {names:?}");
+    assert!(
+        names.contains(&"db.entities"),
+        "fehlt: db.entities in {names:?}"
+    );
+    assert!(names.contains(&"db.patch"), "fehlt: db.patch in {names:?}");
+    assert!(names.contains(&"ui.text"), "fehlt: ui.text in {names:?}");
+    assert!(
+        names.contains(&"ui.vstack"),
+        "fehlt: ui.vstack in {names:?}"
+    );
+    assert!(names.contains(&"ctx.t"), "fehlt: ctx.t in {names:?}");
+    assert!(
+        names.contains(&"audit.log"),
+        "fehlt: audit.log in {names:?}"
+    );
 }
 
 #[test]
 fn server_host_api_registry_marks_server_only_correctly() {
     use shared::script::HostApiRegistry;
     let fns = server::script::ServerHostApiRegistry::functions();
-    let patch = fns.iter().find(|f| f.name == "db.patch").expect("db.patch present");
+    let patch = fns
+        .iter()
+        .find(|f| f.name == "db.patch")
+        .expect("db.patch present");
     assert!(patch.server_only, "db.patch muss server_only sein");
-    let audit = fns.iter().find(|f| f.name == "audit.log").expect("audit.log present");
+    let audit = fns
+        .iter()
+        .find(|f| f.name == "audit.log")
+        .expect("audit.log present");
     assert!(audit.server_only, "audit.log muss server_only sein");
-    let text = fns.iter().find(|f| f.name == "ui.text").expect("ui.text present");
+    let text = fns
+        .iter()
+        .find(|f| f.name == "ui.text")
+        .expect("ui.text present");
     assert!(!text.server_only, "ui.text ist client-faehig");
 }
 
