@@ -1,15 +1,23 @@
 //! PDF-Renderer (Phase 1.7.9).
 //!
-//! Trait-basiert, damit Backends austauschbar sind. Heute mitgeliefert:
-//! [`stub::StubRenderer`] (deterministischer Test-PDF). Produktives
-//! Backend (Typst) als Folge-Item — der Crate ist gross (~30 MB), wir
-//! ziehen ihn rein, sobald Templates definiert sind.
+//! Trait-basiert, damit Backends austauschbar sind. Backend-Auswahl:
+//!   - [`stub::StubRenderer`] (`kind="stub"`): deterministischer ASCII-
+//!     PDF mit `%PDF-`-Magic, deps-frei — CI-Default und Debug-Dump von
+//!     Template+Vars.
+//!   - [`typst::TypstRenderer`] (`kind="typst"`): echtes Typesetting ueber
+//!     typst-as-lib + embedded Fonts; Vars kommen als JSON unter
+//!     `sys.inputs.data` ins Template (kein String-Interpolations-
+//!     Injection-Risiko).
 //!
-//! Templates leben perspektivisch in einer eigenen `pdf_templates`-
-//! Tabelle und sind per Designer pflegbar; fuer den Trait-Vertrag reicht
-//! der Template-String als Argument.
+//! Produktive Aufrufer waehlen ueber `kind()`. Die Quelle des Templates
+//! (Loader-Datei `pdf-templates/<id>.typ`, kuenftig `pdf_templates`-
+//! Tabelle + Designer) ist orthogonal zum Renderer — Roadmap 1.7.9
+//! Folge-Item.
 
 pub mod stub;
+pub mod typst;
+
+pub use typst::TypstRenderer;
 
 use async_trait::async_trait;
 use thiserror::Error;
