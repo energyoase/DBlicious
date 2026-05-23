@@ -51,6 +51,17 @@ cron = "0.12"
 # 1.7.14 XLSX-Export — typisierte Zellen (String/Number/Bool). Reines
 # Write-API; Read-Tests laufen via `calamine` als dev-dep.
 rust_xlsxwriter = "0.79"
+# 1.7.10 SMTP-Email-Versand. `builder` fuer Message-Builder,
+# `tokio1-rustls-tls` fuer async TLS-Transport (passt zu tokio-rustls,
+# das wir auch fuer reqwest und sea-orm bereits ziehen). Der Stub-
+# Transport (`AsyncStubTransport`) ist in lettre immer mit dabei und
+# braucht kein eigenes Feature-Flag.
+lettre = { version = "0.11", default-features = false, features = [
+    "builder",
+    "smtp-transport",
+    "tokio1-rustls-tls",
+    "hostname",
+] }
 
 [dev-dependencies]
 serial_test = "3"

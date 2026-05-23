@@ -1,15 +1,23 @@
 //! Email-Versand (Phase 1.7.10).
 //!
-//! Trait-basiert. Heute mitgeliefert: [`stub::StubSender`] — sammelt
-//! alle "gesendeten" Mails in einem prozessweiten Buffer, gut fuer Tests
-//! und CI ohne echten SMTP-Server.
+//! Trait-basiert. Mitgelieferte Backends:
+//!   - [`stub::StubSender`]: prozessweiter In-Memory-Buffer; gut fuer
+//!     CI-Tests, die nur "ist die Konversion korrekt?" pruefen wollen,
+//!     ohne `lettre` zu beruehren.
+//!   - [`smtp::SmtpSender`]: produktives Backend ueber `lettre` mit
+//!     rustls-Transport. Hat selber einen Stub-Mode
+//!     ([`smtp::SmtpSender::stub`]) auf Basis von lettre's
+//!     `AsyncStubTransport` — der ist naeher am Produktiv-Pfad, weil
+//!     er den `build_message` → MIME-Konversionsschritt einschliesst.
 //!
-//! Produktives Backend (SMTP via `lettre`) als Folge-Item. Bounce-
-//! Handling + DKIM/SPF-Doku gehoeren zum Produktiv-Pfad.
+//! Bounce-Handling: out-of-scope — der heutige Sender liefert nur
+//! "konnte abgegeben werden", nicht "wurde zugestellt". DKIM/SPF/DMARC
+//! sind Domain-/Server-Konfiguration (operator-Aufgabe), kein Code.
 //!
 //! Audit: jedes erfolgreiche `send` schreibt einen Eintrag in
 //! `audit_log` kind=`email_sent`.
 
+pub mod smtp;
 pub mod stub;
 
 use async_trait::async_trait;
