@@ -9,9 +9,13 @@
 //!     wechselt zwischen `Instant` (native) und `web_sys::Performance::now()`
 //!     (WASM).
 //!
-//! Weitere Submodule (`audit_queue`, `data_source`) folgen im
-//! naechsten Phase-4-Teilcommit.
+//! Submodule:
+//!   - `audit_queue` — prozesslokaler Buffer fuer Skript-Audit-Events.
+//!   - `data_source` — `DataSource`-Adapter, der einen Provider-Skript-Run
+//!     in die generische Tabellen-Datenquelle einspeist.
 
+pub mod audit_queue;
+pub mod data_source;
 pub mod engine;
 pub mod host;
 pub mod sandbox;
