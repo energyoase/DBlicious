@@ -174,9 +174,17 @@ table-status-pending       = { $n } unsaved changes
 table-fallback-view        = View "{ $name }" not found — showing default
 
 ## Filter-Labels
-filter-contains = Contains
-filter-equals   = Equals
-filter-range    = Range
+filter-contains      = Contains
+filter-equals        = Equals
+filter-range         = Range
+filter-text-contains = Contains (text)
+filter-number-range  = Range (number)
+filter-bool-equals   = Equals (yes/no)
+filter-enum-in       = Selection
+filter-date-range    = Date range
+
+## Conflict message (Named Views)
+table-view-conflict = Conflict: another edit saved in the meantime. Please reload and reapply your edits.
 
 ## Formatter-Labels
 formatter-money-symbol    = EUR symbol €

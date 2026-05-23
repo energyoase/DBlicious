@@ -174,9 +174,17 @@ table-status-pending       = { $n } modifications non enregistrées
 table-fallback-view        = Vue « { $name } » introuvable — affichage par défaut
 
 ## Filter-Labels
-filter-contains = Contient
-filter-equals   = Égal
-filter-range    = Plage
+filter-contains      = Contient
+filter-equals        = Égal
+filter-range         = Plage
+filter-text-contains = Contient (texte)
+filter-number-range  = Plage (nombre)
+filter-bool-equals   = Égal (oui/non)
+filter-enum-in       = Sélection
+filter-date-range    = Plage de dates
+
+## Message de conflit (vues nommées)
+table-view-conflict = Conflit : une autre modification a été enregistrée entre-temps. Veuillez recharger et réappliquer vos modifications.
 
 ## Formatter-Labels
 formatter-money-symbol    = Symbole € EUR

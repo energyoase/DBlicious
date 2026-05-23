@@ -161,7 +161,7 @@ pub fn EntityListPage() -> impl IntoView {
                     }
                     let _ = web_sys::window()
                         .and_then(|w| w.alert_with_message(
-                            "Konflikt: andere Bearbeitung wurde zwischenzeitlich gespeichert. Bitte neu laden und Edits nochmal anwenden."
+                            &crate::i18n::t("table-view-conflict")
                         ).ok());
                 }
                 Ok(outcome) => {
@@ -209,6 +209,28 @@ pub fn EntityListPage() -> impl IntoView {
                 // Settings auf Spalten anwenden (Visibility, Order, MinWidth).
                 if let Some(s) = &settings {
                     apply_settings_to_columns(&mut columns, s);
+                }
+
+                // Server-gespeicherte View-Overrides auf ColumnMeta-seitige Felder
+                // anwenden (sortable / filter_id / formatter_id). Die
+                // PropertySettings-seitigen Felder (visibility, order, min_width,
+                // label) laufen bereits über apply_settings_to_columns.
+                if let Some(view_wrapped) = current_view.get() {
+                    if let Some(view) = view_wrapped.take() {
+                        for ov in &view.properties {
+                            if let Some(col) = columns.iter_mut().find(|c| c.key == ov.key) {
+                                if let Some(s) = ov.sortable {
+                                    col.sortable = s;
+                                }
+                                if let Some(id) = &ov.filter_id_override {
+                                    col.filter_id = Some(id.clone());
+                                }
+                                if let Some(id) = &ov.formatter_id_override {
+                                    col.formatter_id = Some(id.clone());
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Pending Overrides aus dem Edit-Mode auf Spalten + Settings anwenden.

@@ -174,9 +174,17 @@ table-status-pending       = { $n } ungespeicherte Änderungen
 table-fallback-view        = Ansicht „{ $name }" nicht gefunden — zeige Default
 
 ## Filter-Labels
-filter-contains = Enthält
-filter-equals   = Gleich
-filter-range    = Bereich
+filter-contains      = Enthält
+filter-equals        = Gleich
+filter-range         = Bereich
+filter-text-contains = Enthält (Text)
+filter-number-range  = Bereich (Zahl)
+filter-bool-equals   = Gleich (Ja/Nein)
+filter-enum-in       = Auswahl
+filter-date-range    = Datumsbereich
+
+## Konflikt-Meldung (Named Views)
+table-view-conflict = Konflikt: andere Bearbeitung wurde zwischenzeitlich gespeichert. Bitte neu laden und Edits nochmal anwenden.
 
 ## Formatter-Labels
 formatter-money-symbol    = EUR-Symbol €

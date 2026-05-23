@@ -59,7 +59,10 @@ pub fn ColumnEditorPopover(
         }>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h3 style=h3>
-                    {move || crate::t!("column-editor-title", "name" => col_label_key.get_value())}
+                    {move || {
+                        let resolved = crate::i18n::t(&col_label_key.get_value());
+                        crate::t!("column-editor-title", "name" => resolved)
+                    }}
                 </h3>
                 <div>
                     <button style=secondary.clone() on:click=move |_| on_reset.run(())>
@@ -178,7 +181,7 @@ pub fn ColumnEditorPopover(
                         let id = f.id.clone();
                         let label = f.label_key.clone();
                         let selected = filter_id_v() == id;
-                        view! { <option value=id.clone() selected=selected>{label}</option> }
+                        view! { <option value=id.clone() selected=selected>{move || t(&label)}</option> }
                     }).collect_view())}
                 </select>
             </label>
@@ -202,7 +205,7 @@ pub fn ColumnEditorPopover(
                         let id = f.id.clone();
                         let label = f.label_key.clone();
                         let selected = format_id_v() == id;
-                        view! { <option value=id.clone() selected=selected>{label}</option> }
+                        view! { <option value=id.clone() selected=selected>{move || t(&label)}</option> }
                     }).collect_view())}
                 </select>
             </label>
