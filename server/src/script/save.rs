@@ -62,7 +62,11 @@ fn validate_manifest(manifest: &ScriptManifest, user: ScriptTier) -> Result<(), 
     }
     let allowed = default_tokens_for_tier(manifest.tier);
     for token in &manifest.capabilities {
-        if !allowed.iter().any(|a| token_eq(a, token)) {
+        // Exakter Vergleich inkl. struct-Variant-Felder (S4): `==` nutzt
+        // das `PartialEq` von `CapabilityToken`. Ein `matches!`-Vergleich
+        // wuerde `validated`/`scope`/`own_only` ignorieren und damit einen
+        // Tier-Bypass erlauben (z.B. Reader → EmitUiNode{Composite}).
+        if !allowed.iter().any(|a| a == token) {
             return Err(ScriptError::ManifestInvalid {
                 reason: ManifestError {
                     reason: format!(
@@ -94,27 +98,6 @@ fn validate_manifest(manifest: &ScriptManifest, user: ScriptTier) -> Result<(), 
         }
     }
     Ok(())
-}
-
-/// Vergleicht zwei `CapabilityToken`s strukturell — gleichwertig zu `==`,
-/// aber expliziter, damit das Default-Set ein Match-Verhalten hat.
-fn token_eq(a: &CapabilityToken, b: &CapabilityToken) -> bool {
-    use CapabilityToken::*;
-    matches!(
-        (a, b),
-        (ReadOwnEntities, ReadOwnEntities)
-            | (ReadAllEntitiesWhereAllowed, ReadAllEntitiesWhereAllowed)
-            | (WriteEntity { .. }, WriteEntity { .. })
-            | (ComputeOnly, ComputeOnly)
-            | (ReadI18n, ReadI18n)
-            | (EmitUiNode { .. }, EmitUiNode { .. })
-            | (EmitWorkflowAction, EmitWorkflowAction)
-            | (LoadOtherScript, LoadOtherScript)
-            | (ReadAuditLog { .. }, ReadAuditLog { .. })
-            | (WriteAuditLog, WriteAuditLog)
-            | (RegisterHostFunction, RegisterHostFunction)
-            | (ScheduleJob, ScheduleJob)
-    )
 }
 
 /// Reine Analyse-Pipeline ohne DB-Zugriff: liefert ein `PreparedSave`, das

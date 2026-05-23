@@ -261,3 +261,60 @@ async fn save_script_version_monotone_increases() {
     let bad = save_script(&db, mk_input(Some(99))).await;
     assert!(bad.is_err(), "version conflict muss erkannt werden");
 }
+
+// S4-Regression: die Tier-Validierung muss struct-Variant-Felder beachten.
+// Vor dem Fix verglich `token_eq` nur die Variante (matches! mit `{..}`),
+// sodass ein Reader eine Composite-UI-Node deklarieren konnte, obwohl das
+// Reader-Set nur `EmitUiNode{Leaf}` erlaubt — ein Tier-Bypass.
+#[test]
+fn reader_cannot_declare_composite_ui_node_scope() {
+    use shared::script::capability::UiScope;
+    let mut m = manifest_reader_minimal();
+    m.capabilities = vec![CapabilityToken::EmitUiNode {
+        scope: UiScope::Composite,
+    }];
+    let input = SaveInput {
+        id: "scope-bypass".into(),
+        source: "1+2".into(),
+        manifest: m,
+        kind: ScriptKind::Component { entry: "x".into() },
+        user: ScriptTier::Admin, // hoher User-Tier — Deckel ist nicht das Thema
+        user_id: "u-1".into(),
+        prev_version: None,
+    };
+    let prepared = prepare_save(&input);
+    assert!(
+        matches!(prepared.state, ScriptState::Draft),
+        "Composite-Scope fuer Reader muss als Draft (ungueltig) enden"
+    );
+    assert!(matches!(
+        prepared.last_error,
+        Some(shared::script::ScriptError::ManifestInvalid { .. })
+    ));
+}
+
+// S4: der legitime Reader-Wert `EmitUiNode{Leaf}` muss weiterhin akzeptiert
+// werden — der Fix darf nicht zu streng sein.
+#[test]
+fn reader_may_declare_leaf_ui_node_scope() {
+    use shared::script::capability::UiScope;
+    let mut m = manifest_reader_minimal();
+    m.capabilities = vec![CapabilityToken::EmitUiNode {
+        scope: UiScope::Leaf,
+    }];
+    let input = SaveInput {
+        id: "scope-ok".into(),
+        source: "1+2".into(),
+        manifest: m,
+        kind: ScriptKind::Component { entry: "x".into() },
+        user: ScriptTier::Reader,
+        user_id: "u-1".into(),
+        prev_version: None,
+    };
+    let prepared = prepare_save(&input);
+    assert!(
+        matches!(prepared.state, ScriptState::Active),
+        "Leaf-Scope fuer Reader muss gueltig (Active) sein, war {:?}",
+        prepared.state
+    );
+}
