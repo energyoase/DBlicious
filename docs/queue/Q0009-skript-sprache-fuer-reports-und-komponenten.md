@@ -1,7 +1,7 @@
 ---
 id: Q0009
 created: 2026-05-23T00:00:00Z
-status: planned
+status: executing
 priority: medium
 title: "Skript-Sprache für Reports, Custom-Komponenten und Capability-Provider (Rhai-Engine, später WASM)"
 spec: docs/superpowers/specs/2026-05-23-q0009-skript-sprache-design.md
@@ -105,3 +105,4 @@ Architektur-Eckpunkte (Details im Spec):
 
 - 2026-05-23T00:00:00Z — manual: created (status=brainstormed, spec=docs/superpowers/specs/2026-05-23-q0009-skript-sprache-design.md)
 - 2026-05-23T00:00:00Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0009-skript-sprache-fuer-reports-und-komponenten.md (sub-agent commit=7d5e2973)
+- 2026-05-23T00:00:00Z — ccm-execute: status planned → executing (approval via ccm-plan §9, WIP gestasht)
