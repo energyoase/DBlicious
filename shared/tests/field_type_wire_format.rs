@@ -14,7 +14,9 @@
 //! ueber die Leitung. Diese Tests fixieren genau diesen Ist-Zustand.
 
 use serde_json::{json, Value};
-use shared::{ColumnFilter, FieldType, FilterCriteria, FilterPredicate, Sort, SortDirection};
+use shared::{
+    ColumnFilter, FieldType, FilterCriteria, FilterPredicate, IntEnumValue, Sort, SortDirection,
+};
 
 #[test]
 fn field_type_text_serializes_as_kind_text() {
@@ -111,6 +113,56 @@ fn unknown_field_type_kind_fails_to_deserialize() {
     // Default-Variant durchgehen.
     let r: Result<FieldType, _> = serde_json::from_value(json!({"kind": "frobnicated"}));
     assert!(r.is_err(), "unbekannter kind muss Fehler werfen");
+}
+
+#[test]
+fn int_enum_serializes_with_kind_and_values() {
+    let v = serde_json::to_value(FieldType::IntEnum {
+        values: vec![
+            IntEnumValue {
+                value: 0,
+                label_key: "journal.soll".into(),
+                wire_name: "SOLL".into(),
+            },
+            IntEnumValue {
+                value: 1,
+                label_key: "journal.haben".into(),
+                wire_name: "HABEN".into(),
+            },
+        ],
+    })
+    .unwrap();
+    assert_eq!(
+        v,
+        json!({
+            "kind": "intEnum",
+            "values": [
+                {"value": 0, "labelKey": "journal.soll", "wireName": "SOLL"},
+                {"value": 1, "labelKey": "journal.haben", "wireName": "HABEN"}
+            ]
+        })
+    );
+}
+
+#[test]
+fn int_enum_roundtrips() {
+    let original = FieldType::IntEnum {
+        values: vec![IntEnumValue {
+            value: 7,
+            label_key: "x".into(),
+            wire_name: "X".into(),
+        }],
+    };
+    let json = serde_json::to_string(&original).unwrap();
+    let back: FieldType = serde_json::from_str(&json).unwrap();
+    assert_eq!(original, back);
+}
+
+#[test]
+fn int_enum_is_scalar() {
+    let ft = FieldType::IntEnum { values: vec![] };
+    assert!(ft.is_scalar());
+    assert_eq!(ft.kind_str(), "intEnum");
 }
 
 #[test]

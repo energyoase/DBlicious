@@ -342,6 +342,12 @@ pub fn ops_for(field: &FieldType) -> Box<dyn FieldOps> {
         FieldType::Enum { values } => Box::new(EnumOps {
             values: values.clone(),
         }),
+        // Auf der Leitung ein String (wire_name) — Ops verhalten sich wie ein
+        // Enum dieser Namen. Sortierung nach Integer-Reihenfolge ist eine
+        // bewusste v1-Luecke (siehe G7-Plan).
+        FieldType::IntEnum { values } => Box::new(EnumOps {
+            values: values.iter().map(|v| v.wire_name.clone()).collect(),
+        }),
         FieldType::Reference { .. } => Box::new(OpaqueOps),
         FieldType::Collection { .. } => Box::new(OpaqueOps),
     }

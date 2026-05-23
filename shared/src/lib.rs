@@ -174,6 +174,22 @@ pub enum FieldType {
     Enum {
         values: Vec<String>,
     },
+    /// G7: integer-gespeicherter Enum mit Namen auf der Leitung. Der Server
+    /// konvertiert an der Grenze (`i32` <-> `wire_name`), die DB speichert den
+    /// `i32` (Storage-/Index-Effizienz), der Client sieht einen String.
+    IntEnum {
+        values: Vec<IntEnumValue>,
+    },
+}
+
+/// Ein einzelner Wert eines [`FieldType::IntEnum`]: die DB-Zahl, der
+/// Fluent-Label-Schluessel und der stabile Name auf der Leitung.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct IntEnumValue {
+    pub value: i32,
+    pub label_key: String,
+    pub wire_name: String,
 }
 
 impl FieldType {
@@ -191,6 +207,7 @@ impl FieldType {
                 | FieldType::DateTime
                 | FieldType::Money { .. }
                 | FieldType::Enum { .. }
+                | FieldType::IntEnum { .. }
         )
     }
 
@@ -210,6 +227,7 @@ impl FieldType {
             FieldType::Reference { .. } => "reference",
             FieldType::Collection { .. } => "collection",
             FieldType::Enum { .. } => "enum",
+            FieldType::IntEnum { .. } => "intEnum",
         }
     }
 }
