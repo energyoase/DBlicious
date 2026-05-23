@@ -186,6 +186,48 @@ fn host_i18n_t_uses_host_api_translation() {
     assert_eq!(s, "[t:dashboard.title]"); // MockHostApi-Konvention
 }
 
+// ----------------------------------------------------------------------------
+// Phase 2.6 — Host-Modul db (fetch_entities + patch_entity)
+// ----------------------------------------------------------------------------
+
+#[test]
+fn host_db_fetch_via_mock_returns_seeded_array() {
+    use server::script::host::db::DbHost;
+    let mock = shared::script::testing::MockHostApi::new();
+    mock.seed_entities(
+        "product",
+        serde_json::json!([{"id": "p-1", "price": 100}]),
+    );
+    let h = DbHost::new(&mock);
+    let res = h.fetch_entities("product", &serde_json::json!({})).unwrap();
+    assert_eq!(res, serde_json::json!([{"id": "p-1", "price": 100}]));
+}
+
+#[test]
+fn host_db_fetch_injects_entity_into_non_object_query() {
+    use server::script::host::db::DbHost;
+    let mock = shared::script::testing::MockHostApi::new();
+    mock.seed_entities("user", serde_json::json!([{"id": "u-1"}]));
+    let h = DbHost::new(&mock);
+    // query=Null soll als {} interpretiert + entity injiziert werden
+    let res = h.fetch_entities("user", &serde_json::Value::Null).unwrap();
+    assert_eq!(res, serde_json::json!([{"id": "u-1"}]));
+}
+
+#[test]
+fn host_db_patch_via_mock_records_call() {
+    use server::script::host::db::DbHost;
+    let mock = shared::script::testing::MockHostApi::new();
+    let h = DbHost::new(&mock);
+    h.patch_entity("product", "p-1", &serde_json::json!({"price": 199}))
+        .unwrap();
+    let log = mock.patch_log();
+    assert_eq!(log.len(), 1);
+    assert_eq!(log[0].0, "product");
+    assert_eq!(log[0].1, "p-1");
+    assert_eq!(log[0].2, serde_json::json!({"price": 199}));
+}
+
 #[test]
 fn host_ctx_returns_read_only_fields_from_script_ctx() {
     use server::script::host::ctx::CtxHost;
