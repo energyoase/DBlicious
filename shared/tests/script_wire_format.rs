@@ -1,0 +1,120 @@
+//! Pin-Test fuer das Wire-Format der Skript-Sprache (Q0009).
+//!
+//! Bricht in CI, wenn jemand camelCase/Tag/skip_serializing_if veraendert.
+//! Lehnt sich an `field_type_wire_format.rs` an.
+
+use serde_json::json;
+use shared::script::{default_tokens_for_tier, CapabilityToken, ScriptTier};
+
+#[test]
+fn script_tier_serializes_lowercase() {
+    assert_eq!(serde_json::to_value(ScriptTier::Reader).unwrap(), json!("reader"));
+    assert_eq!(serde_json::to_value(ScriptTier::Author).unwrap(), json!("author"));
+    assert_eq!(serde_json::to_value(ScriptTier::Developer).unwrap(), json!("developer"));
+    assert_eq!(serde_json::to_value(ScriptTier::Admin).unwrap(), json!("admin"));
+}
+
+#[test]
+fn default_tokens_for_reader_is_minimal_set() {
+    let toks = default_tokens_for_tier(ScriptTier::Reader);
+    assert!(toks.contains(&CapabilityToken::ReadOwnEntities));
+    assert!(toks.contains(&CapabilityToken::ReadI18n));
+    assert!(toks.contains(&CapabilityToken::ComputeOnly));
+    // Reader darf KEIN WriteEntity haben:
+    assert!(!toks.iter().any(|t| matches!(t, CapabilityToken::WriteEntity { .. })));
+}
+
+#[test]
+fn capability_token_simple_variants_use_kind_field() {
+    assert_eq!(
+        serde_json::to_value(CapabilityToken::ReadOwnEntities).unwrap(),
+        json!({"kind": "readOwnEntities"})
+    );
+    assert_eq!(
+        serde_json::to_value(CapabilityToken::ReadI18n).unwrap(),
+        json!({"kind": "readI18n"})
+    );
+    assert_eq!(
+        serde_json::to_value(CapabilityToken::ComputeOnly).unwrap(),
+        json!({"kind": "computeOnly"})
+    );
+}
+
+#[test]
+fn capability_token_write_entity_keeps_snake_case_inner_field() {
+    // wie bei FieldType::Money: inner field bleibt snake_case
+    let v = serde_json::to_value(CapabilityToken::WriteEntity { validated: true }).unwrap();
+    assert_eq!(v, json!({"kind": "writeEntity", "validated": true}));
+}
+
+#[test]
+fn capability_token_emit_ui_node_carries_scope() {
+    let v = serde_json::to_value(CapabilityToken::EmitUiNode {
+        scope: shared::script::UiScope::Composite,
+    })
+    .unwrap();
+    assert_eq!(v, json!({"kind": "emitUiNode", "scope": "composite"}));
+}
+
+#[test]
+fn capability_token_roundtrips_all_variants() {
+    use shared::script::UiScope;
+    use CapabilityToken::*;
+    let originals = vec![
+        ReadOwnEntities,
+        ReadAllEntitiesWhereAllowed,
+        WriteEntity { validated: true },
+        WriteEntity { validated: false },
+        ComputeOnly,
+        ReadI18n,
+        EmitUiNode { scope: UiScope::Leaf },
+        EmitUiNode { scope: UiScope::Composite },
+        EmitWorkflowAction,
+        LoadOtherScript,
+        ReadAuditLog { own_only: true },
+        ReadAuditLog { own_only: false },
+        WriteAuditLog,
+        RegisterHostFunction,
+        ScheduleJob,
+    ];
+    for t in originals {
+        let s = serde_json::to_string(&t).unwrap();
+        let back: CapabilityToken = serde_json::from_str(&s).unwrap();
+        assert_eq!(t, back, "CapabilityToken-Roundtrip fehlgeschlagen: {s}");
+    }
+}
+
+#[test]
+fn unknown_capability_kind_fails_to_deserialize() {
+    let r: Result<CapabilityToken, _> =
+        serde_json::from_value(json!({"kind": "frobnicated"}));
+    assert!(r.is_err(), "unbekannter kind muss Fehler werfen");
+}
+
+/// Exhaustiveness-Anker: wenn jemand eine neue Variante hinzufuegt, muss
+/// hier ein Eintrag dazu. Bricht den Build absichtlich.
+#[test]
+fn capability_token_exhaustiveness_anchor() {
+    use shared::script::UiScope;
+    use CapabilityToken::*;
+    fn anchor(t: &CapabilityToken) -> &'static str {
+        match t {
+            ReadOwnEntities => "readOwnEntities",
+            ReadAllEntitiesWhereAllowed => "readAllEntitiesWhereAllowed",
+            WriteEntity { .. } => "writeEntity",
+            ComputeOnly => "computeOnly",
+            ReadI18n => "readI18n",
+            EmitUiNode { .. } => "emitUiNode",
+            EmitWorkflowAction => "emitWorkflowAction",
+            LoadOtherScript => "loadOtherScript",
+            ReadAuditLog { .. } => "readAuditLog",
+            WriteAuditLog => "writeAuditLog",
+            RegisterHostFunction => "registerHostFunction",
+            ScheduleJob => "scheduleJob",
+        }
+    }
+    let _ = anchor(&ReadOwnEntities);
+    let _ = anchor(&WriteEntity { validated: true });
+    let _ = anchor(&EmitUiNode { scope: UiScope::Leaf });
+    let _ = anchor(&ReadAuditLog { own_only: false });
+}
