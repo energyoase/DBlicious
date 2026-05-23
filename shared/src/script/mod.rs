@@ -18,6 +18,8 @@ pub mod model;
 pub mod testing;
 
 pub use capability::{default_tokens_for_tier, CapabilityToken, ScriptTier, UiScope};
+pub use engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
 pub use error::{ManifestError, ScriptError};
+pub use host_api::{HostApiRegistry, HostFunctionDescriptor};
 pub use manifest::{ScriptManifest, UiPrimitive, MANIFEST_VERSION_CURRENT};
 pub use model::{ProviderSlot, Script, ScriptId, ScriptKind, ScriptNodeRef, ScriptState};

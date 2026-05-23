@@ -1,1 +1,51 @@
-//! TODO: implementiert in Task 1.7
+//! Engine-agnostische Trait-Schnittstellen. **Wichtige Forward-Compat-Regel
+//! (Spec §11):** dieses Modul darf **nirgendwo** das Wort `rhai` enthalten.
+//! Der Server- und Client-seitige Engine-Adapter haellt das Rhai-Wissen in
+//! seinem eigenen `engine::rhai`-Submodul.
+
+use crate::script::error::ScriptError;
+use crate::script::manifest::ScriptManifest;
+
+#[derive(Debug, Clone, Default)]
+pub struct ScriptCtx {
+    pub user_id: Option<String>,
+    pub tenant_id: Option<String>,
+    pub locale: String,
+}
+
+/// Engine-spezifischer kompilierter AST (associated type, damit der Trait
+/// engine-agnostisch bleibt).
+pub trait ScriptEngine {
+    type Ast: Clone + Send + Sync;
+    fn compile(&self, source: &str, manifest: &ScriptManifest) -> Result<Self::Ast, ScriptError>;
+    fn run(
+        &self,
+        ast: &Self::Ast,
+        host: &dyn HostApi,
+        ctx: ScriptCtx,
+    ) -> Result<ScriptValue, ScriptError>;
+}
+
+/// Rueckgabewert eines Skript-Runs — engine-neutral.
+#[derive(Debug, Clone)]
+pub enum ScriptValue {
+    String(String),
+    Number(f64),
+    Bool(bool),
+    Json(serde_json::Value),
+    Unit,
+}
+
+/// Engine-agnostischer Host. Beide Crates implementieren ihn — Server mit
+/// echten SeaORM-Calls, Client mit GraphQL-Calls.
+pub trait HostApi {
+    fn db_fetch(&self, query: &serde_json::Value) -> Result<serde_json::Value, ScriptError>;
+    fn db_patch(
+        &self,
+        entity_type: &str,
+        id: &str,
+        patch: &serde_json::Value,
+    ) -> Result<(), ScriptError>;
+    fn i18n_t(&self, key: &str, args: &serde_json::Value) -> Result<String, ScriptError>;
+    fn audit_log(&self, event: &str, payload: &serde_json::Value) -> Result<(), ScriptError>;
+}

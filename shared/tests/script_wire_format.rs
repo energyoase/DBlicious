@@ -161,6 +161,50 @@ fn script_state_serializes_lowercase() {
 }
 
 #[test]
+fn host_api_registry_symmetry_check_detects_mismatches() {
+    use shared::script::{CapabilityToken, HostApiRegistry, HostFunctionDescriptor};
+    let server = vec![
+        HostFunctionDescriptor {
+            name: "db.fetch",
+            token: CapabilityToken::ReadOwnEntities,
+            server_only: false,
+        },
+        HostFunctionDescriptor {
+            name: "db.patch",
+            token: CapabilityToken::WriteEntity { validated: true },
+            server_only: true,
+        },
+    ];
+    let client = vec![HostFunctionDescriptor {
+        name: "db.fetch",
+        token: CapabilityToken::ReadOwnEntities,
+        server_only: false,
+    }];
+    struct Dummy;
+    impl HostApiRegistry for Dummy {
+        fn functions() -> Vec<HostFunctionDescriptor> {
+            vec![]
+        }
+    }
+    let errs = Dummy::symmetry_check(&server, &client);
+    assert!(
+        errs.is_empty(),
+        "server-only mismatch sollte ignoriert werden: {errs:?}"
+    );
+
+    let bad_client = vec![HostFunctionDescriptor {
+        name: "db.fetch",
+        token: CapabilityToken::WriteEntity { validated: true },
+        server_only: false,
+    }];
+    let errs2 = Dummy::symmetry_check(&server, &bad_client);
+    assert!(
+        errs2.iter().any(|e| e.contains("token mismatch")),
+        "Token-Mismatch sollte gemeldet werden: {errs2:?}"
+    );
+}
+
+#[test]
 fn script_node_ref_serializes_camelcase_and_omits_unset_pin() {
     use shared::script::{ScriptId, ScriptNodeRef};
     let r = ScriptNodeRef {
