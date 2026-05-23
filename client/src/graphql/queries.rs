@@ -1566,7 +1566,7 @@ struct FetchScriptVars<'a> {
     id: &'a str,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ScriptFilter {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1575,16 +1575,6 @@ pub struct ScriptFilter {
     pub slot: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tier: Option<String>,
-}
-
-impl Default for ScriptFilter {
-    fn default() -> Self {
-        Self {
-            state: None,
-            slot: None,
-            tier: None,
-        }
-    }
 }
 
 #[derive(Serialize)]
