@@ -16,7 +16,8 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
 use serde_json::Value;
-use shared::{compute_hash, EditorMeta, Entity, PermissionOp};
+use shared::auth::Op;
+use shared::{compute_hash, EditorMeta, Entity};
 
 use crate::auth::AuthContext;
 use crate::components::field::FieldEditor;
@@ -46,8 +47,8 @@ pub fn EditorPage() -> impl IntoView {
                 let entity_type = p.get("entity_type").unwrap_or_default();
                 let id = p.get("id").unwrap_or_default();
                 let is_new = id == "new" || id.is_empty();
-                let perm_op = if is_new { PermissionOp::Create } else { PermissionOp::Update };
-                if !auth.is_allowed(&entity_type, perm_op) {
+                let perm_op = if is_new { Op::Create } else { Op::Update };
+                if !auth.can_entity_type(&entity_type, perm_op) {
                     return view! {
                         <div>
                             <h1 style=h1.clone()>{entity_type.clone()}</h1>
@@ -191,7 +192,7 @@ fn EditorBody(
     let on_delete: Callback<()> = Callback::new(move |_: ()| {
         let Some(id) = id_signal.get() else { return };
         let entity_type = entity_type_signal.get();
-        if !auth.is_allowed(&entity_type, PermissionOp::Delete) {
+        if !auth.can_entity_type(&entity_type, Op::Delete) {
             return;
         }
         if let Some(win) = web_sys::window() {

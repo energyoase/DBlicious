@@ -247,7 +247,7 @@ pub fn EntityListPage() -> impl IntoView {
                 let h1 = h1.clone();
 
                 let entity_type_for_table = entity_type.clone();
-                let can_read = auth.is_allowed(&entity_type, shared::PermissionOp::Read);
+                let can_read = auth.can_entity_type(&entity_type, shared::auth::Op::Read);
 
                 // Beide Resources lesen; solange noch nicht geladen → Loading-State.
                 let columns_loaded = columns_resource.get().map(|r| r.take());
@@ -331,8 +331,8 @@ pub fn EntityListPage() -> impl IntoView {
                     }.into_any()
                 } else {
                     let settings_for_table = settings.clone();
-                    let can_create = auth.is_allowed(&entity_type, shared::PermissionOp::Create);
-                    let can_update = auth.is_allowed(&entity_type, shared::PermissionOp::Update);
+                    let can_create = auth.can_entity_type(&entity_type, shared::auth::Op::Create);
+                    let can_update = auth.can_entity_type(&entity_type, shared::auth::Op::Update);
                     let new_href = format!("/entities/{}/new", entity_type_for_table);
                     let builder_href = format!("/builder/{}", entity_type_for_table);
                     let design = use_design();
@@ -521,7 +521,7 @@ pub fn BuilderPage() -> impl IntoView {
         .with(|p| p.get("entity_type").map(|s| s.to_string()))
         .unwrap_or_default();
     let allowed = !allowed_entity.is_empty()
-        && auth.is_allowed(&allowed_entity, shared::PermissionOp::Update);
+        && auth.can_entity_type(&allowed_entity, shared::auth::Op::Update);
 
     // Builder-State + History fuer den gesamten Unterbaum bereitstellen.
     // Wir starten mit leerem Tree; bei erfolgreichem Load wird er ersetzt.

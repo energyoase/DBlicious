@@ -6,7 +6,8 @@
 
 use leptos::prelude::*;
 use leptos_router::components::A;
-use shared::{MenuAction, NavigationNode, PermissionOp, TabInfo};
+use shared::auth::Op;
+use shared::{MenuAction, NavigationNode, TabInfo};
 
 use crate::auth::AuthContext;
 use crate::commands::use_command_registry;
@@ -61,13 +62,13 @@ fn is_visible(node: &NavigationNode, auth: &AuthContext) -> bool {
         if let Some(rest) = route.strip_prefix("/entities/") {
             // Entity-Typ extrahieren (vor `?`, `/`).
             let entity_type = rest.split(['/', '?']).next().unwrap_or(rest);
-            return auth.is_allowed(entity_type, PermissionOp::Read);
+            return auth.can_entity_type(entity_type, Op::Read);
         }
         if let Some(rest) = route.strip_prefix("/builder/") {
             // Designer-Sub-Link (Q0004 Option C): Update-Recht analog zur
             // Auth-Gate-Pruefung in `BuilderPage`.
             let entity_type = rest.split(['/', '?']).next().unwrap_or(rest);
-            return auth.is_allowed(entity_type, PermissionOp::Update);
+            return auth.can_entity_type(entity_type, Op::Update);
         }
     }
     true

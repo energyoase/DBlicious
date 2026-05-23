@@ -12,7 +12,8 @@ use std::rc::Rc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use shared::{ColumnMeta, Entity, PermissionOp, SortDirection};
+use shared::auth::Op;
+use shared::{ColumnMeta, Entity, SortDirection};
 
 use super::data_source::{DataRequest, DataSource};
 use super::formatters::FieldCell;
@@ -38,17 +39,17 @@ pub fn EntityTable(
     let can_create = if entity_type.is_empty() {
         false
     } else {
-        auth.is_allowed(&entity_type, PermissionOp::Create)
+        auth.can_entity_type(&entity_type, Op::Create)
     };
     let can_delete = if entity_type.is_empty() {
         false
     } else {
-        auth.is_allowed(&entity_type, PermissionOp::Delete)
+        auth.can_entity_type(&entity_type, Op::Delete)
     };
     let can_update = if entity_type.is_empty() {
         false
     } else {
-        auth.is_allowed(&entity_type, PermissionOp::Update)
+        auth.can_entity_type(&entity_type, Op::Update)
     };
 
     // Lade-Resource: reagiert auf Aenderungen von page/page_size/sort/filter.

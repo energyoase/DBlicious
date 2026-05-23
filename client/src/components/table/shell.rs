@@ -16,7 +16,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use leptos::prelude::*;
-use shared::{ColumnMeta, EntitySettings, PermissionOp};
+use shared::auth::Op;
+use shared::{ColumnMeta, EntitySettings};
 
 use super::data_source::{DataRequest, DataResponse, DataSource};
 use super::filters::FilterRegistry;
@@ -50,9 +51,9 @@ impl TableCaps {
             };
         }
         Self {
-            can_create: auth.is_allowed(entity_type, PermissionOp::Create),
-            can_update: auth.is_allowed(entity_type, PermissionOp::Update),
-            can_delete: auth.is_allowed(entity_type, PermissionOp::Delete),
+            can_create: auth.can_entity_type(entity_type, Op::Create),
+            can_update: auth.can_entity_type(entity_type, Op::Update),
+            can_delete: auth.can_entity_type(entity_type, Op::Delete),
         }
     }
 }
