@@ -81,9 +81,9 @@ fn entity_list_h1_title(
 
 #[component]
 pub fn EntityListPage() -> impl IntoView {
-    use std::collections::HashMap;
     use crate::graphql::queries::{fetch_columns, fetch_navigation, fetch_settings};
     use shared::view::{ViewLayer, ViewPropertyOverride};
+    use std::collections::HashMap;
 
     let params = use_params_map();
     let design = use_design();
@@ -145,19 +145,19 @@ pub fn EntityListPage() -> impl IntoView {
     let drag_commit = Callback::new(move |updates: Vec<(String, i32)>| {
         pending_overrides.update(|m| {
             for (key, order) in updates {
-                let entry = m
-                    .entry(key.clone())
-                    .or_insert_with(|| shared::view::ViewPropertyOverride {
-                        key: key.clone(),
-                        ..Default::default()
-                    });
+                let entry =
+                    m.entry(key.clone())
+                        .or_insert_with(|| shared::view::ViewPropertyOverride {
+                            key: key.clone(),
+                            ..Default::default()
+                        });
                 entry.order = Some(order);
             }
         });
     });
     provide_context(DragReorderCtx {
         active_drag: drag_reorder_active,
-        commit:      drag_commit,
+        commit: drag_commit,
     });
 
     // Spalten-Metadaten vom Server nachladen (zuvor hartkodiert via column_set_for).
@@ -179,16 +179,17 @@ pub fn EntityListPage() -> impl IntoView {
         LocalResource::new(|| async { fetch_navigation().await.unwrap_or_default() });
 
     // Settings nachladen, damit Spalten gefiltert/sortiert werden koennen.
-    let settings_resource: LocalResource<Option<shared::EntitySettings>> = LocalResource::new(move || {
-        let entity_type = params.read().get("entity_type").unwrap_or_default();
-        async move {
-            if entity_type.is_empty() {
-                None
-            } else {
-                fetch_settings(&entity_type).await.ok().flatten()
+    let settings_resource: LocalResource<Option<shared::EntitySettings>> =
+        LocalResource::new(move || {
+            let entity_type = params.read().get("entity_type").unwrap_or_default();
+            async move {
+                if entity_type.is_empty() {
+                    None
+                } else {
+                    fetch_settings(&entity_type).await.ok().flatten()
+                }
             }
-        }
-    });
+        });
 
     // Save-Callback: schickt pending_overrides an den Server und räumt den
     // Edit-Mode auf — Konflikt-Fall zeigt Browser-Alert und aktualisiert
@@ -209,13 +210,14 @@ pub fn EntityListPage() -> impl IntoView {
             let res = crate::graphql::queries::save_entity_view(
                 crate::graphql::queries::SaveEntityViewInputClient {
                     entity_type: &et,
-                    view_name:   &vn,
-                    layer:       shared::view::ViewLayer::Global,
-                    owner_id:    None,
+                    view_name: &vn,
+                    layer: shared::view::ViewLayer::Global,
+                    owner_id: None,
                     payload,
                     expected_version: expected,
-                }
-            ).await;
+                },
+            )
+            .await;
             match res {
                 Ok(outcome) if outcome.kind == "OK" => {
                     pending_overrides.update(|p| p.clear());
@@ -227,10 +229,10 @@ pub fn EntityListPage() -> impl IntoView {
                     if let Some(server_view) = outcome.view.as_ref() {
                         current_view_version.set(Some(server_view.version));
                     }
-                    let _ = web_sys::window()
-                        .and_then(|w| w.alert_with_message(
-                            &crate::i18n::t("table-view-conflict")
-                        ).ok());
+                    let _ = web_sys::window().and_then(|w| {
+                        w.alert_with_message(&crate::i18n::t("table-view-conflict"))
+                            .ok()
+                    });
                 }
                 Ok(outcome) => {
                     log::warn!("save_entity_view: {}: {:?}", outcome.kind, outcome.message);
@@ -460,15 +462,16 @@ fn apply_settings_to_columns(
     settings: &shared::EntitySettings,
 ) {
     // Hidden filtern + sortieren nach `order`.
-    columns.retain(|c| {
-        match settings.property(&c.key).map(|p| p.visibility) {
-            Some(shared::Visibility::Hidden) => false,
-            Some(shared::Visibility::DetailOnly) => false,
-            _ => true,
-        }
+    columns.retain(|c| match settings.property(&c.key).map(|p| p.visibility) {
+        Some(shared::Visibility::Hidden) => false,
+        Some(shared::Visibility::DetailOnly) => false,
+        _ => true,
     });
     columns.sort_by_key(|c| {
-        settings.property(&c.key).map(|p| p.order).unwrap_or(i32::MAX)
+        settings
+            .property(&c.key)
+            .map(|p| p.order)
+            .unwrap_or(i32::MAX)
     });
 }
 
@@ -510,8 +513,14 @@ pub fn BuilderPage() -> impl IntoView {
     let card = design.surface(SurfaceLevel::Card).inline.clone();
     let h1 = design.text(TextVariant::H1).inline.clone();
     let muted = design.text(TextVariant::Muted).inline.clone();
-    let primary_btn = design.button(crate::styling::ButtonVariant::Primary).inline.clone();
-    let secondary_btn = design.button(crate::styling::ButtonVariant::Secondary).inline.clone();
+    let primary_btn = design
+        .button(crate::styling::ButtonVariant::Primary)
+        .inline
+        .clone();
+    let secondary_btn = design
+        .button(crate::styling::ButtonVariant::Secondary)
+        .inline
+        .clone();
 
     // Auth-Gate analog zum EditorPage: Update-Recht auf die konkrete Entity
     // genuegt — wer eine Entity editieren darf, darf auch ihr Layout

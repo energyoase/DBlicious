@@ -171,15 +171,13 @@ pub fn EntityTable(
 }
 
 #[component]
-fn Toolbar(
-    state: TableState,
-    entity_type: String,
-    can_create: bool,
-) -> impl IntoView {
+fn Toolbar(state: TableState, entity_type: String, can_create: bool) -> impl IntoView {
     let design = use_design();
     let style = design.toolbar().inline.clone();
     // Demo: Search-Input akzeptiert Per-Element-Overrides ueber `styled()`.
-    let input_style = styled("table.toolbar.search", design.input()).inline.clone();
+    let input_style = styled("table.toolbar.search", design.input())
+        .inline
+        .clone();
     let primary = design.button(ButtonVariant::Primary).inline.clone();
 
     let on_search = move |ev| {
@@ -289,8 +287,8 @@ fn BodyRow(
         let id = entity_id_for_delete.clone();
         let entity_type = entity_type_for_delete.clone();
         let trigger = trigger.clone();
-        let expected = header_for_delete
-            .with(|hr| hr.get(&entity_type, &id).map(|h| h.original_hash));
+        let expected =
+            header_for_delete.with(|hr| hr.get(&entity_type, &id).map(|h| h.original_hash));
         spawn_local(async move {
             let source = RemoteSource::new(entity_type);
             use super::data_source::DataSource as _;

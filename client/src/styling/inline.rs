@@ -50,7 +50,9 @@ impl DesignSystem for InlineDesign {
             TextVariant::H2 => "font-size: 1.25rem; font-weight: 600; margin: 0;".to_string(),
             TextVariant::Body => "font-size: 0.95rem;".to_string(),
             TextVariant::Caption => "font-size: 0.8rem;".to_string(),
-            TextVariant::Muted => format!("font-size: 0.85rem; color: {};", Tokens::COLOR_TEXT_MUTED),
+            TextVariant::Muted => {
+                format!("font-size: 0.85rem; color: {};", Tokens::COLOR_TEXT_MUTED)
+            }
         };
         Style::inline(s)
     }
@@ -107,7 +109,11 @@ impl DesignSystem for InlineDesign {
 
     fn nav_item(&self, depth: usize, active: bool) -> Style {
         let padding_left = 0.75 + (depth as f32) * 1.0;
-        let bg = if active { "rgba(59, 130, 246, 0.25)" } else { "transparent" };
+        let bg = if active {
+            "rgba(59, 130, 246, 0.25)"
+        } else {
+            "transparent"
+        };
         Style::inline(format!(
             "display: block; padding: {} 1rem {} {}rem; color: inherit; text-decoration: none; background: {};",
             Tokens::SPACE_XS,
@@ -155,7 +161,11 @@ impl DesignSystem for InlineDesign {
     }
 
     fn table_row(&self, even: bool) -> Style {
-        let bg = if even { Tokens::COLOR_TABLE_ALT } else { Tokens::COLOR_BG_SURFACE };
+        let bg = if even {
+            Tokens::COLOR_TABLE_ALT
+        } else {
+            Tokens::COLOR_BG_SURFACE
+        };
         Style::inline(format!("background: {bg};"))
     }
 
@@ -207,7 +217,11 @@ impl DesignSystem for InlineDesign {
     }
 
     fn designer_table(&self, selected: bool) -> Style {
-        let border_color = if selected { Tokens::COLOR_ACCENT } else { Tokens::COLOR_BORDER };
+        let border_color = if selected {
+            Tokens::COLOR_ACCENT
+        } else {
+            Tokens::COLOR_BORDER
+        };
         let shadow = if selected {
             "0 0 0 2px rgba(59,130,246,0.25), 0 8px 18px rgba(15,23,42,0.12)"
         } else {
@@ -238,7 +252,11 @@ impl DesignSystem for InlineDesign {
     }
 
     fn designer_column_row(&self, selected: bool) -> Style {
-        let bg = if selected { "rgba(59,130,246,0.12)" } else { "transparent" };
+        let bg = if selected {
+            "rgba(59,130,246,0.12)"
+        } else {
+            "transparent"
+        };
         Style::inline(format!(
             "display: grid; grid-template-columns: 12px 1fr auto 12px; \
              align-items: center; gap: {sp}; padding: {sp} {sm}; \
@@ -251,8 +269,16 @@ impl DesignSystem for InlineDesign {
     }
 
     fn designer_port(&self, active: bool) -> Style {
-        let bg = if active { Tokens::COLOR_ACCENT } else { "transparent" };
-        let border = if active { Tokens::COLOR_ACCENT } else { Tokens::COLOR_TEXT_MUTED };
+        let bg = if active {
+            Tokens::COLOR_ACCENT
+        } else {
+            "transparent"
+        };
+        let border = if active {
+            Tokens::COLOR_ACCENT
+        } else {
+            Tokens::COLOR_TEXT_MUTED
+        };
         Style::inline(format!(
             "width: 10px; height: 10px; border-radius: 50%; \
              border: 1.5px solid {border}; background: {bg}; \

@@ -228,7 +228,8 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
     let key_for_popover = column.key.clone();
     let key_for_drag = column.key.clone();
     let cursor = if sortable { "pointer" } else { "default" };
-    let combined_style = format!("{style} cursor: {cursor}; user-select: none; touch-action: none;");
+    let combined_style =
+        format!("{style} cursor: {cursor}; user-select: none; touch-action: none;");
 
     // Marker, damit `pointerdown` weiss, ob er einen Drag gestartet hat
     // und der spaetere `click` deshalb keinen Popover oeffnen darf.
@@ -247,7 +248,8 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
         if let (Some(em), Some(pop)) = (edit_mode_ctx, open_popover_ctx) {
             if em.get() {
                 use wasm_bindgen::JsCast;
-                let (top, left) = ev.current_target()
+                let (top, left) = ev
+                    .current_target()
                     .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
                     .map(|el| {
                         let r = el.get_bounding_client_rect();
@@ -282,7 +284,9 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
         else {
             return;
         };
-        let Some(row) = target.parent_element() else { return };
+        let Some(row) = target.parent_element() else {
+            return;
+        };
         let cells = row.query_selector_all("th[data-col]").ok();
         let Some(cells) = cells else { return };
         let mut keys: Vec<String> = Vec::with_capacity(cells.length() as usize);
@@ -290,14 +294,19 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
         let mut from_index: Option<usize> = None;
         for i in 0..cells.length() {
             let Some(node) = cells.item(i) else { continue };
-            let Ok(el) = node.dyn_into::<web_sys::Element>() else { continue };
+            let Ok(el) = node.dyn_into::<web_sys::Element>() else {
+                continue;
+            };
             let col_key = el.get_attribute("data-col").unwrap_or_default();
             let r = el.get_bounding_client_rect();
             if col_key == key_pd {
                 from_index = Some(keys.len());
             }
             keys.push(col_key);
-            rects.push(HeaderRect { left: r.left(), right: r.right() });
+            rects.push(HeaderRect {
+                left: r.left(),
+                right: r.right(),
+            });
         }
         let Some(from_index) = from_index else { return };
         ctx.active_drag.set(Some(ActiveDrag {
@@ -326,7 +335,9 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
 
     let on_pointer_up = move |_ev: web_sys::PointerEvent| {
         let Some(ctx) = reorder_ctx else { return };
-        let Some(active) = ctx.active_drag.get() else { return };
+        let Some(active) = ctx.active_drag.get() else {
+            return;
+        };
         ctx.active_drag.set(None);
         // Wenn kein wirklicher Drag entstanden ist (Threshold unterschritten),
         // ueberlassen wir das Event dem `on_click`.
@@ -362,11 +373,7 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
 }
 
 #[component]
-fn BodyRow(
-    entity: Entity,
-    even: bool,
-    columns: Vec<ColumnMeta>,
-) -> impl IntoView {
+fn BodyRow(entity: Entity, even: bool, columns: Vec<ColumnMeta>) -> impl IntoView {
     let shell = use_shell();
     let design = use_design();
     let row_style = design.table_row(even).inline.clone();
@@ -379,23 +386,32 @@ fn BodyRow(
 
     // RowContext pro Zeile in den Kontext schieben, damit EditAction/
     // DeleteAction und ggf. Custom-Actions ihre Bezugs-Entitaet finden.
-    provide_context(RowContext { entity: entity.clone() });
+    provide_context(RowContext {
+        entity: entity.clone(),
+    });
 
-    let cells = columns.into_iter().map(|col| {
-        let value = entity.fields.get(&col.key).cloned().unwrap_or(serde_json::Value::Null);
-        let fields = entity.fields.clone();
-        let cell_style = cell_style.clone();
-        view! {
-            <td style=cell_style>
-                <FieldCell
-                    field_type=col.field_type
-                    key=col.key
-                    value=value
-                    fields=fields
-                />
-            </td>
-        }
-    }).collect_view();
+    let cells = columns
+        .into_iter()
+        .map(|col| {
+            let value = entity
+                .fields
+                .get(&col.key)
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            let fields = entity.fields.clone();
+            let cell_style = cell_style.clone();
+            view! {
+                <td style=cell_style>
+                    <FieldCell
+                        field_type=col.field_type
+                        key=col.key
+                        value=value
+                        fields=fields
+                    />
+                </td>
+            }
+        })
+        .collect_view();
 
     let selection_cell = move || {
         let mode = selection.mode.get();
@@ -415,8 +431,7 @@ fn BodyRow(
 
     let actions_cell = move || {
         let _ = row_actions_trigger.get();
-        let view =
-            shell.with_row_actions(|slot| slot.borrow().as_ref().map(|r| (r.0)()));
+        let view = shell.with_row_actions(|slot| slot.borrow().as_ref().map(|r| (r.0)()));
         view.map(|v| {
             let style = design.table_cell().inline.clone();
             view! {

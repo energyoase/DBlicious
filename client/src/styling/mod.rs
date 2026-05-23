@@ -35,10 +35,16 @@ pub struct Style {
 
 impl Style {
     pub fn inline(s: impl Into<String>) -> Self {
-        Self { inline: s.into(), class: String::new() }
+        Self {
+            inline: s.into(),
+            class: String::new(),
+        }
     }
     pub fn class(s: impl Into<String>) -> Self {
-        Self { inline: String::new(), class: s.into() }
+        Self {
+            inline: String::new(),
+            class: s.into(),
+        }
     }
 }
 
@@ -186,5 +192,6 @@ pub fn provide_design_system() {
 }
 
 pub fn use_design() -> DesignHandle {
-    use_context::<DesignHandle>().expect("Kein DesignSystem im Context (provide_design_system fehlt?)")
+    use_context::<DesignHandle>()
+        .expect("Kein DesignSystem im Context (provide_design_system fehlt?)")
 }
