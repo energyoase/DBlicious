@@ -32,6 +32,8 @@ web-sys = { version = "0.3", features = [
     "Element", "DomRect", "NodeList",
     "Event", "EventTarget", "MouseEvent", "PointerEvent",
     "HtmlInputElement", "HtmlSelectElement",
+    # Performance.now() fuer die Skript-Sandbox-Deadline (Q0009 Phase 4).
+    "Performance",
 ] }
 
 # Logging im Browser
@@ -49,8 +51,15 @@ once_cell = "1"
 thiserror = "1"
 send_wrapper = "0.6"
 
+# Skript-Engine (Q0009): identische Feature-Wahl wie im Server-Crate.
+# `tokio.time` wird hier bewusst NICHT gebraucht — der Client laeuft im
+# Browser ohne Tokio-Runtime; das deterministische Operation-Limit aus
+# `set_max_operations` deckt die Run-Time-Begrenzung.
+rhai = { version = "1", default-features = false, features = ["std", "sync", "internals"] }
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+shared = { path = "../shared", features = ["testing"] }
 
 [package.metadata.leptos]
 output-name = "client"

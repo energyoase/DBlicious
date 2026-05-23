@@ -21,6 +21,7 @@ pub mod graphql;
 pub mod header;
 pub mod i18n;
 pub mod routes;
+pub mod script;
 pub mod styling;
 pub mod tabs;
 pub mod validation;
