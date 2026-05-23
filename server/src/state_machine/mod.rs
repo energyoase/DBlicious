@@ -32,7 +32,11 @@ pub enum TransitionError {
     #[error("no_matching_transition: from='{from}' event='{event}'")]
     NoMatchingTransition { from: String, event: String },
     #[error("guard_failed: transition from='{from}' to='{to}' on event='{event}'")]
-    GuardFailed { from: String, to: String, event: String },
+    GuardFailed {
+        from: String,
+        to: String,
+        event: String,
+    },
     #[error("forbidden: user lacks permission '{permission}'")]
     Forbidden { permission: String },
     #[error("invalid_target_state: '{to}' is not in state_machine.states")]
@@ -44,8 +48,8 @@ pub enum TransitionError {
 /// Ergebnis einer erfolgreichen Transition.
 #[derive(Debug, Clone)]
 pub struct TransitionOutcome {
-    pub from:  String,
-    pub to:    String,
+    pub from: String,
+    pub to: String,
     pub event: String,
 }
 
@@ -55,9 +59,9 @@ pub struct TransitionOutcome {
 /// Pruefung moeglich; der Aufrufer entscheidet, ob das ein Fehler ist.
 /// (System-Triggers laufen z.B. ohne User.)
 pub async fn apply_transition(
-    entity_type:   &str,
-    id:            &str,
-    event:         &str,
+    entity_type: &str,
+    id: &str,
+    event: &str,
     actor_user_id: Option<&str>,
 ) -> Result<TransitionOutcome, TransitionError> {
     let sm = data::settings_for_async(entity_type)
@@ -82,7 +86,7 @@ pub async fn apply_transition(
         .map_err(|e| TransitionError::Db(format!("{e}")))?
         .ok_or_else(|| TransitionError::NotFound {
             entity_type: entity_type.to_string(),
-            id:          id.to_string(),
+            id: id.to_string(),
         })?;
 
     let fields = entity.fields.clone();
@@ -96,7 +100,7 @@ pub async fn apply_transition(
         .find_transition(&current_state, event)
         .cloned()
         .ok_or_else(|| TransitionError::NoMatchingTransition {
-            from:  current_state.clone(),
+            from: current_state.clone(),
             event: event.to_string(),
         })?;
 
@@ -112,26 +116,36 @@ pub async fn apply_transition(
             .map_err(|e| TransitionError::Db(format!("guard parse: {e:?}")))?;
         if !ast.evaluate(&fields) {
             return Err(TransitionError::GuardFailed {
-                from:  current_state,
-                to:    transition.to,
+                from: current_state,
+                to: transition.to,
                 event: event.to_string(),
             });
         }
     }
 
-    // Permission.
-    if let Some(user_id) = actor_user_id {
-        let perm_name = transition_permission_name(entity_type, &transition);
-        let resource = Resource::Action { name: perm_name.clone() };
+    // Permission. Nur enforced, wenn Transition explizit `permission`
+    // setzt. Ohne `permission` ist die Transition offen — Aufrufer kann
+    // Permissions separat ueber CRUD-Resolver pruefen.
+    if let (Some(user_id), Some(perm_name)) = (actor_user_id, transition.permission.as_deref()) {
+        let resource = Resource::Action {
+            name: perm_name.to_string(),
+        };
         match crate::auth::resolver::effective(user_id, &resource, Op::Execute).await {
             Ok(Effect::Allow) => {}
-            _ => return Err(TransitionError::Forbidden { permission: perm_name }),
+            _ => {
+                return Err(TransitionError::Forbidden {
+                    permission: perm_name.to_string(),
+                })
+            }
         }
     }
 
     // Update Entity-Feld.
     let mut patch = serde_json::Map::new();
-    patch.insert(sm.state_field_name().to_string(), serde_json::Value::String(transition.to.clone()));
+    patch.insert(
+        sm.state_field_name().to_string(),
+        serde_json::Value::String(transition.to.clone()),
+    );
     data::update_entity(
         entity_type,
         id,
@@ -153,17 +167,8 @@ pub async fn apply_transition(
     .await;
 
     Ok(TransitionOutcome {
-        from:  current_state,
-        to:    transition.to,
+        from: current_state,
+        to: transition.to,
         event: event.to_string(),
     })
 }
-
-/// Default-Konvention: `"<entity_type>.<event>"`, sofern die Transition
-/// keine eigene Permission angibt.
-fn transition_permission_name(entity_type: &str, t: &Transition) -> String {
-    t.permission
-        .clone()
-        .unwrap_or_else(|| format!("{entity_type}.{}", t.event))
-}
-

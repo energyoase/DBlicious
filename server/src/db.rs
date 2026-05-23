@@ -19,8 +19,8 @@ use std::sync::OnceLock;
 
 use parking_lot::Mutex;
 use sea_orm::{
-    sea_query::TableCreateStatement, ConnectOptions, ConnectionTrait, Database,
-    DatabaseConnection, DbBackend, EntityTrait, Schema, Statement,
+    sea_query::TableCreateStatement, ConnectOptions, ConnectionTrait, Database, DatabaseConnection,
+    DbBackend, EntityTrait, Schema, Statement,
 };
 
 use crate::entity;
@@ -101,6 +101,8 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::fx_rates::Entity),
         // Phase 1.7.3: Period-Locks.
         schema.create_table_from_entity(entity::period_locks::Entity),
+        // Phase 1.7.6: Approval-Workflow.
+        schema.create_table_from_entity(entity::approvals::Entity),
         // Phase 1.6: Builder-Design-Persistenz.
         schema.create_table_from_entity(entity::entity_designs::Entity),
         // Phase 1.5.3: Per-User-Wahl der Implementations-IDs.

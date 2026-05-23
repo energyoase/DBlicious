@@ -22,6 +22,8 @@ pub enum AuditKind {
     PermissionRemoved,
     /// Phase 1.7.5: State-Machine-Transition erfolgt.
     StateTransition,
+    /// Phase 1.7.6: Approval-Entscheidung (approve / reject).
+    ApprovalDecision,
 }
 
 impl AuditKind {
@@ -31,6 +33,7 @@ impl AuditKind {
             AuditKind::PermissionAdded => "permission_added",
             AuditKind::PermissionRemoved => "permission_removed",
             AuditKind::StateTransition => "state_transition",
+            AuditKind::ApprovalDecision => "approval_decision",
         }
     }
 }
@@ -89,11 +92,11 @@ pub async fn record_deny(actor_user_id: &str, entity_type: &str, op: &str) {
 /// Approval-Folge-Schritt).
 pub async fn record_state_transition(
     actor_user_id: Option<&str>,
-    entity_type:   &str,
-    entity_id:     &str,
-    from_state:    &str,
-    to_state:      &str,
-    event:         &str,
+    entity_type: &str,
+    entity_id: &str,
+    from_state: &str,
+    to_state: &str,
+    event: &str,
 ) {
     record(
         AuditKind::StateTransition,
@@ -105,6 +108,30 @@ pub async fn record_state_transition(
             "from":  from_state,
             "to":    to_state,
             "event": event,
+        })),
+    )
+    .await;
+}
+
+/// Phase 1.7.6: Audit-Eintrag fuer eine Approval-Entscheidung.
+pub async fn record_approval_decision(
+    actor_user_id: Option<&str>,
+    entity_type: &str,
+    entity_id: &str,
+    target_event: &str,
+    decision: crate::approvals::Decision,
+    comment: Option<&str>,
+) {
+    record(
+        AuditKind::ApprovalDecision,
+        actor_user_id,
+        Some("entityInstance"),
+        Some(&format!("{entity_type}/{entity_id}")),
+        Some(target_event),
+        Some(serde_json::json!({
+            "decision": decision.as_status(),
+            "event":    target_event,
+            "comment":  comment,
         })),
     )
     .await;

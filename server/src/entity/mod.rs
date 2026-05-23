@@ -19,6 +19,7 @@
 //!                        (mehr als einer pro Schema-Name moeglich, der
 //!                        neueste gewinnt).
 
+pub mod approvals;
 pub mod audit_log;
 pub mod db_schemas;
 pub mod entities;

@@ -4,6 +4,7 @@
 //! die innere Modul-Struktur fuer `tests/`-Verzeichnisse erreichbar und
 //! exponiert eine `build_schema()`-Funktion plus die DB-Init.
 
+pub mod approvals;
 pub mod audit;
 pub mod auth;
 pub mod data;
@@ -54,8 +55,8 @@ fn install_test_example() {
         .join("..")
         .join("examples")
         .join("shop");
-    let set = example::load(&dir)
-        .unwrap_or_else(|e| panic!("examples/shop fuer Tests laden: {e:#}"));
+    let set =
+        example::load(&dir).unwrap_or_else(|e| panic!("examples/shop fuer Tests laden: {e:#}"));
     example::install(set);
 }
 
