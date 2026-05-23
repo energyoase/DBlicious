@@ -29,6 +29,7 @@ pub mod groups;
 pub mod metadata_editor;
 pub mod metadata_settings;
 pub mod number_sequences;
+pub mod period_locks;
 pub mod permissions;
 pub mod plugin_invocations;
 pub mod plugins;

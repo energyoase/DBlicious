@@ -1878,6 +1878,55 @@ impl MutationRoot {
         })
     }
 
+    // -- Phase 1.7.3: Period-Locks --
+
+    /// Setzt einen Period-Lock fuer `scope` bis inklusive `throughDate`.
+    /// Permission: `Resource::Action{name:"period_lock.set"}`+Execute.
+    async fn set_period_lock(
+        &self,
+        ctx:          &Context<'_>,
+        scope:        String,
+        through_date: String,
+        reason:       Option<String>,
+    ) -> async_graphql::Result<bool> {
+        let auth = ctx.data::<AuthContext>().ok();
+        let user = auth.and_then(|a| a.user.as_ref()).ok_or_else(|| {
+            async_graphql::Error::new("unauthenticated")
+        })?;
+        let resource = shared::auth::Resource::Action { name: "period_lock.set".into() };
+        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await {
+            Ok(shared::auth::Effect::Allow) => {}
+            _ => return Err(async_graphql::Error::new("forbidden")),
+        }
+        let conn = crate::db::conn();
+        crate::period_locks::set_lock(&conn, &scope, &through_date, Some(&user.id), reason.as_deref())
+            .await
+            .map(|_| true)
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))
+    }
+
+    /// Loest einen Period-Lock vollstaendig auf. Idempotent (false wenn
+    /// kein Lock existierte). Permission: `Resource::Action{name:"period_lock.clear"}`+Execute.
+    async fn clear_period_lock(
+        &self,
+        ctx:   &Context<'_>,
+        scope: String,
+    ) -> async_graphql::Result<bool> {
+        let auth = ctx.data::<AuthContext>().ok();
+        let user = auth.and_then(|a| a.user.as_ref()).ok_or_else(|| {
+            async_graphql::Error::new("unauthenticated")
+        })?;
+        let resource = shared::auth::Resource::Action { name: "period_lock.clear".into() };
+        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await {
+            Ok(shared::auth::Effect::Allow) => {}
+            _ => return Err(async_graphql::Error::new("forbidden")),
+        }
+        let conn = crate::db::conn();
+        crate::period_locks::clear_lock(&conn, &scope)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))
+    }
+
     // -- Phase 1.7.2: FX-Rates --
 
     /// Schreibt einen Wechselkurs `(date, from→to)`. Permission-Gate:

@@ -99,6 +99,8 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::number_sequences::Entity),
         // Phase 1.7.2: FX-Rate-Store.
         schema.create_table_from_entity(entity::fx_rates::Entity),
+        // Phase 1.7.3: Period-Locks.
+        schema.create_table_from_entity(entity::period_locks::Entity),
         // Phase 1.6: Builder-Design-Persistenz.
         schema.create_table_from_entity(entity::entity_designs::Entity),
         // Phase 1.5.3: Per-User-Wahl der Implementations-IDs.
