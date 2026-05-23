@@ -6,11 +6,14 @@
 //! Resolver gehen ueber diesen Pfad.
 
 pub mod config;
-pub mod managed_sqlite;
+pub mod file;
 pub mod foreign_sqlite;
 pub mod introspect;
+pub mod managed_sqlite;
+pub mod memory;
 pub mod mysql;
 pub mod postgres;
+pub mod rest;
 pub mod sql;
 
 use std::collections::BTreeMap;
@@ -204,6 +207,19 @@ pub async fn boot_registry(
                     SourceError::Other(format!("source '{name}' (mysql) requires url"))
                 })?;
                 Box::new(crate::source::mysql::MySqlSource::new(name.clone(), url))
+            }
+            "memory" => Box::new(crate::source::memory::MemorySource::new(name.clone())),
+            "file" => {
+                let url = cfg.url.clone().ok_or_else(|| {
+                    SourceError::Other(format!("source '{name}' (file) requires url (Pfad zur JSON-Datei)"))
+                })?;
+                Box::new(crate::source::file::FileSource::new(name.clone(), std::path::PathBuf::from(url)))
+            }
+            "rest" => {
+                let url = cfg.url.clone().ok_or_else(|| {
+                    SourceError::Other(format!("source '{name}' (rest) requires url (Base-URL)"))
+                })?;
+                Box::new(crate::source::rest::RestSource::new(name.clone(), url))
             }
             other => return Err(SourceError::Other(format!("unknown source kind: {other}"))),
         };

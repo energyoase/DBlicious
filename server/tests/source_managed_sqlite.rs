@@ -16,7 +16,7 @@ fn managed_sqlite_has_expected_capabilities() {
             supports_transactions: true,
             supports_sql_pushdown: true,
             supports_introspection: false,
-            supports_composite_pk: false,
+            supports_composite_pk: true,  // im Table-Locator-Pfad (B4)
             supports_ddl: true,
         }
     );
