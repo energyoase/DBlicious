@@ -104,6 +104,10 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::plugin_invocations::Entity),
         // Q0005: Named Views — 1 Row pro (entity_type, view_name, layer, owner_id).
         schema.create_table_from_entity(entity::entity_views::Entity),
+        // Q0009 Phase 3.1: Skript-Storage + Versionshistorie + Audit-Log.
+        schema.create_table_from_entity(entity::script::Entity),
+        schema.create_table_from_entity(entity::script_version::Entity),
+        schema.create_table_from_entity(entity::script_audit_log::Entity),
     ];
     for t in &mut tables {
         t.if_not_exists();
