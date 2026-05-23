@@ -94,6 +94,29 @@ pub struct EntityTypeSet {
     pub seeds: Vec<shared::Entity>,
 }
 
+/// Geladenes Skript-Material aus `scripts/<id>.rhai` + `<id>.manifest.{json,toml}`.
+/// Phase 3.2: der Loader inspiziert weder Tier-Grenzen noch die Source —
+/// das ist Sache der Save-Pipeline. `manifest_error` traegt einen Parse-
+/// Fehler, wenn das Manifest selbst syntaktisch kaputt war; in dem Fall
+/// uebernimmt `db::init` den Eintrag als `state=draft`.
+#[derive(Clone, Debug)]
+pub struct ScriptSeed {
+    pub id: String,
+    pub source: String,
+    /// `None`, wenn das Manifest fehlt oder kaputt ist. Wenn es fehlt, schiebt
+    /// der Loader auch keine Default-Variante nach — der Save-Pfad lehnt das
+    /// dann ab.
+    pub manifest: Option<shared::script::ScriptManifest>,
+    /// `Some` ⇔ Manifest war vorhanden aber nicht parsebar (JSON/TOML-Syntax
+    /// kaputt **oder** Schema mismatch). Wird im Seed als `last_error` mit
+    /// `state=draft` materialisiert.
+    pub manifest_error: Option<String>,
+    /// `provider` oder `component` — bestimmt durch das Manifest-Feld `kind`.
+    /// Fallback bei fehlendem/kaputtem Manifest: `component` mit leerem
+    /// Entry-Namen (der Save-Pfad lehnt das spaeter regulaer ab).
+    pub kind: shared::script::ScriptKind,
+}
+
 #[derive(Clone, Debug)]
 pub struct ExampleSet {
     pub root: PathBuf,
@@ -114,6 +137,9 @@ pub struct ExampleSet {
     /// Phase 0.6: konfigurierte Sources. Default-`local` wird vom Loader
     /// synthetisiert, falls keine `sources.toml` vorhanden ist.
     pub sources: BTreeMap<String, crate::source::config::SourceConfig>,
+    /// Q0009 Phase 3.2: Skript-Material aus dem `scripts/`-Sub-Verzeichnis.
+    /// Schluessel = `ScriptId`-String. Leer, wenn das Verzeichnis fehlt.
+    pub scripts: BTreeMap<String, ScriptSeed>,
 }
 
 impl ExampleSet {

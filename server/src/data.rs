@@ -2043,6 +2043,84 @@ fn row_to_view(r: entity::entity_views::Model) -> EntityView {
 }
 
 // =============================================================================
+// Q0009 Phase 3.2 — Scripts seeding
+// =============================================================================
+
+/// Seedet Skripte aus dem aktuell installierten ExampleSet in die
+/// `scripts`-Tabelle. Idempotent pro `id`: existierende Zeilen bleiben
+/// unangetastet. Kein Fehler bei kaputten Manifesten — der Eintrag bekommt
+/// `state=draft` mit `last_error` und kann spaeter im Save-Pfad korrigiert
+/// werden.
+///
+/// Achtung (wie `seed_entity_views_from_example`): wird aus `db::seed_if_empty`
+/// vor dem Setzen des Pool-Slots aufgerufen. Darf `conn()` nicht aufrufen.
+pub async fn seed_scripts_from_example(
+    db: &sea_orm::DatabaseConnection,
+) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else { return Ok(()); };
+    for (id, seed) in &set.scripts {
+        let existing = entity::script::Entity::find_by_id(id.clone())
+            .one(db)
+            .await?;
+        if existing.is_some() {
+            continue;
+        }
+
+        // `state`/`last_error` ableiten:
+        //   - Manifest vorhanden + parseable => Active
+        //   - Manifest fehlt oder Parse-Fehler => Draft mit last_error
+        let (state_str, manifest_for_json, last_error_json) = match &seed.manifest {
+            Some(m) => ("active", Some(m.clone()), None),
+            None => {
+                let reason = seed
+                    .manifest_error
+                    .clone()
+                    .unwrap_or_else(|| "manifest missing or invalid".into());
+                let err = shared::script::ScriptError::ManifestInvalid {
+                    reason: shared::script::ManifestError { reason },
+                };
+                let json = serde_json::to_string(&err)
+                    .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+                ("draft", None, Some(json))
+            }
+        };
+
+        let manifest_json = manifest_for_json
+            .map(|m| {
+                serde_json::to_string(&m)
+                    .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))
+            })
+            .transpose()?
+            .unwrap_or_else(|| "{}".into());
+
+        let kind_value = serde_json::to_value(&seed.kind)
+            .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+        let kind_tag = kind_value
+            .get("kind")
+            .and_then(|v| v.as_str())
+            .unwrap_or("component")
+            .to_string();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        entity::script::ActiveModel {
+            id: ActiveValue::Set(id.clone()),
+            kind: ActiveValue::Set(kind_tag),
+            manifest_json: ActiveValue::Set(manifest_json),
+            source: ActiveValue::Set(seed.source.clone()),
+            version: ActiveValue::Set(1),
+            state: ActiveValue::Set(state_str.into()),
+            last_error: ActiveValue::Set(last_error_json),
+            created_by: ActiveValue::Set("system".into()),
+            created_at: ActiveValue::Set(now.clone()),
+            updated_at: ActiveValue::Set(now),
+        }
+        .insert(db)
+        .await?;
+    }
+    Ok(())
+}
+
+// =============================================================================
 // Tests
 // =============================================================================
 

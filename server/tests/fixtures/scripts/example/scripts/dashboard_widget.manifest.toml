@@ -1,0 +1,17 @@
+# Component-Manifest in TOML — Format-Dispatch des Loaders deckt beide ab.
+
+[kind]
+kind = "component"
+entry = "render"
+
+[manifest]
+manifestVersion = 1
+tier = "author"
+capabilities = [
+    { kind = "readOwnEntities" },
+    { kind = "emitUiNode", scope = "composite" },
+]
+uiPrimitives = ["vstack", "text"]
+timeoutMs = 5000
+memoryKb = 4096
+liftCapable = false

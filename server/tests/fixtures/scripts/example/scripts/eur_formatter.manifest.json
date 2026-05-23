@@ -1,0 +1,14 @@
+{
+  "kind": { "kind": "provider", "slot": "formatter" },
+  "manifest": {
+    "manifestVersion": 1,
+    "tier": "reader",
+    "capabilities": [
+      { "kind": "readI18n" }
+    ],
+    "uiPrimitives": [],
+    "timeoutMs": 1000,
+    "memoryKb": 1024,
+    "liftCapable": false
+  }
+}

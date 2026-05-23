@@ -10,8 +10,8 @@ use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 
-use super::format::{find_file, read_typed_opt};
-use super::{EntityTypeSet, ExampleConfig, ExampleSet, UserSeed};
+use super::format::{find_file, read_typed_opt, SUPPORTED_EXTS};
+use super::{EntityTypeSet, ExampleConfig, ExampleSet, ScriptSeed, UserSeed};
 
 /// Sektion `[server]` aus `config.{toml,json}`.
 #[derive(serde::Deserialize)]
@@ -141,6 +141,9 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
         }
     }
 
+    // ---- Scripts (Q0009 Phase 3.2) ----
+    let scripts = load_scripts(dir)?;
+
     // ---- Sources ----
     let mut sources = crate::source::config::load_from_dir(dir)
         .map_err(|e| anyhow!("sources.toml: {e}"))?
@@ -167,7 +170,98 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
         roles,
         role_assignments,
         sources,
+        scripts,
     })
+}
+
+/// Wrapper-Schema fuer `scripts/<id>.manifest.{json,toml}` — buendelt
+/// `ScriptKind` und `ScriptManifest`. Bewusst eigenstaendig (statt direkt
+/// gegen einen `shared::script::ScriptManifest` zu deserialisieren), damit
+/// das `kind`-Feld auf Top-Level liegt; das Manifest darunter ist die
+/// gleiche `ScriptManifest`-Wire-Form.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScriptDescriptorFile {
+    /// Tagged enum wie auf der Wire-Form: `{"kind":"provider","slot":...}`
+    /// oder `{"kind":"component","entry":"..."}`.
+    kind: shared::script::ScriptKind,
+    manifest: shared::script::ScriptManifest,
+}
+
+fn load_scripts(dir: &Path) -> Result<BTreeMap<String, ScriptSeed>> {
+    let scripts_root = dir.join("scripts");
+    let mut out: BTreeMap<String, ScriptSeed> = BTreeMap::new();
+    if !scripts_root.is_dir() {
+        return Ok(out);
+    }
+    let read = std::fs::read_dir(&scripts_root)
+        .with_context(|| format!("kann '{}' nicht lesen", scripts_root.display()))?;
+    // Wir scannen einmal nach `.rhai`-Dateien und suchen dann pro Source die
+    // dazugehoerige Manifest-Datei.
+    for entry in read {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let ext = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(str::to_ascii_lowercase)
+            .unwrap_or_default();
+        if ext != "rhai" {
+            continue;
+        }
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| anyhow!("Skript-Dateiname kein UTF-8: {}", path.display()))?
+            .to_string();
+        let source = std::fs::read_to_string(&path)
+            .with_context(|| format!("Skript-Source nicht lesbar: {}", path.display()))?;
+
+        // Manifest suchen: <stem>.manifest.{json,toml}
+        let mut manifest_path = None;
+        for cand_ext in SUPPORTED_EXTS {
+            let p = scripts_root.join(format!("{stem}.manifest.{cand_ext}"));
+            if p.is_file() {
+                manifest_path = Some(p);
+                break;
+            }
+        }
+
+        let (manifest, manifest_error, kind) = match manifest_path {
+            None => {
+                // Kein Manifest: Loader liefert "Draft mit Fehler" weiter —
+                // der Seed-Schritt setzt state=Draft + last_error.
+                (
+                    None,
+                    Some(format!("manifest file missing for script '{stem}'")),
+                    shared::script::ScriptKind::Component { entry: String::new() },
+                )
+            }
+            Some(p) => match super::format::read_typed::<ScriptDescriptorFile>(&p) {
+                Ok(desc) => (Some(desc.manifest), None, desc.kind),
+                Err(e) => (
+                    None,
+                    Some(format!("{e:#}")),
+                    shared::script::ScriptKind::Component { entry: String::new() },
+                ),
+            },
+        };
+
+        out.insert(
+            stem.clone(),
+            ScriptSeed {
+                id: stem,
+                source,
+                manifest,
+                manifest_error,
+                kind,
+            },
+        );
+    }
+    Ok(out)
 }
 
 fn load_entity_type(dir: &Path) -> Result<EntityTypeSet> {
