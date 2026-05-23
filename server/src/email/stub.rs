@@ -12,9 +12,9 @@ use super::{EmailError, EmailMessage, EmailSender};
 
 #[derive(Debug, Clone)]
 pub struct SentRecord {
-    pub from:     String,
-    pub to:       Vec<String>,
-    pub subject:  String,
+    pub from: String,
+    pub to: Vec<String>,
+    pub subject: String,
     pub body_text: String,
     pub attachment_count: usize,
 }
@@ -40,17 +40,19 @@ impl StubSender {
 
 #[async_trait]
 impl EmailSender for StubSender {
-    fn kind(&self) -> &'static str { "stub" }
+    fn kind(&self) -> &'static str {
+        "stub"
+    }
 
     async fn send(&self, msg: EmailMessage<'_>) -> Result<(), EmailError> {
         if msg.from.is_empty() || msg.to.is_empty() {
             return Err(EmailError::InvalidInput("from/to required".into()));
         }
         let rec = SentRecord {
-            from:             msg.from.to_string(),
-            to:               msg.to.iter().map(|s| (*s).to_string()).collect(),
-            subject:          msg.subject.to_string(),
-            body_text:        msg.body_text.to_string(),
+            from: msg.from.to_string(),
+            to: msg.to.iter().map(|s| (*s).to_string()).collect(),
+            subject: msg.subject.to_string(),
+            body_text: msg.body_text.to_string(),
             attachment_count: msg.attachments.len(),
         };
         buffer().lock().unwrap().push(rec);

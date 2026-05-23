@@ -69,10 +69,7 @@ impl BuilderHistory {
 
     /// Aktuelle Stack-Groessen (vor allem fuer Tests/UI-Counter).
     pub fn lengths(&self) -> (usize, usize) {
-        (
-            self.past.with(Vec::len),
-            self.future.with(Vec::len),
-        )
+        (self.past.with(Vec::len), self.future.with(Vec::len))
     }
 
     /// Pusht `snapshot` auf den `past`-Stack und leert `future`.

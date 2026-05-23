@@ -27,7 +27,11 @@ pub enum AppError {
     /// Wert war `null`, obwohl erforderlich.
     UnexpectedNull { target: String },
     /// Typ-Inkompatibilitaet.
-    UnexpectedType { target: String, expected: String, actual: String },
+    UnexpectedType {
+        target: String,
+        expected: String,
+        actual: String,
+    },
     /// Eine `match`- oder Branch-Tabelle haette ausgeloest sein muessen,
     /// erreichte aber einen unerwarteten Zustand.
     UnexpectedCode { detail: String },
@@ -73,13 +77,22 @@ impl std::fmt::Display for AppError {
             AppError::Decode { detail } => write!(f, "decode error: {detail}"),
             AppError::InvalidIdentifier { value } => write!(f, "invalid identifier: {value}"),
             AppError::UnexpectedEmpty { target } => write!(f, "unexpected empty: {target}"),
-            AppError::OutOfBound { target, detail } => write!(f, "out of bound on {target}: {detail}"),
+            AppError::OutOfBound { target, detail } => {
+                write!(f, "out of bound on {target}: {detail}")
+            }
             AppError::UnexpectedFormat { target, detail } => {
                 write!(f, "unexpected format on {target}: {detail}")
             }
             AppError::UnexpectedNull { target } => write!(f, "unexpected null: {target}"),
-            AppError::UnexpectedType { target, expected, actual } => {
-                write!(f, "unexpected type on {target}: expected {expected}, got {actual}")
+            AppError::UnexpectedType {
+                target,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "unexpected type on {target}: expected {expected}, got {actual}"
+                )
             }
             AppError::UnexpectedCode { detail } => write!(f, "unexpected code path: {detail}"),
             AppError::OneParameterRequired { options } => {

@@ -38,10 +38,7 @@ fn for_target_filters_correctly() {
 fn args_attach_to_message() {
     let msg = ValidationMessage::error("name", "validation.min_length").with_arg("min", 5_i64);
     assert_eq!(msg.severity, Severity::Error);
-    assert_eq!(
-        msg.args.get("min").and_then(|v| v.as_i64()),
-        Some(5)
-    );
+    assert_eq!(msg.args.get("min").and_then(|v| v.as_i64()), Some(5));
 }
 
 #[test]

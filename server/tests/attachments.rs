@@ -20,9 +20,9 @@ async fn put_get_roundtrip_verifies_hash() {
         &store,
         UploadInput {
             entity_type: "invoice",
-            entity_id:   "inv-1",
-            filename:    Some("rechnung.pdf"),
-            mime:        "application/pdf",
+            entity_id: "inv-1",
+            filename: Some("rechnung.pdf"),
+            mime: "application/pdf",
             bytes,
         },
         Some("alice"),
@@ -32,9 +32,11 @@ async fn put_get_roundtrip_verifies_hash() {
     assert_eq!(res.size_bytes, bytes.len() as i64);
     assert_eq!(res.hash, storage::sha256_hex(bytes));
 
-    let (back, model) = storage::get(&conn, &store, &res.attachment_id).await.unwrap();
+    let (back, model) = storage::get(&conn, &store, &res.attachment_id)
+        .await
+        .unwrap();
     assert_eq!(back, bytes);
-    assert_eq!(model.mime,     "application/pdf");
+    assert_eq!(model.mime, "application/pdf");
     assert_eq!(model.filename.as_deref(), Some("rechnung.pdf"));
     assert_eq!(model.created_by.as_deref(), Some("alice"));
 }
@@ -53,9 +55,9 @@ async fn hash_mismatch_when_blob_tampered() {
         &store,
         UploadInput {
             entity_type: "x",
-            entity_id:   "y",
-            filename:    None,
-            mime:        "text/plain",
+            entity_id: "y",
+            filename: None,
+            mime: "text/plain",
             bytes,
         },
         None,
@@ -67,7 +69,9 @@ async fn hash_mismatch_when_blob_tampered() {
     let full = dir.path().join(&res.blob_ref);
     std::fs::write(&full, b"tampered").unwrap();
 
-    let err = storage::get(&conn, &store, &res.attachment_id).await.unwrap_err();
+    let err = storage::get(&conn, &store, &res.attachment_id)
+        .await
+        .unwrap_err();
     let msg = format!("{err}");
     assert!(msg.contains("hash_mismatch"), "got: {msg}");
 }
@@ -86,16 +90,18 @@ async fn delete_removes_blob_and_row() {
         &store,
         UploadInput {
             entity_type: "x",
-            entity_id:   "y",
-            filename:    None,
-            mime:        "text/plain",
+            entity_id: "y",
+            filename: None,
+            mime: "text/plain",
             bytes,
         },
         None,
     )
     .await
     .unwrap();
-    let removed = storage::delete(&conn, &store, &res.attachment_id).await.unwrap();
+    let removed = storage::delete(&conn, &store, &res.attachment_id)
+        .await
+        .unwrap();
     assert!(removed);
     // Row weg
     let list = storage::list_for_entity(&conn, "x", "y").await.unwrap();
@@ -130,9 +136,9 @@ async fn list_for_entity_isolates_correctly() {
             &store,
             UploadInput {
                 entity_type: et,
-                entity_id:   "1",
-                filename:    None,
-                mime:        "x",
+                entity_id: "1",
+                filename: None,
+                mime: "x",
                 bytes,
             },
             None,
@@ -140,16 +146,37 @@ async fn list_for_entity_isolates_correctly() {
         .await
         .unwrap();
     }
-    assert_eq!(storage::list_for_entity(&conn, "a", "1").await.unwrap().len(), 1);
-    assert_eq!(storage::list_for_entity(&conn, "b", "1").await.unwrap().len(), 1);
-    assert_eq!(storage::list_for_entity(&conn, "a", "2").await.unwrap().len(), 0);
+    assert_eq!(
+        storage::list_for_entity(&conn, "a", "1")
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        storage::list_for_entity(&conn, "b", "1")
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        storage::list_for_entity(&conn, "a", "2")
+            .await
+            .unwrap()
+            .len(),
+        0
+    );
 }
 
 #[test]
 fn sha256_hex_known_value() {
     // Bekannter Test-Vektor.
     let h = storage::sha256_hex(b"");
-    assert_eq!(h, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    assert_eq!(
+        h,
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
 }
 
 #[tokio::test]

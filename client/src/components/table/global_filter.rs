@@ -14,7 +14,9 @@ use crate::styling::{styled, use_design};
 pub fn GlobalFilter() -> impl IntoView {
     let shell = use_shell();
     let design = use_design();
-    let input_style = styled("table.toolbar.search", design.input()).inline.clone();
+    let input_style = styled("table.toolbar.search", design.input())
+        .inline
+        .clone();
 
     let state = shell.state;
     let on_search = move |ev| {

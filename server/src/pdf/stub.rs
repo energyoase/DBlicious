@@ -17,7 +17,9 @@ pub struct StubRenderer;
 
 #[async_trait]
 impl PdfRenderer for StubRenderer {
-    fn kind(&self) -> &'static str { "stub" }
+    fn kind(&self) -> &'static str {
+        "stub"
+    }
 
     async fn render(&self, template: &str, vars: &PdfVars) -> Result<Vec<u8>, PdfError> {
         // Minimaler PDF-Body als ASCII-Wrapper. Genug, dass `application/pdf`

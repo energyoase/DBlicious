@@ -8,10 +8,22 @@ use shared::script::{default_tokens_for_tier, CapabilityToken, ScriptTier};
 
 #[test]
 fn script_tier_serializes_lowercase() {
-    assert_eq!(serde_json::to_value(ScriptTier::Reader).unwrap(), json!("reader"));
-    assert_eq!(serde_json::to_value(ScriptTier::Author).unwrap(), json!("author"));
-    assert_eq!(serde_json::to_value(ScriptTier::Developer).unwrap(), json!("developer"));
-    assert_eq!(serde_json::to_value(ScriptTier::Admin).unwrap(), json!("admin"));
+    assert_eq!(
+        serde_json::to_value(ScriptTier::Reader).unwrap(),
+        json!("reader")
+    );
+    assert_eq!(
+        serde_json::to_value(ScriptTier::Author).unwrap(),
+        json!("author")
+    );
+    assert_eq!(
+        serde_json::to_value(ScriptTier::Developer).unwrap(),
+        json!("developer")
+    );
+    assert_eq!(
+        serde_json::to_value(ScriptTier::Admin).unwrap(),
+        json!("admin")
+    );
 }
 
 #[test]
@@ -21,7 +33,9 @@ fn default_tokens_for_reader_is_minimal_set() {
     assert!(toks.contains(&CapabilityToken::ReadI18n));
     assert!(toks.contains(&CapabilityToken::ComputeOnly));
     // Reader darf KEIN WriteEntity haben:
-    assert!(!toks.iter().any(|t| matches!(t, CapabilityToken::WriteEntity { .. })));
+    assert!(!toks
+        .iter()
+        .any(|t| matches!(t, CapabilityToken::WriteEntity { .. })));
 }
 
 #[test]
@@ -67,8 +81,12 @@ fn capability_token_roundtrips_all_variants() {
         WriteEntity { validated: false },
         ComputeOnly,
         ReadI18n,
-        EmitUiNode { scope: UiScope::Leaf },
-        EmitUiNode { scope: UiScope::Composite },
+        EmitUiNode {
+            scope: UiScope::Leaf,
+        },
+        EmitUiNode {
+            scope: UiScope::Composite,
+        },
         EmitWorkflowAction,
         LoadOtherScript,
         ReadAuditLog { own_only: true },
@@ -86,8 +104,7 @@ fn capability_token_roundtrips_all_variants() {
 
 #[test]
 fn unknown_capability_kind_fails_to_deserialize() {
-    let r: Result<CapabilityToken, _> =
-        serde_json::from_value(json!({"kind": "frobnicated"}));
+    let r: Result<CapabilityToken, _> = serde_json::from_value(json!({"kind": "frobnicated"}));
     assert!(r.is_err(), "unbekannter kind muss Fehler werfen");
 }
 
@@ -155,9 +172,18 @@ fn script_kind_wasm_variant_is_reserved_and_pinned() {
 #[test]
 fn script_state_serializes_lowercase() {
     use shared::script::ScriptState;
-    assert_eq!(serde_json::to_value(ScriptState::Draft).unwrap(), json!("draft"));
-    assert_eq!(serde_json::to_value(ScriptState::Active).unwrap(), json!("active"));
-    assert_eq!(serde_json::to_value(ScriptState::Locked).unwrap(), json!("locked"));
+    assert_eq!(
+        serde_json::to_value(ScriptState::Draft).unwrap(),
+        json!("draft")
+    );
+    assert_eq!(
+        serde_json::to_value(ScriptState::Active).unwrap(),
+        json!("active")
+    );
+    assert_eq!(
+        serde_json::to_value(ScriptState::Locked).unwrap(),
+        json!("locked")
+    );
 }
 
 #[cfg(feature = "testing")]
@@ -171,7 +197,8 @@ fn mock_host_api_records_db_fetch_and_audit_calls() {
         .db_fetch(&serde_json::json!({"entity": "product"}))
         .unwrap();
     assert_eq!(res, serde_json::json!([{"id": "p-1", "price": 100}]));
-    host.audit_log("custom", &serde_json::json!({"x": 1})).unwrap();
+    host.audit_log("custom", &serde_json::json!({"x": 1}))
+        .unwrap();
     let log = host.audit_log_calls();
     assert_eq!(log.len(), 1);
     assert_eq!(log[0].0, "custom");
@@ -336,6 +363,8 @@ fn capability_token_exhaustiveness_anchor() {
     }
     let _ = anchor(&ReadOwnEntities);
     let _ = anchor(&WriteEntity { validated: true });
-    let _ = anchor(&EmitUiNode { scope: UiScope::Leaf });
+    let _ = anchor(&EmitUiNode {
+        scope: UiScope::Leaf,
+    });
     let _ = anchor(&ReadAuditLog { own_only: false });
 }

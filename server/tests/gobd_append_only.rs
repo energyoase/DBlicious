@@ -21,7 +21,7 @@ async fn install_append_only_setting(entity_type: &str, append_only: bool) {
     let json = serde_json::to_string(&s).unwrap();
     let conn = server::db::conn();
     let _ = metadata_settings::Entity::insert(metadata_settings::ActiveModel {
-        entity_type:   ActiveValue::Set(entity_type.to_string()),
+        entity_type: ActiveValue::Set(entity_type.to_string()),
         settings_json: ActiveValue::Set(json),
     })
     .exec(&conn)
@@ -78,7 +78,9 @@ async fn append_only_false_allows_normal_flow() {
 async fn check_gobd_protected_returns_typed_error() {
     server::fresh_test_setup().await;
     install_append_only_setting("protected_book", true).await;
-    let err = data::check_gobd_protected("protected_book").await.unwrap_err();
+    let err = data::check_gobd_protected("protected_book")
+        .await
+        .unwrap_err();
     assert_eq!(err.entity_type, "protected_book");
     let msg = format!("{err}");
     assert!(msg.contains("gobd_protected"));

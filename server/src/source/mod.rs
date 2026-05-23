@@ -102,19 +102,12 @@ pub trait Source: Send + Sync {
         actor_user_id: Option<&str>,
     ) -> Result<Option<Entity>, SourceError>;
 
-    async fn delete(
-        &self,
-        binding: &EntityBinding,
-        id: &EntityId,
-    ) -> Result<bool, SourceError>;
+    async fn delete(&self, binding: &EntityBinding, id: &EntityId) -> Result<bool, SourceError>;
 
     /// Wendet ein vom Designer geliefertes Schema an. Default: Ablehnung
     /// mit [`SourceError::ReadOnly`] — nur Sources, deren Capabilities
     /// `supports_ddl = true` sind, ueberschreiben das.
-    async fn apply_schema(
-        &self,
-        _schema: &shared::DbSchema,
-    ) -> Result<usize, SourceError> {
+    async fn apply_schema(&self, _schema: &shared::DbSchema) -> Result<usize, SourceError> {
         Err(SourceError::ReadOnly)
     }
 }
@@ -126,7 +119,9 @@ pub struct SourceRegistry {
 
 impl SourceRegistry {
     pub fn new() -> Self {
-        Self { sources: BTreeMap::new() }
+        Self {
+            sources: BTreeMap::new(),
+        }
     }
 
     pub fn register(&mut self, source: Box<dyn Source>) {
@@ -141,7 +136,10 @@ impl SourceRegistry {
 
     /// Returns a cloned `Arc` so callers can release the registry read-lock
     /// before calling async methods.
-    pub fn route(&self, binding: &EntityBinding) -> Result<std::sync::Arc<dyn Source>, SourceError> {
+    pub fn route(
+        &self,
+        binding: &EntityBinding,
+    ) -> Result<std::sync::Arc<dyn Source>, SourceError> {
         self.sources
             .get(&binding.source)
             .cloned()
@@ -194,13 +192,19 @@ pub async fn boot_registry(
                 let url = cfg.url.clone().ok_or_else(|| {
                     SourceError::Other(format!("source '{name}' (foreign-sqlite) requires url"))
                 })?;
-                Box::new(crate::source::foreign_sqlite::ForeignSqliteSource::new(name.clone(), url))
+                Box::new(crate::source::foreign_sqlite::ForeignSqliteSource::new(
+                    name.clone(),
+                    url,
+                ))
             }
             "postgres" => {
                 let url = cfg.url.clone().ok_or_else(|| {
                     SourceError::Other(format!("source '{name}' (postgres) requires url"))
                 })?;
-                Box::new(crate::source::postgres::PostgresSource::new(name.clone(), url))
+                Box::new(crate::source::postgres::PostgresSource::new(
+                    name.clone(),
+                    url,
+                ))
             }
             "mysql" => {
                 let url = cfg.url.clone().ok_or_else(|| {
@@ -211,9 +215,14 @@ pub async fn boot_registry(
             "memory" => Box::new(crate::source::memory::MemorySource::new(name.clone())),
             "file" => {
                 let url = cfg.url.clone().ok_or_else(|| {
-                    SourceError::Other(format!("source '{name}' (file) requires url (Pfad zur JSON-Datei)"))
+                    SourceError::Other(format!(
+                        "source '{name}' (file) requires url (Pfad zur JSON-Datei)"
+                    ))
                 })?;
-                Box::new(crate::source::file::FileSource::new(name.clone(), std::path::PathBuf::from(url)))
+                Box::new(crate::source::file::FileSource::new(
+                    name.clone(),
+                    std::path::PathBuf::from(url),
+                ))
             }
             "rest" => {
                 let url = cfg.url.clone().ok_or_else(|| {

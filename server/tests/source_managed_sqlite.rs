@@ -16,7 +16,7 @@ fn managed_sqlite_has_expected_capabilities() {
             supports_transactions: true,
             supports_sql_pushdown: true,
             supports_introspection: false,
-            supports_composite_pk: true,  // im Table-Locator-Pfad (B4)
+            supports_composite_pk: true, // im Table-Locator-Pfad (B4)
             supports_ddl: true,
         }
     );
@@ -34,15 +34,17 @@ async fn managed_sqlite_init_is_idempotent() {
     src.init().await.expect("init #2");
 }
 
+use server::source::PageQuery;
 use shared::source::{BindingLocator, EntityBinding};
 use shared::FilterCriteria;
-use server::source::PageQuery;
 use std::collections::BTreeMap;
 
 fn shop_product_binding() -> EntityBinding {
     EntityBinding {
         source: "local".into(),
-        locator: BindingLocator::GenericEntityRow { entity_type: "product".into() },
+        locator: BindingLocator::GenericEntityRow {
+            entity_type: "product".into(),
+        },
         primary_key: vec!["id".into()],
         read_only: false,
         column_map: BTreeMap::new(),
@@ -56,7 +58,12 @@ async fn managed_sqlite_list_page_returns_seeded_shop_products() {
 
     let src = ManagedSqliteSource::new("local".into());
     let binding = shop_product_binding();
-    let q = PageQuery { page: 1, page_size: 10, sort: None, filter: FilterCriteria::default() };
+    let q = PageQuery {
+        page: 1,
+        page_size: 10,
+        sort: None,
+        filter: FilterCriteria::default(),
+    };
 
     let page = src.list_page(&binding, &q).await.expect("list_page");
     assert!(page.total_count > 0, "expected seeded products, got 0");
@@ -74,14 +81,23 @@ async fn managed_sqlite_get_returns_seeded_product() {
     let binding = shop_product_binding();
 
     let page = src
-        .list_page(&binding, &PageQuery {
-            page: 1, page_size: 1, sort: None, filter: FilterCriteria::default(),
-        })
+        .list_page(
+            &binding,
+            &PageQuery {
+                page: 1,
+                page_size: 1,
+                sort: None,
+                filter: FilterCriteria::default(),
+            },
+        )
         .await
         .unwrap();
     let id = page.items.first().expect("at least one product").id.clone();
 
-    let one = src.get(&binding, &EntityId::Single(id.clone())).await.unwrap();
+    let one = src
+        .get(&binding, &EntityId::Single(id.clone()))
+        .await
+        .unwrap();
     assert!(one.is_some());
     assert_eq!(one.unwrap().id, id);
 }
@@ -102,8 +118,15 @@ async fn managed_sqlite_create_update_delete_roundtrips() {
 
     let mut patch = serde_json::Map::new();
     patch.insert("name".into(), serde_json::json!("Renamed"));
-    let updated = src.update(&binding, &id, patch, None).await.unwrap().unwrap();
-    assert_eq!(updated.fields.get("name").and_then(|v| v.as_str()), Some("Renamed"));
+    let updated = src
+        .update(&binding, &id, patch, None)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        updated.fields.get("name").and_then(|v| v.as_str()),
+        Some("Renamed")
+    );
 
     let removed = src.delete(&binding, &id).await.unwrap();
     assert!(removed);

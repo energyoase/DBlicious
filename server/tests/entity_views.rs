@@ -14,7 +14,10 @@ async fn entity_views_table_exists_after_init() {
         .expect("query");
     // Nach Phase F (Q0005) legt seed_entity_views_from_example beim Init
     // eine Row pro Entity-Typ mit Settings an — Tabelle ist nicht mehr leer.
-    assert!(count >= 3, "Tabelle existiert und hat mindestens 3 Loader-Rows (product/order/customer)");
+    assert!(
+        count >= 3,
+        "Tabelle existiert und hat mindestens 3 Loader-Rows (product/order/customer)"
+    );
 }
 
 #[tokio::test]
@@ -25,15 +28,15 @@ async fn insert_and_read_back_a_view_row() {
     // Verwende "manual-test" als view_name, damit kein Konflikt mit der
     // durch F1 (seed_entity_views_from_example) angelegten "default"-Row entsteht.
     entity::entity_views::ActiveModel {
-        id:          ActiveValue::Set("v-1".into()),
+        id: ActiveValue::Set("v-1".into()),
         entity_type: ActiveValue::Set("order".into()),
-        view_name:   ActiveValue::Set("manual-test".into()),
-        layer:       ActiveValue::Set("global".into()),
-        owner_id:    ActiveValue::Set(None),
-        payload:     ActiveValue::Set("{\"properties\":[]}".into()),
-        version:     ActiveValue::Set(1),
-        updated_by:  ActiveValue::Set(Some("system".into())),
-        updated_at:  ActiveValue::Set("2026-05-21T00:00:00Z".into()),
+        view_name: ActiveValue::Set("manual-test".into()),
+        layer: ActiveValue::Set("global".into()),
+        owner_id: ActiveValue::Set(None),
+        payload: ActiveValue::Set("{\"properties\":[]}".into()),
+        version: ActiveValue::Set(1),
+        updated_by: ActiveValue::Set(Some("system".into())),
+        updated_at: ActiveValue::Set("2026-05-21T00:00:00Z".into()),
     }
     .insert(&db)
     .await
@@ -53,9 +56,9 @@ async fn insert_and_read_back_a_view_row() {
 // C1 — CRUD-Helpers
 // =============================================================================
 
+use server::data;
 use shared::view::{EntityView, ViewLayer, ViewPropertyOverride};
 use shared::Visibility;
-use server::data;
 
 fn sample_view(name: &str, layer: ViewLayer, owner_id: Option<&str>) -> EntityView {
     EntityView {
@@ -102,9 +105,15 @@ async fn upsert_view_inserts_then_updates() {
 #[serial_test::serial]
 async fn find_views_for_entity_lists_per_layer() {
     let _ = server::fresh_test_setup().await;
-    data::upsert_entity_view(&sample_view("default", ViewLayer::Global, None)).await.unwrap();
-    data::upsert_entity_view(&sample_view("default", ViewLayer::Group,  Some("g-1"))).await.unwrap();
-    data::upsert_entity_view(&sample_view("default", ViewLayer::User,   Some("u-1"))).await.unwrap();
+    data::upsert_entity_view(&sample_view("default", ViewLayer::Global, None))
+        .await
+        .unwrap();
+    data::upsert_entity_view(&sample_view("default", ViewLayer::Group, Some("g-1")))
+        .await
+        .unwrap();
+    data::upsert_entity_view(&sample_view("default", ViewLayer::User, Some("u-1")))
+        .await
+        .unwrap();
     let summary = data::find_entity_views("order").await.unwrap();
     assert_eq!(summary.len(), 1, "Eine View namens 'default'");
     assert!(summary[0].layers.contains(&ViewLayer::Global));
@@ -116,11 +125,27 @@ async fn find_views_for_entity_lists_per_layer() {
 #[serial_test::serial]
 async fn delete_view_removes_only_target_layer() {
     let _ = server::fresh_test_setup().await;
-    data::upsert_entity_view(&sample_view("default", ViewLayer::Global, None)).await.unwrap();
-    data::upsert_entity_view(&sample_view("default", ViewLayer::User,   Some("u-1"))).await.unwrap();
-    data::delete_entity_view("order", "default", ViewLayer::User, Some("u-1")).await.unwrap();
-    assert!(data::find_entity_view("order", "default", ViewLayer::Global, None).await.unwrap().is_some());
-    assert!(data::find_entity_view("order", "default", ViewLayer::User,   Some("u-1")).await.unwrap().is_none());
+    data::upsert_entity_view(&sample_view("default", ViewLayer::Global, None))
+        .await
+        .unwrap();
+    data::upsert_entity_view(&sample_view("default", ViewLayer::User, Some("u-1")))
+        .await
+        .unwrap();
+    data::delete_entity_view("order", "default", ViewLayer::User, Some("u-1"))
+        .await
+        .unwrap();
+    assert!(
+        data::find_entity_view("order", "default", ViewLayer::Global, None)
+            .await
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        data::find_entity_view("order", "default", ViewLayer::User, Some("u-1"))
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 // =============================================================================
@@ -135,7 +160,10 @@ async fn loader_bootstrap_creates_default_global_view_per_entity_type_with_setti
     let row = data::find_entity_view("product", "default", ViewLayer::Global, None)
         .await
         .expect("find");
-    assert!(row.is_some(), "Loader-Settings fuer 'product' werden zur Default-View gemacht");
+    assert!(
+        row.is_some(),
+        "Loader-Settings fuer 'product' werden zur Default-View gemacht"
+    );
     let v = row.unwrap();
     assert_eq!(v.version, 0);
     assert_eq!(v.updated_by.as_deref(), Some("system"));
@@ -146,8 +174,12 @@ async fn loader_bootstrap_creates_default_global_view_per_entity_type_with_setti
 async fn loader_bootstrap_is_idempotent() {
     let _ = server::fresh_test_setup().await;
     // Manuell nochmal aufrufen; bestehende Row bleibt unangetastet (version=0).
-    server::data::seed_entity_views_from_example(&server::db::conn()).await.unwrap();
+    server::data::seed_entity_views_from_example(&server::db::conn())
+        .await
+        .unwrap();
     let row = data::find_entity_view("product", "default", ViewLayer::Global, None)
-        .await.unwrap().unwrap();
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(row.version, 0, "idempotent");
 }

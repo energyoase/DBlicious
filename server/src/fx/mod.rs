@@ -30,48 +30,49 @@ pub enum FxError {
     #[error("database error: {0}")]
     Db(#[from] sea_orm::DbErr),
     #[error("no rate available for {from}→{to} on or before {date}")]
-    NoRate { from: String, to: String, date: String },
+    NoRate {
+        from: String,
+        to: String,
+        date: String,
+    },
 }
 
 /// Bequemes Pair-Tupel.
 #[derive(Debug, Clone, Copy)]
 struct Pair<'a> {
     from: &'a str,
-    to:   &'a str,
+    to: &'a str,
 }
 
 /// Legt einen Rate-Eintrag an oder ueberschreibt einen vorhandenen
 /// `(date, from, to)`. Provider-Tag (`source`) frei.
 pub async fn upsert_rate(
-    conn:          &DatabaseConnection,
-    date:          &str,
-    from:          &str,
-    to:            &str,
-    rate:          f64,
-    source:        &str,
+    conn: &DatabaseConnection,
+    date: &str,
+    from: &str,
+    to: &str,
+    rate: f64,
+    source: &str,
 ) -> Result<(), FxError> {
-    let existing = fx_rates::Entity::find_by_id((
-        date.to_string(),
-        from.to_string(),
-        to.to_string(),
-    ))
-    .one(conn)
-    .await?;
+    let existing =
+        fx_rates::Entity::find_by_id((date.to_string(), from.to_string(), to.to_string()))
+            .one(conn)
+            .await?;
     match existing {
         Some(m) => {
             let mut am: fx_rates::ActiveModel = m.into();
-            am.rate   = ActiveValue::Set(rate);
+            am.rate = ActiveValue::Set(rate);
             am.source = ActiveValue::Set(source.to_string());
             am.update(conn).await?;
         }
         None => {
             fx_rates::ActiveModel {
-                date:          ActiveValue::Set(date.to_string()),
+                date: ActiveValue::Set(date.to_string()),
                 from_currency: ActiveValue::Set(from.to_string()),
-                to_currency:   ActiveValue::Set(to.to_string()),
-                rate:          ActiveValue::Set(rate),
-                source:        ActiveValue::Set(source.to_string()),
-                tenant_id:     ActiveValue::Set(None),
+                to_currency: ActiveValue::Set(to.to_string()),
+                rate: ActiveValue::Set(rate),
+                source: ActiveValue::Set(source.to_string()),
+                tenant_id: ActiveValue::Set(None),
             }
             .insert(conn)
             .await?;
@@ -115,12 +116,12 @@ async fn lookup_rate(
 /// `scale` steuert die Banker-Rounding-Dezimalstellen (z.B. `2` fuer
 /// EUR/USD, `0` fuer JPY).
 pub async fn convert(
-    conn:   &DatabaseConnection,
+    conn: &DatabaseConnection,
     amount: f64,
-    from:   &str,
-    to:     &str,
-    date:   &str,
-    scale:  u32,
+    from: &str,
+    to: &str,
+    date: &str,
+    scale: u32,
 ) -> Result<f64, FxError> {
     // Identität: gleiche Waehrung ⇒ runden + zurueck.
     if from.eq_ignore_ascii_case(to) {
@@ -132,12 +133,16 @@ pub async fn convert(
         None => {
             return Err(FxError::NoRate {
                 from: from.to_string(),
-                to:   to.to_string(),
+                to: to.to_string(),
                 date: date.to_string(),
             });
         }
     };
-    let raw = if inverted { amount / rate } else { amount * rate };
+    let raw = if inverted {
+        amount / rate
+    } else {
+        amount * rate
+    };
     Ok(banker_round(raw, scale))
 }
 

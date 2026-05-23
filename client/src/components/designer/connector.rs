@@ -42,14 +42,26 @@ pub fn anchors_for(
     let source_on_right = src_center <= tgt_center;
 
     let s = if source_on_right {
-        Anchor { x: source.position.x + CARD_WIDTH, y: source.position.y + row_center_y(source_idx) }
+        Anchor {
+            x: source.position.x + CARD_WIDTH,
+            y: source.position.y + row_center_y(source_idx),
+        }
     } else {
-        Anchor { x: source.position.x, y: source.position.y + row_center_y(source_idx) }
+        Anchor {
+            x: source.position.x,
+            y: source.position.y + row_center_y(source_idx),
+        }
     };
     let t = if source_on_right {
-        Anchor { x: target.position.x, y: target.position.y + row_center_y(target_idx) }
+        Anchor {
+            x: target.position.x,
+            y: target.position.y + row_center_y(target_idx),
+        }
     } else {
-        Anchor { x: target.position.x + CARD_WIDTH, y: target.position.y + row_center_y(target_idx) }
+        Anchor {
+            x: target.position.x + CARD_WIDTH,
+            y: target.position.y + row_center_y(target_idx),
+        }
     };
     Some((s, t))
 }

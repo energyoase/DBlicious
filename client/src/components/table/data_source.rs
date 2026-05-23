@@ -102,7 +102,9 @@ pub struct RemoteSource {
 
 impl RemoteSource {
     pub fn new(entity_type: impl Into<Rc<str>>) -> Self {
-        Self { entity_type: entity_type.into() }
+        Self {
+            entity_type: entity_type.into(),
+        }
     }
 }
 
@@ -112,7 +114,10 @@ impl DataSource for RemoteSource {
         Box::pin(async move {
             let res: EntityPageResult =
                 fetch_entities(&entity_type, req.page as i32, req.page_size as i32).await?;
-            Ok(DataResponse { items: res.items, total_count: res.total_count })
+            Ok(DataResponse {
+                items: res.items,
+                total_count: res.total_count,
+            })
         })
     }
 
@@ -210,7 +215,9 @@ impl LocalSource {
         columns: &HashMap<String, ColumnLookup>,
     ) -> bool {
         for cf in &filter.predicates {
-            let Some(col) = columns.get(&cf.key) else { return false };
+            let Some(col) = columns.get(&cf.key) else {
+                return false;
+            };
             let value = entity.fields.get(&cf.key).cloned().unwrap_or(Value::Null);
             let ops = ops_for_named(
                 &col.field_type,
@@ -238,12 +245,10 @@ impl LocalSource {
         true
     }
 
-    fn sort_in_place(
-        items: &mut [Entity],
-        sort: &Sort,
-        columns: &HashMap<String, ColumnLookup>,
-    ) {
-        let Some(col) = columns.get(&sort.field) else { return };
+    fn sort_in_place(items: &mut [Entity], sort: &Sort, columns: &HashMap<String, ColumnLookup>) {
+        let Some(col) = columns.get(&sort.field) else {
+            return;
+        };
         let ops = ops_for_named(
             &col.field_type,
             col.comparator_id.as_deref(),
@@ -296,7 +301,10 @@ impl DataSource for LocalSource {
                 Vec::new()
             };
 
-            Ok(DataResponse { items: slice, total_count })
+            Ok(DataResponse {
+                items: slice,
+                total_count,
+            })
         })
     }
 }

@@ -21,13 +21,8 @@
 
 use super::SequenceError;
 
-pub fn render(
-    template: &str,
-    scope:    &str,
-    year:     i32,
-    seq:      i64,
-) -> Result<String, SequenceError> {
-    let mut out  = String::with_capacity(template.len() + 16);
+pub fn render(template: &str, scope: &str, year: i32, seq: i64) -> Result<String, SequenceError> {
+    let mut out = String::with_capacity(template.len() + 16);
     let mut iter = template.char_indices();
     while let Some((i, c)) = iter.next() {
         if c != '{' {
@@ -50,17 +45,21 @@ pub fn render(
         }
         match token {
             "scope" => out.push_str(scope),
-            "year"  => {
+            "year" => {
                 use std::fmt::Write;
                 let _ = write!(out, "{year}");
             }
-            "seq"   => {
+            "seq" => {
                 use std::fmt::Write;
                 let _ = write!(out, "{seq}");
             }
             other if other.starts_with("seq:") => {
                 let width_str = &other[4..];
-                let Some(width) = width_str.parse::<usize>().ok().filter(|w| (1..=9).contains(w)) else {
+                let Some(width) = width_str
+                    .parse::<usize>()
+                    .ok()
+                    .filter(|w| (1..=9).contains(w))
+                else {
                     return Err(SequenceError::InvalidTemplate(format!(
                         "ungueltige seq-Breite '{width_str}' (erlaubt: 1..=9)"
                     )));

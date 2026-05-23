@@ -32,14 +32,20 @@ impl LocalFsStorage {
 
 #[async_trait]
 impl Storage for LocalFsStorage {
-    fn kind(&self) -> &'static str { "local-fs" }
+    fn kind(&self) -> &'static str {
+        "local-fs"
+    }
 
     async fn put(&self, key: &str, bytes: &[u8]) -> Result<(), StorageError> {
         let path = self.resolve(key)?;
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).await.map_err(|e| StorageError::Io(format!("mkdir: {e}")))?;
+            fs::create_dir_all(parent)
+                .await
+                .map_err(|e| StorageError::Io(format!("mkdir: {e}")))?;
         }
-        fs::write(&path, bytes).await.map_err(|e| StorageError::Io(format!("write: {e}")))?;
+        fs::write(&path, bytes)
+            .await
+            .map_err(|e| StorageError::Io(format!("write: {e}")))?;
         Ok(())
     }
 
@@ -48,7 +54,9 @@ impl Storage for LocalFsStorage {
         if !Path::new(&path).exists() {
             return Err(StorageError::NotFound(key.to_string()));
         }
-        fs::read(&path).await.map_err(|e| StorageError::Io(format!("read: {e}")))
+        fs::read(&path)
+            .await
+            .map_err(|e| StorageError::Io(format!("read: {e}")))
     }
 
     async fn delete(&self, key: &str) -> Result<bool, StorageError> {

@@ -50,7 +50,8 @@ fn NavList(nodes: Vec<NavigationNode>, depth: usize) -> AnyView {
         <ul style="list-style:none; padding:0; margin:0;">
             {nodes.into_iter().map(|n| view! { <NavItem node=n depth=depth /> }).collect_view()}
         </ul>
-    }.into_any()
+    }
+    .into_any()
 }
 
 /// Pruefe, ob ein Nav-Knoten unter der aktuellen Auth-Sicht sichtbar sein
@@ -155,5 +156,6 @@ fn NavItem(node: NavigationNode, depth: usize) -> AnyView {
                 <NavList nodes=children depth=depth+1 />
             })}
         </li>
-    }.into_any()
+    }
+    .into_any()
 }

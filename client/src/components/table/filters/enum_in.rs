@@ -8,8 +8,8 @@ use leptos::prelude::*;
 use shared::{ColumnMeta, FieldType, FilterPredicate};
 use wasm_bindgen::JsCast;
 
-use super::helpers::{current_predicate, upsert_predicate};
 use super::super::shell::use_shell;
+use super::helpers::{current_predicate, upsert_predicate};
 use crate::styling::use_design;
 
 pub const ID: &str = "enum-in";
@@ -34,7 +34,9 @@ pub fn EnumInFilter(column: ColumnMeta) -> impl IntoView {
 
     let key_for_event = key.clone();
     let on_change = move |ev: web_sys::Event| {
-        let target = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlSelectElement>().ok());
+        let target = ev
+            .target()
+            .and_then(|t| t.dyn_into::<web_sys::HtmlSelectElement>().ok());
         let Some(select) = target else { return };
         let options = select.selected_options();
         let mut picked: Vec<String> = Vec::new();

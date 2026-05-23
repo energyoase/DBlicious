@@ -3,15 +3,19 @@
 use leptos::prelude::*;
 use shared::{ColumnMeta, FilterPredicate};
 
-use super::helpers::{current_predicate, upsert_predicate};
 use super::super::shell::use_shell;
+use super::helpers::{current_predicate, upsert_predicate};
 use crate::styling::use_design;
 
 pub const ID: &str = "date-range";
 
 fn opt(s: String) -> Option<String> {
     let t = s.trim();
-    if t.is_empty() { None } else { Some(t.to_string()) }
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
 }
 
 #[component]
@@ -23,10 +27,9 @@ pub fn DateRangeFilter(column: ColumnMeta) -> impl IntoView {
 
     let key = column.key.clone();
     let (from0, to0) = match current_predicate(state, &key) {
-        Some(FilterPredicate::DateRange { from, to }) => (
-            from.unwrap_or_default(),
-            to.unwrap_or_default(),
-        ),
+        Some(FilterPredicate::DateRange { from, to }) => {
+            (from.unwrap_or_default(), to.unwrap_or_default())
+        }
         _ => (String::new(), String::new()),
     };
 

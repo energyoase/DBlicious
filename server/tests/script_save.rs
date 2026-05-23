@@ -28,7 +28,9 @@ fn prepare_save_parse_error_yields_draft_with_last_error() {
         id: "broken".into(),
         source: "let x = ;".into(), // Syntax-Fehler
         manifest: manifest_reader_minimal(),
-        kind: ScriptKind::Component { entry: "render".into() },
+        kind: ScriptKind::Component {
+            entry: "render".into(),
+        },
         user: ScriptTier::Author,
         user_id: "u-1".into(),
         prev_version: None,

@@ -155,7 +155,9 @@ pub struct EntitySettings {
     pub state_machine: Option<crate::state_machine::StateMachine>,
 }
 
-fn is_false(b: &bool) -> bool { !b }
+fn is_false(b: &bool) -> bool {
+    !b
+}
 
 impl EntitySettings {
     pub fn property(&self, key: &str) -> Option<&PropertySettings> {

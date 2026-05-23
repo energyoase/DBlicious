@@ -107,14 +107,20 @@ impl FieldOps for TextOps {
             return matches!(predicate, FilterPredicate::IsNull);
         };
         match predicate {
-            FilterPredicate::TextContains { value: needle, case_insensitive } => {
+            FilterPredicate::TextContains {
+                value: needle,
+                case_insensitive,
+            } => {
                 if *case_insensitive {
                     ci_contains(text, needle)
                 } else {
                     text.contains(needle.as_str())
                 }
             }
-            FilterPredicate::TextEquals { value: needle, case_insensitive } => {
+            FilterPredicate::TextEquals {
+                value: needle,
+                case_insensitive,
+            } => {
                 if *case_insensitive {
                     text.eq_ignore_ascii_case(needle)
                 } else {
@@ -151,7 +157,9 @@ impl FieldOps for NumberOps {
     fn matches(&self, value: &Value, predicate: &FilterPredicate) -> bool {
         let n = as_f64(value);
         match predicate {
-            FilterPredicate::NumberEquals { value: v } => n.is_some_and(|x| (x - *v).abs() < f64::EPSILON),
+            FilterPredicate::NumberEquals { value: v } => {
+                n.is_some_and(|x| (x - *v).abs() < f64::EPSILON)
+            }
             FilterPredicate::NumberRange { min, max } => match n {
                 Some(x) => min.is_none_or(|lo| x >= lo) && max.is_none_or(|hi| x <= hi),
                 None => false,
@@ -245,7 +253,8 @@ impl FieldOps for EnumOps {
         }
         // Sortiert nach der Position in der definierten Wertereihenfolge.
         let pos = |v: &Value| -> Option<usize> {
-            v.as_str().and_then(|s| self.values.iter().position(|x| x == s))
+            v.as_str()
+                .and_then(|s| self.values.iter().position(|x| x == s))
         };
         match (pos(a), pos(b)) {
             (Some(pa), Some(pb)) => pa.cmp(&pb),
@@ -266,7 +275,10 @@ impl FieldOps for EnumOps {
                 Some(v) => values.iter().any(|x| x == v),
                 None => false,
             },
-            FilterPredicate::TextEquals { value: v, case_insensitive } => match s {
+            FilterPredicate::TextEquals {
+                value: v,
+                case_insensitive,
+            } => match s {
                 Some(actual) => {
                     if *case_insensitive {
                         actual.eq_ignore_ascii_case(v)
@@ -283,7 +295,9 @@ impl FieldOps for EnumOps {
     }
 
     fn matches_search(&self, value: &Value, needle: &str) -> bool {
-        as_str(value).map(|s| ci_contains(s, needle)).unwrap_or(false)
+        as_str(value)
+            .map(|s| ci_contains(s, needle))
+            .unwrap_or(false)
     }
 }
 
@@ -316,14 +330,18 @@ impl FieldOps for OpaqueOps {
 /// Implementierenden zur Pflege zwingt.
 pub fn ops_for(field: &FieldType) -> Box<dyn FieldOps> {
     match field {
-        FieldType::Text => Box::new(TextOps { case_insensitive: true }),
+        FieldType::Text => Box::new(TextOps {
+            case_insensitive: true,
+        }),
         FieldType::Integer => Box::new(NumberOps),
         FieldType::Decimal { .. } => Box::new(NumberOps),
         FieldType::Boolean => Box::new(BooleanOps),
         FieldType::Date => Box::new(DateOps),
         FieldType::DateTime => Box::new(DateOps),
         FieldType::Money { .. } => Box::new(NumberOps),
-        FieldType::Enum { values } => Box::new(EnumOps { values: values.clone() }),
+        FieldType::Enum { values } => Box::new(EnumOps {
+            values: values.clone(),
+        }),
         FieldType::Reference { .. } => Box::new(OpaqueOps),
         FieldType::Collection { .. } => Box::new(OpaqueOps),
     }
@@ -365,7 +383,10 @@ pub struct TextStartsWithOps {
 
 impl FieldOps for TextStartsWithOps {
     fn compare(&self, a: &Value, b: &Value) -> Ordering {
-        TextOps { case_insensitive: self.case_insensitive }.compare(a, b)
+        TextOps {
+            case_insensitive: self.case_insensitive,
+        }
+        .compare(a, b)
     }
 
     fn matches(&self, value: &Value, predicate: &FilterPredicate) -> bool {
@@ -373,19 +394,28 @@ impl FieldOps for TextStartsWithOps {
             return matches!(predicate, FilterPredicate::IsNull);
         };
         match predicate {
-            FilterPredicate::TextContains { value: needle, case_insensitive } => {
+            FilterPredicate::TextContains {
+                value: needle,
+                case_insensitive,
+            } => {
                 if *case_insensitive {
                     text.to_lowercase().starts_with(&needle.to_lowercase())
                 } else {
                     text.starts_with(needle.as_str())
                 }
             }
-            other => TextOps { case_insensitive: self.case_insensitive }.matches(value, other),
+            other => TextOps {
+                case_insensitive: self.case_insensitive,
+            }
+            .matches(value, other),
         }
     }
 
     fn matches_search(&self, value: &Value, needle: &str) -> bool {
-        TextOps { case_insensitive: self.case_insensitive }.matches_search(value, needle)
+        TextOps {
+            case_insensitive: self.case_insensitive,
+        }
+        .matches_search(value, needle)
     }
 }
 
@@ -402,12 +432,12 @@ pub fn ops_for_named(
     filter_id: Option<&str>,
 ) -> Box<dyn FieldOps> {
     match (field, comparator_id, filter_id) {
-        (FieldType::Text, _, Some(filters::TEXT_STARTS_WITH)) => {
-            Box::new(TextStartsWithOps { case_insensitive: true })
-        }
-        (FieldType::Text, Some(comparators::TEXT_CASE_SENSITIVE), _) => {
-            Box::new(TextOps { case_insensitive: false })
-        }
+        (FieldType::Text, _, Some(filters::TEXT_STARTS_WITH)) => Box::new(TextStartsWithOps {
+            case_insensitive: true,
+        }),
+        (FieldType::Text, Some(comparators::TEXT_CASE_SENSITIVE), _) => Box::new(TextOps {
+            case_insensitive: false,
+        }),
         _ => ops_for(field),
     }
 }
@@ -424,7 +454,10 @@ mod tests {
     #[test]
     fn text_compare_is_case_insensitive_by_default() {
         let ops = ops_for(&FieldType::Text);
-        assert_eq!(ops.compare(&json!("Apfel"), &json!("birne")), Ordering::Less);
+        assert_eq!(
+            ops.compare(&json!("Apfel"), &json!("birne")),
+            Ordering::Less
+        );
     }
 
     #[test]
@@ -436,7 +469,10 @@ mod tests {
     #[test]
     fn number_range_matches() {
         let ops = ops_for(&FieldType::Decimal { precision: 2 });
-        let pred = FilterPredicate::NumberRange { min: Some(10.0), max: Some(20.0) };
+        let pred = FilterPredicate::NumberRange {
+            min: Some(10.0),
+            max: Some(20.0),
+        };
         assert!(ops.matches(&json!(15.5), &pred));
         assert!(!ops.matches(&json!(9.99), &pred));
         assert!(!ops.matches(&Value::Null, &pred));
@@ -447,7 +483,10 @@ mod tests {
         let ops = ops_for(&FieldType::Enum {
             values: vec!["new".into(), "paid".into(), "shipped".into()],
         });
-        assert_eq!(ops.compare(&json!("shipped"), &json!("new")), Ordering::Greater);
+        assert_eq!(
+            ops.compare(&json!("shipped"), &json!("new")),
+            Ordering::Greater
+        );
     }
 
     #[test]
@@ -458,21 +497,33 @@ mod tests {
 
     #[test]
     fn opaque_ops_only_react_to_null_predicates() {
-        let ops = ops_for(&FieldType::Reference { entity: "category".into() });
+        let ops = ops_for(&FieldType::Reference {
+            entity: "category".into(),
+        });
         assert!(ops.matches(&Value::Null, &FilterPredicate::IsNull));
         assert!(!ops.matches(&json!({"id":"c-1"}), &FilterPredicate::IsNull));
     }
 
     #[test]
     fn named_comparator_text_case_sensitive_distinguishes_case() {
-        let ops = ops_for_named(&FieldType::Text, Some(comparators::TEXT_CASE_SENSITIVE), None);
-        assert_eq!(ops.compare(&json!("Apfel"), &json!("apfel")), Ordering::Less);
+        let ops = ops_for_named(
+            &FieldType::Text,
+            Some(comparators::TEXT_CASE_SENSITIVE),
+            None,
+        );
+        assert_eq!(
+            ops.compare(&json!("Apfel"), &json!("apfel")),
+            Ordering::Less
+        );
     }
 
     #[test]
     fn named_comparator_unknown_id_falls_back_to_default() {
         let ops = ops_for_named(&FieldType::Text, Some("does.not.exist"), None);
-        assert_eq!(ops.compare(&json!("Apfel"), &json!("birne")), Ordering::Less);
+        assert_eq!(
+            ops.compare(&json!("Apfel"), &json!("birne")),
+            Ordering::Less
+        );
     }
 
     #[test]

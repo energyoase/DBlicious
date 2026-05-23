@@ -219,7 +219,11 @@ fn max_access(a: PropertyAccessLevel, b: PropertyAccessLevel) -> PropertyAccessL
             PropertyAccessLevel::Write => 3,
         }
     }
-    if weight(a) >= weight(b) { a } else { b }
+    if weight(a) >= weight(b) {
+        a
+    } else {
+        b
+    }
 }
 
 // =============================================================================

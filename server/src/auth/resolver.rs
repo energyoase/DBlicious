@@ -115,7 +115,9 @@ pub(crate) async fn subjects_for_user(
     user_id: &str,
 ) -> Result<Vec<Subject>, sea_orm::DbErr> {
     let mut subjects: Vec<Subject> = Vec::new();
-    subjects.push(Subject::User { id: user_id.to_string() });
+    subjects.push(Subject::User {
+        id: user_id.to_string(),
+    });
 
     // Groups via user_groups.
     let group_rows = entity::user_groups::Entity::find()
@@ -187,20 +189,38 @@ fn resource_specificity(perm: &Resource, query: &Resource) -> Option<u8> {
         }
         // EntityProperty exakt.
         (
-            Resource::EntityProperty { entity_type: a, property: p1 },
-            Resource::EntityProperty { entity_type: b, property: p2 },
+            Resource::EntityProperty {
+                entity_type: a,
+                property: p1,
+            },
+            Resource::EntityProperty {
+                entity_type: b,
+                property: p2,
+            },
         ) if a == b && p1 == p2 => Some(2),
         // EntityInstance exakt.
         (
-            Resource::EntityInstance { entity_type: a, id: i1 },
-            Resource::EntityInstance { entity_type: b, id: i2 },
+            Resource::EntityInstance {
+                entity_type: a,
+                id: i1,
+            },
+            Resource::EntityInstance {
+                entity_type: b,
+                id: i2,
+            },
         ) if a == b && i1 == i2 => Some(3),
         // Action / Migration / ImplementationId: exakter Match.
         (Resource::Action { name: a }, Resource::Action { name: b }) if a == b => Some(1),
         (Resource::Migration { id: a }, Resource::Migration { id: b }) if a == b => Some(1),
         (
-            Resource::ImplementationId { registry: r1, id: i1 },
-            Resource::ImplementationId { registry: r2, id: i2 },
+            Resource::ImplementationId {
+                registry: r1,
+                id: i1,
+            },
+            Resource::ImplementationId {
+                registry: r2,
+                id: i2,
+            },
         ) if r1 == r2 && (i1 == i2 || i1 == "*") => Some(1),
         _ => None,
     }
@@ -243,14 +263,18 @@ pub async fn project_effective(
         if !subjects.contains(&subject) {
             continue;
         }
-        let Some(effect) = Effect::from_str(&p.effect) else { continue };
+        let Some(effect) = Effect::from_str(&p.effect) else {
+            continue;
+        };
         if effect != Effect::Allow {
             continue;
         }
         let Some(resource) = Resource::from_storage(&p.resource_kind, &p.resource_id) else {
             continue;
         };
-        let Some(op) = Op::from_str(&p.op) else { continue };
+        let Some(op) = Op::from_str(&p.op) else {
+            continue;
+        };
         out.push(shared::auth::EffectivePermission { resource, op });
     }
     // Duplikate eliminieren (mehrere Allows fuer dasselbe Tupel ueber
@@ -314,13 +338,12 @@ pub async fn trace_effective(
     resource: &Resource,
     op: Op,
 ) -> Result<Trace, ResolveError> {
-    let row_level_note = if matches!(resource, Resource::EntityInstance { .. })
-        && !row_level_enabled()
-    {
-        Some("row-level not enabled".to_string())
-    } else {
-        None
-    };
+    let row_level_note =
+        if matches!(resource, Resource::EntityInstance { .. }) && !row_level_enabled() {
+            Some("row-level not enabled".to_string())
+        } else {
+            None
+        };
 
     let db = conn();
     let subjects = subjects_for_user(&db, user_id).await?;
@@ -340,11 +363,15 @@ pub async fn trace_effective(
         let Some(spec) = resource_specificity(&perm_resource, resource) else {
             continue;
         };
-        let Some(perm_op) = Op::from_str(&p.op) else { continue };
+        let Some(perm_op) = Op::from_str(&p.op) else {
+            continue;
+        };
         if perm_op != op {
             continue;
         }
-        let Some(perm_effect) = Effect::from_str(&p.effect) else { continue };
+        let Some(perm_effect) = Effect::from_str(&p.effect) else {
+            continue;
+        };
 
         matched.push(TraceRule {
             subject_kind: p.subject_kind,
@@ -395,11 +422,7 @@ pub async fn trace_effective(
 /// Bei [`Resource::EntityInstance`] und deaktiviertem Row-Level
 /// (`row_level_enabled() == false`) liefert die Funktion
 /// [`ResolveError::NotImplemented`].
-pub async fn effective(
-    user_id: &str,
-    resource: &Resource,
-    op: Op,
-) -> Result<Effect, ResolveError> {
+pub async fn effective(user_id: &str, resource: &Resource, op: Op) -> Result<Effect, ResolveError> {
     if matches!(resource, Resource::EntityInstance { .. }) && !row_level_enabled() {
         return Err(ResolveError::NotImplemented("row-level"));
     }
@@ -425,11 +448,15 @@ pub async fn effective(
         let Some(spec) = resource_specificity(&perm_resource, resource) else {
             continue;
         };
-        let Some(perm_op) = Op::from_str(&p.op) else { continue };
+        let Some(perm_op) = Op::from_str(&p.op) else {
+            continue;
+        };
         if perm_op != op {
             continue;
         }
-        let Some(perm_effect) = Effect::from_str(&p.effect) else { continue };
+        let Some(perm_effect) = Effect::from_str(&p.effect) else {
+            continue;
+        };
 
         let candidate = (spec, perm_effect, p.priority, p.subject_id.clone());
         best = Some(match best {
@@ -458,7 +485,11 @@ fn choose_winner(
     // gleiche Spezifitaet
     if ne != ce {
         // Deny gewinnt vor Allow
-        return if *ne == Effect::Deny { candidate } else { current };
+        return if *ne == Effect::Deny {
+            candidate
+        } else {
+            current
+        };
     }
     if np > cp {
         return candidate;
@@ -659,7 +690,9 @@ mod tests {
         setup().await;
         assign_user_to_group("u-1", "g-readers").await;
         insert_permission(
-            Subject::Group { id: "g-readers".into() },
+            Subject::Group {
+                id: "g-readers".into(),
+            },
             Resource::entity_type("product"),
             Op::Read,
             Effect::Allow,
@@ -678,7 +711,9 @@ mod tests {
         setup().await;
         assign_role(Subject::User { id: "u-1".into() }, "r-editor").await;
         insert_permission(
-            Subject::Role { id: "r-editor".into() },
+            Subject::Role {
+                id: "r-editor".into(),
+            },
             Resource::entity_type("product"),
             Op::Update,
             Effect::Allow,
@@ -688,7 +723,11 @@ mod tests {
         let e = effective("u-1", &Resource::entity_type("product"), Op::Update)
             .await
             .expect("ok");
-        assert_eq!(e, Effect::Allow, "User mit direkter Role soll updaten duerfen");
+        assert_eq!(
+            e,
+            Effect::Allow,
+            "User mit direkter Role soll updaten duerfen"
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -697,9 +736,17 @@ mod tests {
         // Akzeptanz: User-via-Group-via-Role.
         setup().await;
         assign_user_to_group("u-1", "g-marketing").await;
-        assign_role(Subject::Group { id: "g-marketing".into() }, "r-content").await;
+        assign_role(
+            Subject::Group {
+                id: "g-marketing".into(),
+            },
+            "r-content",
+        )
+        .await;
         insert_permission(
-            Subject::Role { id: "r-content".into() },
+            Subject::Role {
+                id: "r-content".into(),
+            },
             Resource::entity_type("product"),
             Op::Update,
             Effect::Allow,
@@ -709,7 +756,11 @@ mod tests {
         let e = effective("u-1", &Resource::entity_type("product"), Op::Update)
             .await
             .expect("ok");
-        assert_eq!(e, Effect::Allow, "User soll via Group via Role updaten duerfen");
+        assert_eq!(
+            e,
+            Effect::Allow,
+            "User soll via Group via Role updaten duerfen"
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -726,7 +777,9 @@ mod tests {
         )
         .await;
         insert_permission(
-            Subject::Group { id: "g-readers".into() },
+            Subject::Group {
+                id: "g-readers".into(),
+            },
             Resource::entity_type("product"),
             Op::Read,
             Effect::Deny,
@@ -736,7 +789,11 @@ mod tests {
         let e = effective("u-1", &Resource::entity_type("product"), Op::Read)
             .await
             .expect("ok");
-        assert_eq!(e, Effect::Deny, "Deny soll bei gleicher Spezifitaet gewinnen");
+        assert_eq!(
+            e,
+            Effect::Deny,
+            "Deny soll bei gleicher Spezifitaet gewinnen"
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -786,7 +843,11 @@ mod tests {
         )
         .await
         .expect("ok");
-        assert_eq!(e, Effect::Allow, "EntityType-Allow soll auf Property vererben");
+        assert_eq!(
+            e,
+            Effect::Allow,
+            "EntityType-Allow soll auf Property vererben"
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -816,7 +877,11 @@ mod tests {
         )
         .await
         .expect("ok");
-        assert_eq!(e, Effect::Deny, "Spezifischere Property-Deny soll EntityType-Allow schlagen");
+        assert_eq!(
+            e,
+            Effect::Deny,
+            "Spezifischere Property-Deny soll EntityType-Allow schlagen"
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -891,7 +956,9 @@ mod tests {
         setup().await;
         insert_permission(
             Subject::User { id: "u-rel".into() },
-            Resource::Migration { id: "mig-42".into() },
+            Resource::Migration {
+                id: "mig-42".into(),
+            },
             Op::Approve,
             Effect::Allow,
             0,
@@ -899,7 +966,9 @@ mod tests {
         .await;
         let e = effective(
             "u-rel",
-            &Resource::Migration { id: "mig-42".into() },
+            &Resource::Migration {
+                id: "mig-42".into(),
+            },
             Op::Approve,
         )
         .await
@@ -908,7 +977,9 @@ mod tests {
         // Cutover ist eine andere Op -> Deny.
         let e = effective(
             "u-rel",
-            &Resource::Migration { id: "mig-42".into() },
+            &Resource::Migration {
+                id: "mig-42".into(),
+            },
             Op::Cutover,
         )
         .await

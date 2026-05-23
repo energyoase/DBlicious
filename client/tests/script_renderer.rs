@@ -11,9 +11,7 @@ use shared::script::engine::ScriptCtx;
 use shared::script::manifest::UiPrimitive;
 use shared::script::model::{ProviderSlot, Script, ScriptKind, ScriptState};
 use shared::script::testing::MockHostApi;
-use shared::script::{
-    CapabilityToken, ScriptId, ScriptManifest, ScriptNodeRef, ScriptTier,
-};
+use shared::script::{CapabilityToken, ScriptId, ScriptManifest, ScriptNodeRef, ScriptTier};
 
 fn component_script(id: &str, source: &str, state: ScriptState) -> Script {
     Script {

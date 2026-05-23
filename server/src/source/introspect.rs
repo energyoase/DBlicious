@@ -75,7 +75,11 @@ pub async fn read_schema(db: &DatabaseConnection) -> Result<Schema, SourceError>
 
         tables.insert(
             t.name.clone(),
-            TableMeta { name: t.name, columns, primary_key },
+            TableMeta {
+                name: t.name,
+                columns,
+                primary_key,
+            },
         );
     }
     Ok(Schema { tables })

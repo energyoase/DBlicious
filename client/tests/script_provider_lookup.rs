@@ -47,7 +47,10 @@ fn script_prefix_constant_is_lowercase_and_terminated_with_colon() {
 
 #[test]
 fn parse_script_id_strips_known_prefix() {
-    assert_eq!(parse_script_id("script:disc"), Some(ScriptId("disc".into())));
+    assert_eq!(
+        parse_script_id("script:disc"),
+        Some(ScriptId("disc".into()))
+    );
     assert_eq!(parse_script_id("text"), None);
     assert_eq!(parse_script_id("scripts:wrong"), None);
 }

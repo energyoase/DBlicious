@@ -473,7 +473,10 @@ mod tests {
             }),
             "serverOnlyFunction"
         );
-        assert_eq!(error_tag(&ScriptError::WasmEngineNotAvailable), "wasmEngineNotAvailable");
+        assert_eq!(
+            error_tag(&ScriptError::WasmEngineNotAvailable),
+            "wasmEngineNotAvailable"
+        );
     }
 
     #[test]

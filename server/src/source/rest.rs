@@ -25,9 +25,9 @@ use shared::{Entity, EntityPage};
 use super::{Capabilities, PageQuery, Source, SourceError};
 
 pub struct RestSource {
-    name:     String,
+    name: String,
     base_url: String,
-    client:   Client,
+    client: Client,
 }
 
 impl RestSource {
@@ -35,16 +35,18 @@ impl RestSource {
         Self {
             name,
             base_url: base_url.trim_end_matches('/').into(),
-            client:   Client::new(),
+            client: Client::new(),
         }
     }
 
     fn endpoint(&self, locator: &BindingLocator) -> Result<String, SourceError> {
         match locator {
             BindingLocator::Table { table } => Ok(format!("{}/{}", self.base_url, table)),
-            BindingLocator::RestEndpoint { path } => {
-                Ok(format!("{}/{}", self.base_url, path.trim_start_matches('/')))
-            }
+            BindingLocator::RestEndpoint { path } => Ok(format!(
+                "{}/{}",
+                self.base_url,
+                path.trim_start_matches('/')
+            )),
             other => Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
         }
     }
@@ -57,28 +59,34 @@ impl RestSource {
 #[derive(Deserialize)]
 struct ListPayload {
     #[serde(default)]
-    items:       Vec<Entity>,
+    items: Vec<Entity>,
     #[serde(default, alias = "total")]
     total_count: u64,
 }
 
 #[async_trait]
 impl Source for RestSource {
-    fn name(&self) -> &str { &self.name }
-    fn kind(&self) -> &'static str { "rest" }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn kind(&self) -> &'static str {
+        "rest"
+    }
 
     fn capabilities(&self) -> Capabilities {
         Capabilities {
-            supports_write:        true,
+            supports_write: true,
             supports_transactions: false,
             supports_sql_pushdown: false,
             supports_introspection: false,
             supports_composite_pk: true,
-            supports_ddl:          false,
+            supports_ddl: false,
         }
     }
 
-    async fn init(&mut self) -> Result<(), SourceError> { Ok(()) }
+    async fn init(&mut self) -> Result<(), SourceError> {
+        Ok(())
+    }
 
     async fn list_page(
         &self,
@@ -86,20 +94,23 @@ impl Source for RestSource {
         query: &PageQuery,
     ) -> Result<EntityPage, SourceError> {
         let url = self.endpoint(&binding.locator)?;
-        let page      = query.page.max(1);
+        let page = query.page.max(1);
         let page_size = query.page_size.max(1);
-        let mut req = self
-            .client
-            .get(&url)
-            .query(&[("page", page.to_string()), ("pageSize", page_size.to_string())]);
+        let mut req = self.client.get(&url).query(&[
+            ("page", page.to_string()),
+            ("pageSize", page_size.to_string()),
+        ]);
         if let Some(s) = &query.sort {
             let dir = match s.direction {
-                shared::SortDirection::Asc  => "asc",
+                shared::SortDirection::Asc => "asc",
                 shared::SortDirection::Desc => "desc",
             };
             req = req.query(&[("sortBy", s.field.as_str()), ("sortDir", dir)]);
         }
-        let resp = req.send().await.map_err(|e| Self::http_err("GET list", e))?;
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| Self::http_err("GET list", e))?;
         let status = resp.status();
         if !status.is_success() {
             return Err(SourceError::Other(format!("GET {url} → {status}")));
@@ -109,10 +120,10 @@ impl Source for RestSource {
             .await
             .map_err(|e| Self::http_err("decode list", e))?;
         Ok(EntityPage {
-            items:       payload.items,
+            items: payload.items,
             total_count: payload.total_count,
-            page:        page as u32,
-            page_size:   page_size as u32,
+            page: page as u32,
+            page_size: page_size as u32,
         })
     }
 
@@ -122,11 +133,19 @@ impl Source for RestSource {
         id: &EntityId,
     ) -> Result<Option<Entity>, SourceError> {
         let url = format!("{}/{}", self.endpoint(&binding.locator)?, id.encode());
-        let resp = self.client.get(&url).send().await.map_err(|e| Self::http_err("GET", e))?;
+        let resp = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| Self::http_err("GET", e))?;
         match resp.status() {
             StatusCode::NOT_FOUND => Ok(None),
             s if s.is_success() => {
-                let e: Entity = resp.json().await.map_err(|e| Self::http_err("decode entity", e))?;
+                let e: Entity = resp
+                    .json()
+                    .await
+                    .map_err(|e| Self::http_err("decode entity", e))?;
                 Ok(Some(e))
             }
             other => Err(SourceError::Other(format!("GET {url} → {other}"))),
@@ -155,7 +174,9 @@ impl Source for RestSource {
         if !status.is_success() {
             return Err(SourceError::Other(format!("POST {url} → {status}")));
         }
-        resp.json().await.map_err(|e| Self::http_err("decode created", e))
+        resp.json()
+            .await
+            .map_err(|e| Self::http_err("decode created", e))
     }
 
     async fn update(
@@ -179,18 +200,17 @@ impl Source for RestSource {
         match resp.status() {
             StatusCode::NOT_FOUND => Ok(None),
             s if s.is_success() => {
-                let e: Entity = resp.json().await.map_err(|e| Self::http_err("decode updated", e))?;
+                let e: Entity = resp
+                    .json()
+                    .await
+                    .map_err(|e| Self::http_err("decode updated", e))?;
                 Ok(Some(e))
             }
             other => Err(SourceError::Other(format!("PATCH {url} → {other}"))),
         }
     }
 
-    async fn delete(
-        &self,
-        binding: &EntityBinding,
-        id: &EntityId,
-    ) -> Result<bool, SourceError> {
+    async fn delete(&self, binding: &EntityBinding, id: &EntityId) -> Result<bool, SourceError> {
         if binding.read_only {
             return Err(SourceError::ReadOnly);
         }

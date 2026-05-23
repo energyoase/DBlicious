@@ -37,7 +37,9 @@ impl TabsState {
     }
 
     fn hydrate_from_storage(&self) {
-        let Some(storage) = local_storage() else { return };
+        let Some(storage) = local_storage() else {
+            return;
+        };
         if let Ok(Some(tabs_json)) = storage.get_item(LS_TABS_KEY) {
             if let Ok(tabs) = serde_json::from_str::<Vec<TabInfo>>(&tabs_json) {
                 self.tabs.set(tabs);
@@ -51,7 +53,9 @@ impl TabsState {
     }
 
     fn persist(&self) {
-        let Some(storage) = local_storage() else { return };
+        let Some(storage) = local_storage() else {
+            return;
+        };
         if let Ok(json) = serde_json::to_string(&self.tabs.get()) {
             let _ = storage.set_item(LS_TABS_KEY, &json);
         }
@@ -71,7 +75,9 @@ impl TabsState {
             }
         } else if focus_existing {
             let route = self.tabs.with(|t| {
-                t.iter().find(|x| x.id == tab.id).and_then(|x| x.route.clone())
+                t.iter()
+                    .find(|x| x.id == tab.id)
+                    .and_then(|x| x.route.clone())
             });
             self.active.set(Some(tab.id));
             self.persist();

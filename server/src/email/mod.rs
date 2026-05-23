@@ -35,11 +35,11 @@ pub enum EmailError {
 /// als plain gesendet.
 #[derive(Debug, Clone)]
 pub struct EmailMessage<'a> {
-    pub from:      &'a str,
-    pub to:        &'a [&'a str],
-    pub cc:        &'a [&'a str],
-    pub bcc:       &'a [&'a str],
-    pub subject:   &'a str,
+    pub from: &'a str,
+    pub to: &'a [&'a str],
+    pub cc: &'a [&'a str],
+    pub bcc: &'a [&'a str],
+    pub subject: &'a str,
     pub body_text: &'a str,
     pub body_html: Option<&'a str>,
     pub attachments: &'a [EmailAttachment<'a>],
@@ -48,8 +48,8 @@ pub struct EmailMessage<'a> {
 #[derive(Debug, Clone)]
 pub struct EmailAttachment<'a> {
     pub filename: &'a str,
-    pub mime:     &'a str,
-    pub bytes:    &'a [u8],
+    pub mime: &'a str,
+    pub bytes: &'a [u8],
 }
 
 #[async_trait]
@@ -62,12 +62,16 @@ pub trait EmailSender: Send + Sync {
 /// Compliance-Anforderung sollten das nutzen.
 pub async fn send_with_audit(
     sender: &dyn EmailSender,
-    msg:    EmailMessage<'_>,
-    actor:  Option<&str>,
+    msg: EmailMessage<'_>,
+    actor: Option<&str>,
 ) -> Result<(), EmailError> {
     let result = sender.send(msg.clone()).await;
     let to_join = msg.to.join(",");
-    let kind = if result.is_ok() { "email_sent" } else { "email_failed" };
+    let kind = if result.is_ok() {
+        "email_sent"
+    } else {
+        "email_failed"
+    };
     crate::audit::record_email_event(
         actor,
         msg.from,
@@ -84,13 +88,13 @@ pub async fn send_with_audit(
 impl<'a> EmailMessage<'a> {
     pub fn empty() -> Self {
         Self {
-            from:        "",
-            to:          &[],
-            cc:          &[],
-            bcc:         &[],
-            subject:     "",
-            body_text:   "",
-            body_html:   None,
+            from: "",
+            to: &[],
+            cc: &[],
+            bcc: &[],
+            subject: "",
+            body_text: "",
+            body_html: None,
             attachments: &[],
         }
     }

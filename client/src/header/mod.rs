@@ -86,8 +86,7 @@ impl HeaderRegistry {
     }
 
     pub fn get(&self, entity_type: &str, id: &str) -> Option<&EntityHeader> {
-        self.headers
-            .get(&(entity_type.to_string(), id.to_string()))
+        self.headers.get(&(entity_type.to_string(), id.to_string()))
     }
 
     pub fn is_dirty(&self, entity_type: &str, id: &str) -> bool {
@@ -225,9 +224,9 @@ impl DebounceQueueHandle {
 }
 
 pub fn provide_debounce_queue() {
-    provide_context(DebounceQueueHandle(SendWrapper::new(Rc::new(RefCell::new(
-        DebounceQueue::new(),
-    )))));
+    provide_context(DebounceQueueHandle(SendWrapper::new(Rc::new(
+        RefCell::new(DebounceQueue::new()),
+    ))));
 }
 
 pub fn use_debounce_queue() -> DebounceQueueHandle {

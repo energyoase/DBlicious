@@ -90,7 +90,11 @@ fn render_textarea(ctx: EditorContext) -> AnyView {
 }
 
 fn render_number_input(ctx: EditorContext) -> AnyView {
-    let v = ctx.value.as_f64().map(|n| n.to_string()).unwrap_or_default();
+    let v = ctx
+        .value
+        .as_f64()
+        .map(|n| n.to_string())
+        .unwrap_or_default();
     let cb = ctx.on_change;
     view! {
         <input

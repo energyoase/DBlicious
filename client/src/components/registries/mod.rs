@@ -22,8 +22,8 @@ pub mod formatter;
 pub mod picker;
 pub mod resolve;
 
-pub use action::{ActionContext, ActionFactory, ActionRegistry, default_action_registry};
-pub use editor::{EditorContext, EditorFactory, EditorRegistry, default_editor_registry};
+pub use action::{default_action_registry, ActionContext, ActionFactory, ActionRegistry};
+pub use editor::{default_editor_registry, EditorContext, EditorFactory, EditorRegistry};
 pub use formatter::{
     default_formatter_registry, FormatterContext, FormatterFactory, FormatterRegistry,
 };

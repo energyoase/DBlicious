@@ -27,11 +27,17 @@ async fn next_number_first_call_returns_one_in_default_format() {
 async fn next_number_increments_sequentially() {
     server::fresh_test_setup().await;
     let conn = server::db::conn();
-    let one  = sequences::next_number(&conn, "order", NO_FISCAL_YEAR).await.unwrap();
-    let two  = sequences::next_number(&conn, "order", NO_FISCAL_YEAR).await.unwrap();
-    let three = sequences::next_number(&conn, "order", NO_FISCAL_YEAR).await.unwrap();
-    assert_eq!(one,   "000001");
-    assert_eq!(two,   "000002");
+    let one = sequences::next_number(&conn, "order", NO_FISCAL_YEAR)
+        .await
+        .unwrap();
+    let two = sequences::next_number(&conn, "order", NO_FISCAL_YEAR)
+        .await
+        .unwrap();
+    let three = sequences::next_number(&conn, "order", NO_FISCAL_YEAR)
+        .await
+        .unwrap();
+    assert_eq!(one, "000001");
+    assert_eq!(two, "000002");
     assert_eq!(three, "000003");
 }
 
@@ -43,7 +49,9 @@ async fn ensure_sequence_pins_custom_template_before_first_next() {
     sequences::ensure_sequence(&conn, "invoice", 2026, "INV-{year}-{seq:04}")
         .await
         .unwrap();
-    let s = sequences::next_number(&conn, "invoice", 2026).await.unwrap();
+    let s = sequences::next_number(&conn, "invoice", 2026)
+        .await
+        .unwrap();
     assert_eq!(s, "INV-2026-0001");
 }
 
@@ -53,11 +61,22 @@ async fn reset_sequence_starts_over_at_one() {
     server::fresh_test_setup().await;
     let conn = server::db::conn();
     for _ in 0..5 {
-        sequences::next_number(&conn, "x", NO_FISCAL_YEAR).await.unwrap();
+        sequences::next_number(&conn, "x", NO_FISCAL_YEAR)
+            .await
+            .unwrap();
     }
-    assert_eq!(sequences::current_number(&conn, "x", NO_FISCAL_YEAR).await.unwrap(), 5);
-    sequences::reset_sequence(&conn, "x", NO_FISCAL_YEAR).await.unwrap();
-    let again = sequences::next_number(&conn, "x", NO_FISCAL_YEAR).await.unwrap();
+    assert_eq!(
+        sequences::current_number(&conn, "x", NO_FISCAL_YEAR)
+            .await
+            .unwrap(),
+        5
+    );
+    sequences::reset_sequence(&conn, "x", NO_FISCAL_YEAR)
+        .await
+        .unwrap();
+    let again = sequences::next_number(&conn, "x", NO_FISCAL_YEAR)
+        .await
+        .unwrap();
     assert_eq!(again, "000001");
 }
 
@@ -71,8 +90,14 @@ async fn fiscal_year_creates_independent_counter() {
     let twentysix = sequences::next_number(&conn, "rg", 2026).await.unwrap();
     // 2026 startet eigene Sequenz bei 1.
     assert_eq!(twentysix, "000001");
-    assert_eq!(sequences::current_number(&conn, "rg", 2025).await.unwrap(), 2);
-    assert_eq!(sequences::current_number(&conn, "rg", 2026).await.unwrap(), 1);
+    assert_eq!(
+        sequences::current_number(&conn, "rg", 2025).await.unwrap(),
+        2
+    );
+    assert_eq!(
+        sequences::current_number(&conn, "rg", 2026).await.unwrap(),
+        1
+    );
 }
 
 #[tokio::test]

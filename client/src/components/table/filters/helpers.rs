@@ -26,7 +26,10 @@ pub fn upsert_predicate(state: TableState, key: &str, predicate: Option<FilterPr
 
 /// Liefert das aktuelle Praedikat fuer eine Spalte (falls vorhanden).
 pub fn current_predicate(state: TableState, key: &str) -> Option<FilterPredicate> {
-    state
-        .filter
-        .with(|c| c.predicates.iter().find(|p| p.key == key).map(|p| p.predicate.clone()))
+    state.filter.with(|c| {
+        c.predicates
+            .iter()
+            .find(|p| p.key == key)
+            .map(|p| p.predicate.clone())
+    })
 }

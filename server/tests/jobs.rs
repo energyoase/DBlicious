@@ -9,8 +9,8 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
 use serial_test::serial;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use server::entity::job_runs;
 use server::jobs::{self, TriggerOutcome};
@@ -30,7 +30,9 @@ async fn trigger_disabled_returns_disabled_error() {
     server::fresh_test_setup().await;
     let conn = server::db::conn();
     jobs::register_handler("noop", Arc::new(|| Box::pin(async { Ok(()) })));
-    jobs::upsert_job(&conn, "j1", "Job 1", "noop", None, false, 0).await.unwrap();
+    jobs::upsert_job(&conn, "j1", "Job 1", "noop", None, false, 0)
+        .await
+        .unwrap();
     let err = jobs::trigger_now(&conn, "j1").await.unwrap_err();
     assert!(matches!(err, jobs::JobError::Disabled(_)));
 }
@@ -40,7 +42,9 @@ async fn trigger_disabled_returns_disabled_error() {
 async fn handler_not_registered_returns_specific_error() {
     server::fresh_test_setup().await;
     let conn = server::db::conn();
-    jobs::upsert_job(&conn, "j2", "Job 2", "missing_handler", None, true, 0).await.unwrap();
+    jobs::upsert_job(&conn, "j2", "Job 2", "missing_handler", None, true, 0)
+        .await
+        .unwrap();
     let err = jobs::trigger_now(&conn, "j2").await.unwrap_err();
     assert!(matches!(err, jobs::JobError::HandlerNotRegistered(_)));
 }
@@ -51,7 +55,9 @@ async fn successful_handler_writes_run_with_status_success() {
     server::fresh_test_setup().await;
     let conn = server::db::conn();
     jobs::register_handler("ok", Arc::new(|| Box::pin(async { Ok(()) })));
-    jobs::upsert_job(&conn, "j-ok", "OK", "ok", None, true, 0).await.unwrap();
+    jobs::upsert_job(&conn, "j-ok", "OK", "ok", None, true, 0)
+        .await
+        .unwrap();
 
     let outcome = jobs::trigger_now(&conn, "j-ok").await.unwrap();
     assert!(outcome.success);
@@ -65,7 +71,10 @@ async fn successful_handler_writes_run_with_status_success() {
         .unwrap();
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].status, "success");
-    assert!(runs[0].duration_ms.is_some(), "duration_ms muss gesetzt sein");
+    assert!(
+        runs[0].duration_ms.is_some(),
+        "duration_ms muss gesetzt sein"
+    );
     assert!(runs[0].finished_at.is_some());
 }
 
@@ -86,7 +95,9 @@ async fn failing_handler_retries_up_to_max_retries() {
             })
         }),
     );
-    jobs::upsert_job(&conn, "j-fail", "Fail", "always_fail", None, true, 2).await.unwrap();
+    jobs::upsert_job(&conn, "j-fail", "Fail", "always_fail", None, true, 2)
+        .await
+        .unwrap();
 
     let outcome: TriggerOutcome = jobs::trigger_now(&conn, "j-fail").await.unwrap();
     assert!(!outcome.success);
@@ -125,11 +136,17 @@ async fn retry_succeeds_on_second_attempt() {
             let a = Arc::clone(&a);
             Box::pin(async move {
                 let n = a.fetch_add(1, Ordering::SeqCst);
-                if n == 0 { Err::<(), String>("temporary".into()) } else { Ok(()) }
+                if n == 0 {
+                    Err::<(), String>("temporary".into())
+                } else {
+                    Ok(())
+                }
             })
         }),
     );
-    jobs::upsert_job(&conn, "j-flaky", "Flaky", "flaky", None, true, 3).await.unwrap();
+    jobs::upsert_job(&conn, "j-flaky", "Flaky", "flaky", None, true, 3)
+        .await
+        .unwrap();
     let outcome = jobs::trigger_now(&conn, "j-flaky").await.unwrap();
     assert!(outcome.success);
     assert_eq!(outcome.attempts, 2);
@@ -215,9 +232,17 @@ async fn scheduler_tick_fires_due_job_and_updates_last_run_at() {
             })
         }),
     );
-    jobs::upsert_job(&conn, "j-cron", "Cron OK", "cron_ok", Some("* * * * *"), true, 0)
-        .await
-        .unwrap();
+    jobs::upsert_job(
+        &conn,
+        "j-cron",
+        "Cron OK",
+        "cron_ok",
+        Some("* * * * *"),
+        true,
+        0,
+    )
+    .await
+    .unwrap();
 
     let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 1, 0).unwrap();
     let fired = jobs::run_scheduler_tick(&conn, now).await.unwrap();
@@ -321,5 +346,8 @@ async fn scheduler_tick_survives_handler_missing() {
     let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 1, 0).unwrap();
     // Tick darf nicht panic'en oder den ganzen Loop killen.
     let fired = jobs::run_scheduler_tick(&conn, now).await.unwrap();
-    assert!(fired.is_empty(), "orphan job darf nicht als gefeuert zaehlen");
+    assert!(
+        fired.is_empty(),
+        "orphan job darf nicht als gefeuert zaehlen"
+    );
 }

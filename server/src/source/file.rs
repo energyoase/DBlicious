@@ -38,14 +38,18 @@ struct FileLayout {
 }
 
 pub struct FileSource {
-    name:  String,
-    path:  PathBuf,
+    name: String,
+    path: PathBuf,
     store: Arc<RwLock<FileLayout>>,
 }
 
 impl FileSource {
     pub fn new(name: String, path: PathBuf) -> Self {
-        Self { name, path, store: Arc::new(RwLock::new(FileLayout::default())) }
+        Self {
+            name,
+            path,
+            store: Arc::new(RwLock::new(FileLayout::default())),
+        }
     }
 
     fn persist(&self) -> Result<(), SourceError> {
@@ -70,17 +74,21 @@ impl FileSource {
 
 #[async_trait]
 impl Source for FileSource {
-    fn name(&self) -> &str { &self.name }
-    fn kind(&self) -> &'static str { "file" }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn kind(&self) -> &'static str {
+        "file"
+    }
 
     fn capabilities(&self) -> Capabilities {
         Capabilities {
-            supports_write:        true, // pro-Binding via read_only steuerbar
+            supports_write: true, // pro-Binding via read_only steuerbar
             supports_transactions: false,
             supports_sql_pushdown: false,
             supports_introspection: false,
             supports_composite_pk: true,
-            supports_ddl:          false,
+            supports_ddl: false,
         }
     }
 
@@ -111,15 +119,15 @@ impl Source for FileSource {
             .cloned()
             .unwrap_or_default();
         let total = rows.len() as u64;
-        let page      = query.page.max(1) as usize;
+        let page = query.page.max(1) as usize;
         let page_size = query.page_size.max(1) as usize;
-        let offset    = (page - 1) * page_size;
+        let offset = (page - 1) * page_size;
         let items: Vec<Entity> = rows.into_iter().skip(offset).take(page_size).collect();
         Ok(EntityPage {
             items,
             total_count: total,
-            page:        page as u32,
-            page_size:   page_size as u32,
+            page: page as u32,
+            page_size: page_size as u32,
         })
     }
 
@@ -175,8 +183,12 @@ impl Source for FileSource {
         let key = id.encode();
         let updated = {
             let mut store = self.store.write();
-            let Some(entries) = store.tables.get_mut(&table) else { return Ok(None) };
-            let Some(existing) = entries.iter_mut().find(|e| e.id == key) else { return Ok(None) };
+            let Some(entries) = store.tables.get_mut(&table) else {
+                return Ok(None);
+            };
+            let Some(existing) = entries.iter_mut().find(|e| e.id == key) else {
+                return Ok(None);
+            };
             for (k, v) in patch {
                 existing.fields.insert(k, v);
             }
@@ -186,11 +198,7 @@ impl Source for FileSource {
         Ok(Some(updated))
     }
 
-    async fn delete(
-        &self,
-        binding: &EntityBinding,
-        id: &EntityId,
-    ) -> Result<bool, SourceError> {
+    async fn delete(&self, binding: &EntityBinding, id: &EntityId) -> Result<bool, SourceError> {
         if binding.read_only {
             return Err(SourceError::ReadOnly);
         }
@@ -198,7 +206,9 @@ impl Source for FileSource {
         let key = id.encode();
         let removed = {
             let mut store = self.store.write();
-            let Some(entries) = store.tables.get_mut(&table) else { return Ok(false) };
+            let Some(entries) = store.tables.get_mut(&table) else {
+                return Ok(false);
+            };
             let before = entries.len();
             entries.retain(|e| e.id != key);
             before != entries.len()

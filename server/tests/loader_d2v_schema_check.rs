@@ -70,14 +70,16 @@ async fn validate_all_bindings_against_real_schema() {
             binding.column_map.values().cloned().collect();
 
         let missing_in_db: Vec<String> = mapped_cols.difference(&db_cols).cloned().collect();
-        let unmapped_in_db: Vec<String> =
-            db_cols.difference(&mapped_cols).cloned().collect();
+        let unmapped_in_db: Vec<String> = db_cols.difference(&mapped_cols).cloned().collect();
 
         if !missing_in_db.is_empty() || !unmapped_in_db.is_empty() {
             entities_with_issues.push(entity_type.clone());
             eprintln!("\n[{entity_type}] table='{table}'");
             if !missing_in_db.is_empty() {
-                eprintln!("  ❌ Im binding.json, NICHT in DB ({} Spalten):", missing_in_db.len());
+                eprintln!(
+                    "  ❌ Im binding.json, NICHT in DB ({} Spalten):",
+                    missing_in_db.len()
+                );
                 for c in &missing_in_db {
                     let wire_key = binding
                         .column_map
@@ -90,7 +92,10 @@ async fn validate_all_bindings_against_real_schema() {
                 total_missing += missing_in_db.len();
             }
             if !unmapped_in_db.is_empty() {
-                eprintln!("  ℹ  In DB, NICHT im binding.json ({} Spalten):", unmapped_in_db.len());
+                eprintln!(
+                    "  ℹ  In DB, NICHT im binding.json ({} Spalten):",
+                    unmapped_in_db.len()
+                );
                 for c in &unmapped_in_db {
                     eprintln!("     - {c}");
                 }

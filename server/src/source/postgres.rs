@@ -18,29 +18,37 @@ use super::{Capabilities, PageQuery, Source, SourceError};
 
 pub struct PostgresSource {
     name: String,
-    url:  String,
+    url: String,
     conn: Option<DatabaseConnection>,
 }
 
 impl PostgresSource {
     pub fn new(name: String, url: String) -> Self {
-        Self { name, url, conn: None }
+        Self {
+            name,
+            url,
+            conn: None,
+        }
     }
 }
 
 #[async_trait]
 impl Source for PostgresSource {
-    fn name(&self) -> &str { &self.name }
-    fn kind(&self) -> &'static str { "postgres" }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn kind(&self) -> &'static str {
+        "postgres"
+    }
 
     fn capabilities(&self) -> Capabilities {
         Capabilities {
-            supports_write:        true,
+            supports_write: true,
             supports_transactions: true,
             supports_sql_pushdown: true,
             supports_introspection: false, // TODO: information_schema.tables
             supports_composite_pk: true,
-            supports_ddl:          false,  // Schema-Verwaltung durch externe Tools.
+            supports_ddl: false, // Schema-Verwaltung durch externe Tools.
         }
     }
 
@@ -57,9 +65,10 @@ impl Source for PostgresSource {
         query: &PageQuery,
     ) -> Result<EntityPage, SourceError> {
         let table = expect_table(&binding.locator)?;
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            SourceError::Other("PostgresSource: init() not called".into())
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("PostgresSource: init() not called".into()))?;
         sql::relational_list_page(conn, DbBackend::Postgres, binding, &table, query, None).await
     }
 
@@ -69,9 +78,10 @@ impl Source for PostgresSource {
         id: &EntityId,
     ) -> Result<Option<Entity>, SourceError> {
         let table = expect_table(&binding.locator)?;
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            SourceError::Other("PostgresSource: init() not called".into())
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("PostgresSource: init() not called".into()))?;
         sql::relational_get(conn, DbBackend::Postgres, binding, &table, id, None).await
     }
 
@@ -86,9 +96,10 @@ impl Source for PostgresSource {
             return Err(SourceError::ReadOnly);
         }
         let table = expect_table(&binding.locator)?;
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            SourceError::Other("PostgresSource: init() not called".into())
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("PostgresSource: init() not called".into()))?;
         sql::relational_create(conn, DbBackend::Postgres, binding, &table, fields).await
     }
 
@@ -103,24 +114,22 @@ impl Source for PostgresSource {
             return Err(SourceError::ReadOnly);
         }
         let table = expect_table(&binding.locator)?;
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            SourceError::Other("PostgresSource: init() not called".into())
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("PostgresSource: init() not called".into()))?;
         sql::relational_update(conn, DbBackend::Postgres, binding, &table, id, patch, None).await
     }
 
-    async fn delete(
-        &self,
-        binding: &EntityBinding,
-        id: &EntityId,
-    ) -> Result<bool, SourceError> {
+    async fn delete(&self, binding: &EntityBinding, id: &EntityId) -> Result<bool, SourceError> {
         if binding.read_only {
             return Err(SourceError::ReadOnly);
         }
         let table = expect_table(&binding.locator)?;
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            SourceError::Other("PostgresSource: init() not called".into())
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("PostgresSource: init() not called".into()))?;
         sql::relational_delete(conn, DbBackend::Postgres, binding, &table, id).await
     }
 }

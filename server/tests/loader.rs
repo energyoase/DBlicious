@@ -61,7 +61,11 @@ fn shop_product_has_columns_and_settings() {
     assert!(!product.columns.is_empty(), "product hat keine Spalten");
     let names: Vec<&str> = product.columns.iter().map(|c| c.key.as_str()).collect();
     for required in &["name", "price"] {
-        assert!(names.contains(required), "Spalte '{required}' fehlt: {:?}", names);
+        assert!(
+            names.contains(required),
+            "Spalte '{required}' fehlt: {:?}",
+            names
+        );
     }
 
     assert!(
@@ -193,8 +197,7 @@ fn permissions_json_loader_roundtrip() {
     let set = example::load(&dir).expect("laden");
     assert_eq!(set.permissions.len(), 3);
     // Subject-IDs als sanity check
-    let subject_ids: Vec<&str> =
-        set.permissions.iter().map(|p| p.subject.id()).collect();
+    let subject_ids: Vec<&str> = set.permissions.iter().map(|p| p.subject.id()).collect();
     assert!(subject_ids.contains(&"r-editor"));
     assert!(subject_ids.contains(&"u-7"));
     assert!(subject_ids.contains(&"g-release"));
@@ -230,12 +233,21 @@ fn roles_and_role_assignments_loader_roundtrip_for_users_and_groups() {
 
     let set = example::load(&dir).expect("laden");
     assert_eq!(set.roles.len(), 2);
-    assert!(set.roles.iter().any(|r| r.id == "r-editor" && r.description_key.is_some()));
-    assert!(set.roles.iter().any(|r| r.id == "r-viewer" && r.description_key.is_none()));
+    assert!(set
+        .roles
+        .iter()
+        .any(|r| r.id == "r-editor" && r.description_key.is_some()));
+    assert!(set
+        .roles
+        .iter()
+        .any(|r| r.id == "r-viewer" && r.description_key.is_none()));
 
     assert_eq!(set.role_assignments.len(), 2);
-    let kinds: Vec<&'static str> =
-        set.role_assignments.iter().map(|ra| ra.subject.kind_str()).collect();
+    let kinds: Vec<&'static str> = set
+        .role_assignments
+        .iter()
+        .map(|ra| ra.subject.kind_str())
+        .collect();
     assert!(kinds.contains(&"user"));
     assert!(kinds.contains(&"group"));
 
@@ -259,7 +271,10 @@ fn role_assignment_with_role_as_subject_is_rejected() {
     let res = example::load(&dir);
     assert!(res.is_err(), "Role-als-Subject muss abgelehnt werden");
     let msg = format!("{}", res.unwrap_err());
-    assert!(msg.contains("role"), "Fehlertext soll auf role hinweisen: {msg}");
+    assert!(
+        msg.contains("role"),
+        "Fehlertext soll auf role hinweisen: {msg}"
+    );
 
     let _ = fs::remove_dir_all(&dir);
 }

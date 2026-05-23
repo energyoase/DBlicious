@@ -78,7 +78,8 @@ url  = "sqlite::memory:"
 kind = "foreign-sqlite"
 url  = "sqlite:///pfad/zur/d2v.db"
             "#,
-        ).unwrap();
+        )
+        .unwrap();
         let f = load_from_dir(tmp.path()).unwrap();
         assert_eq!(f.sources.len(), 2);
         assert_eq!(f.sources["local"].kind, "managed-sqlite");

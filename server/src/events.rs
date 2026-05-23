@@ -14,7 +14,7 @@ use tokio::sync::broadcast::{self, Receiver, Sender};
 #[derive(Debug, Clone, async_graphql::SimpleObject)]
 pub struct DesignUpdate {
     pub entity_type: String,
-    pub version:     i32,
+    pub version: i32,
 }
 
 /// Channel-Kapazitaet: solange < N Subscriber langsamer als der Producer

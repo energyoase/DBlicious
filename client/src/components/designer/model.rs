@@ -93,27 +93,69 @@ impl DesignerModel {
         let cust_id_col = self
             .last_column_id(&customer_id)
             .expect("Demo: Kunde muss eine Spalte haben");
-        self.add_column(&customer_id, "name", DbColumnType::Text, false, false, false);
-        self.add_column(&customer_id, "email", DbColumnType::Text, false, false, true);
+        self.add_column(
+            &customer_id,
+            "name",
+            DbColumnType::Text,
+            false,
+            false,
+            false,
+        );
+        self.add_column(
+            &customer_id,
+            "email",
+            DbColumnType::Text,
+            false,
+            false,
+            true,
+        );
 
         let order_id = self.add_table_at("Bestellung", 420.0, 60.0);
         let _ = self.last_column_id(&order_id);
-        self.add_column(&order_id, "kunde_id", DbColumnType::ForeignKey, false, false, false);
-        self.add_column(&order_id, "betrag", DbColumnType::Decimal { precision: 12, scale: 2 }, false, false, false);
-        self.add_column(&order_id, "bestellt_am", DbColumnType::DateTime, false, false, false);
+        self.add_column(
+            &order_id,
+            "kunde_id",
+            DbColumnType::ForeignKey,
+            false,
+            false,
+            false,
+        );
+        self.add_column(
+            &order_id,
+            "betrag",
+            DbColumnType::Decimal {
+                precision: 12,
+                scale: 2,
+            },
+            false,
+            false,
+            false,
+        );
+        self.add_column(
+            &order_id,
+            "bestellt_am",
+            DbColumnType::DateTime,
+            false,
+            false,
+            false,
+        );
 
-        let order_kunde_fk = self
-            .tables
-            .with_untracked(|tables| {
-                tables
-                    .iter()
-                    .find(|t| t.id == order_id)
-                    .and_then(|t| t.columns.iter().find(|c| c.name == "kunde_id"))
-                    .map(|c| c.id.clone())
-            });
+        let order_kunde_fk = self.tables.with_untracked(|tables| {
+            tables
+                .iter()
+                .find(|t| t.id == order_id)
+                .and_then(|t| t.columns.iter().find(|c| c.name == "kunde_id"))
+                .map(|c| c.id.clone())
+        });
 
         if let Some(fk) = order_kunde_fk {
-            self.add_relation(&order_id, &fk, &customer_id, &cust_id_col, RelationKind::ManyToOne);
+            self.add_relation(
+                &order_id,
+                &fk,
+                &customer_id,
+                &cust_id_col,
+                RelationKind::ManyToOne,
+            );
         }
     }
 
@@ -124,13 +166,12 @@ impl DesignerModel {
     }
 
     fn last_column_id(&self, table_id: &str) -> Option<String> {
-        self.tables
-            .with_untracked(|tables| {
-                tables
-                    .iter()
-                    .find(|t| t.id == table_id)
-                    .and_then(|t| t.columns.last().map(|c| c.id.clone()))
-            })
+        self.tables.with_untracked(|tables| {
+            tables
+                .iter()
+                .find(|t| t.id == table_id)
+                .and_then(|t| t.columns.last().map(|c| c.id.clone()))
+        })
     }
 
     // ------------------------------------------------------------------
@@ -165,7 +206,8 @@ impl DesignerModel {
     }
 
     pub fn remove_table(&self, table_id: &str) {
-        self.tables.update(|tables| tables.retain(|t| t.id != table_id));
+        self.tables
+            .update(|tables| tables.retain(|t| t.id != table_id));
         // Verwaiste Beziehungen mit entfernen.
         self.relations.update(|rs| {
             rs.retain(|r| r.source_table_id != table_id && r.target_table_id != table_id)
@@ -199,14 +241,13 @@ impl DesignerModel {
 
     /// Liefert die aktuelle Position oder (0, 0) falls Tabelle nicht (mehr) existiert.
     pub fn position_of(&self, table_id: &str) -> Position {
-        self.tables
-            .with_untracked(|tables| {
-                tables
-                    .iter()
-                    .find(|t| t.id == table_id)
-                    .map(|t| t.position)
-                    .unwrap_or_default()
-            })
+        self.tables.with_untracked(|tables| {
+            tables
+                .iter()
+                .find(|t| t.id == table_id)
+                .map(|t| t.position)
+                .unwrap_or_default()
+        })
     }
 
     // ------------------------------------------------------------------
@@ -254,9 +295,13 @@ impl DesignerModel {
         self.relations.update(|rs| {
             rs.retain(|r| {
                 let touches_source = r.source_table_id == table_id
-                    && r.column_pairs.iter().any(|p| p.source_column_id == column_id);
+                    && r.column_pairs
+                        .iter()
+                        .any(|p| p.source_column_id == column_id);
                 let touches_target = r.target_table_id == table_id
-                    && r.column_pairs.iter().any(|p| p.target_column_id == column_id);
+                    && r.column_pairs
+                        .iter()
+                        .any(|p| p.target_column_id == column_id);
                 !(touches_source || touches_target)
             })
         });
@@ -351,7 +396,8 @@ impl DesignerModel {
     }
 
     pub fn remove_relation(&self, relation_id: &str) {
-        self.relations.update(|rs| rs.retain(|r| r.id != relation_id));
+        self.relations
+            .update(|rs| rs.retain(|r| r.id != relation_id));
     }
 
     // ------------------------------------------------------------------

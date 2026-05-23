@@ -38,12 +38,12 @@ use crate::entity::{job_runs, jobs};
 
 pub const STATUS_RUNNING: &str = "running";
 pub const STATUS_SUCCESS: &str = "success";
-pub const STATUS_FAILED:  &str = "failed";
+pub const STATUS_FAILED: &str = "failed";
 
 /// Boxed-Async-Handler-Signatur. Output ist `Result<(), String>` —
 /// String-Error wandert in `job_runs.error_message`.
 pub type JobHandlerFut = Pin<Box<dyn Future<Output = Result<(), String>> + Send>>;
-pub type JobHandler    = Arc<dyn Fn() -> JobHandlerFut + Send + Sync>;
+pub type JobHandler = Arc<dyn Fn() -> JobHandlerFut + Send + Sync>;
 
 #[derive(Debug, Error)]
 pub enum JobError {
@@ -85,35 +85,35 @@ fn lookup_handler(key: &str) -> Option<JobHandler> {
 // =============================================================================
 
 pub async fn upsert_job(
-    conn:         &DatabaseConnection,
-    id:           &str,
-    name:         &str,
-    handler:      &str,
+    conn: &DatabaseConnection,
+    id: &str,
+    name: &str,
+    handler: &str,
     schedule_cron: Option<&str>,
-    enabled:      bool,
-    max_retries:  i32,
+    enabled: bool,
+    max_retries: i32,
 ) -> Result<(), JobError> {
     let existing = jobs::Entity::find_by_id(id.to_string()).one(conn).await?;
     match existing {
         Some(m) => {
             let mut am: jobs::ActiveModel = m.into();
-            am.name          = ActiveValue::Set(name.to_string());
-            am.handler       = ActiveValue::Set(handler.to_string());
+            am.name = ActiveValue::Set(name.to_string());
+            am.handler = ActiveValue::Set(handler.to_string());
             am.schedule_cron = ActiveValue::Set(schedule_cron.map(String::from));
-            am.enabled       = ActiveValue::Set(enabled);
-            am.max_retries   = ActiveValue::Set(max_retries);
+            am.enabled = ActiveValue::Set(enabled);
+            am.max_retries = ActiveValue::Set(max_retries);
             am.update(conn).await?;
         }
         None => {
             jobs::ActiveModel {
-                id:            ActiveValue::Set(id.to_string()),
-                name:          ActiveValue::Set(name.to_string()),
-                handler:       ActiveValue::Set(handler.to_string()),
+                id: ActiveValue::Set(id.to_string()),
+                name: ActiveValue::Set(name.to_string()),
+                handler: ActiveValue::Set(handler.to_string()),
                 schedule_cron: ActiveValue::Set(schedule_cron.map(String::from)),
-                enabled:       ActiveValue::Set(enabled),
-                max_retries:   ActiveValue::Set(max_retries),
-                last_run_at:   ActiveValue::Set(None),
-                tenant_id:     ActiveValue::Set(None),
+                enabled: ActiveValue::Set(enabled),
+                max_retries: ActiveValue::Set(max_retries),
+                last_run_at: ActiveValue::Set(None),
+                tenant_id: ActiveValue::Set(None),
             }
             .insert(conn)
             .await?;
@@ -129,17 +129,17 @@ pub async fn upsert_job(
 /// Ergebnis eines kompletten `trigger_now`-Aufrufs (inkl. aller Retries).
 #[derive(Debug, Clone)]
 pub struct TriggerOutcome {
-    pub job_id:   String,
+    pub job_id: String,
     /// Anzahl Versuche, die tatsaechlich gelaufen sind.
     pub attempts: i32,
     /// `true` ⇒ letzter Versuch hat `success` geliefert.
-    pub success:  bool,
+    pub success: bool,
     /// Letzte Fehlermeldung (sofern alle Versuche failed).
     pub last_error: Option<String>,
 }
 
 pub async fn trigger_now(
-    conn:   &DatabaseConnection,
+    conn: &DatabaseConnection,
     job_id: &str,
 ) -> Result<TriggerOutcome, JobError> {
     let job = jobs::Entity::find_by_id(job_id.to_string())
@@ -165,15 +165,15 @@ pub async fn trigger_now(
 
         // Run-Row: running.
         job_runs::ActiveModel {
-            id:            ActiveValue::Set(run_id.clone()),
-            job_id:        ActiveValue::Set(job_id.to_string()),
-            attempt:       ActiveValue::Set(attempts),
-            started_at:    ActiveValue::Set(started_iso.clone()),
-            finished_at:   ActiveValue::Set(None),
-            status:        ActiveValue::Set(STATUS_RUNNING.to_string()),
-            duration_ms:   ActiveValue::Set(None),
+            id: ActiveValue::Set(run_id.clone()),
+            job_id: ActiveValue::Set(job_id.to_string()),
+            attempt: ActiveValue::Set(attempts),
+            started_at: ActiveValue::Set(started_iso.clone()),
+            finished_at: ActiveValue::Set(None),
+            status: ActiveValue::Set(STATUS_RUNNING.to_string()),
+            duration_ms: ActiveValue::Set(None),
             error_message: ActiveValue::Set(None),
-            tenant_id:     ActiveValue::Set(None),
+            tenant_id: ActiveValue::Set(None),
         }
         .insert(conn)
         .await?;
@@ -181,11 +181,12 @@ pub async fn trigger_now(
         // Handler ausfuehren.
         let result = handler().await;
         let finished_at = chrono::Utc::now();
-        let duration_ms =
-            (finished_at - started_at).num_milliseconds().max(0);
+        let duration_ms = (finished_at - started_at).num_milliseconds().max(0);
 
         // Update Run-Row.
-        let run = job_runs::Entity::find_by_id(run_id.clone()).one(conn).await?;
+        let run = job_runs::Entity::find_by_id(run_id.clone())
+            .one(conn)
+            .await?;
         if let Some(r) = run {
             let mut am: job_runs::ActiveModel = r.into();
             am.finished_at = ActiveValue::Set(Some(finished_at.to_rfc3339()));
@@ -195,7 +196,7 @@ pub async fn trigger_now(
                     am.status = ActiveValue::Set(STATUS_SUCCESS.to_string());
                 }
                 Err(e) => {
-                    am.status        = ActiveValue::Set(STATUS_FAILED.to_string());
+                    am.status = ActiveValue::Set(STATUS_FAILED.to_string());
                     am.error_message = ActiveValue::Set(Some(e.clone()));
                 }
             }
@@ -248,7 +249,12 @@ fn normalize_cron_expr(expr: &str) -> String {
 /// herangezogen: ein Job, der seit Boot noch nie gelaufen ist, feuert
 /// beim ersten Tick mit `now >= boot_at`. Ungueltige Cron-Expressions
 /// werden konservativ als `false` interpretiert (mit `tracing::warn`).
-pub fn is_due(expr: &str, last_run_at: Option<&str>, boot_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+pub fn is_due(
+    expr: &str,
+    last_run_at: Option<&str>,
+    boot_at: DateTime<Utc>,
+    now: DateTime<Utc>,
+) -> bool {
     let normalized = normalize_cron_expr(expr);
     let schedule = match Schedule::from_str(&normalized) {
         Ok(s) => s,

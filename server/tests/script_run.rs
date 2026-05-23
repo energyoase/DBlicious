@@ -80,8 +80,7 @@ async fn run_and_persist_records_ok_outcome_with_token_uses() {
     assert_eq!(row.script_version, 1);
     assert_eq!(row.user_id.as_deref(), Some("u-system"));
     // Tokens_used JSON-Array mit 2 Eintraegen, beide "ok".
-    let tokens: serde_json::Value =
-        serde_json::from_str(&row.tokens_used).expect("tokens JSON");
+    let tokens: serde_json::Value = serde_json::from_str(&row.tokens_used).expect("tokens JSON");
     assert!(tokens.is_array());
     assert_eq!(tokens.as_array().unwrap().len(), 2);
     assert_eq!(tokens[0]["outcome"], serde_json::Value::String("ok".into()));
@@ -143,10 +142,7 @@ async fn run_and_persist_handles_compile_failure_without_panic() {
     let script = shared::script::Script {
         id: "r-bad".into(),
         kind: ScriptKind::Component { entry: "x".into() },
-        manifest: manifest_with(
-            vec![CapabilityToken::ComputeOnly],
-            ScriptTier::Reader,
-        ),
+        manifest: manifest_with(vec![CapabilityToken::ComputeOnly], ScriptTier::Reader),
         source: "let x = ;".into(),
         version: 1,
         state: shared::script::ScriptState::Draft,

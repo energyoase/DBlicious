@@ -21,12 +21,12 @@ fn postgres_capabilities_match_relational_profile() {
     assert_eq!(
         src.capabilities(),
         Capabilities {
-            supports_write:        true,
+            supports_write: true,
             supports_transactions: true,
             supports_sql_pushdown: true,
             supports_introspection: false,
             supports_composite_pk: true,
-            supports_ddl:          false,
+            supports_ddl: false,
         }
     );
 }
@@ -39,12 +39,12 @@ fn mysql_capabilities_match_relational_profile() {
     assert_eq!(
         src.capabilities(),
         Capabilities {
-            supports_write:        true,
+            supports_write: true,
             supports_transactions: true,
             supports_sql_pushdown: true,
             supports_introspection: false,
             supports_composite_pk: true,
-            supports_ddl:          false,
+            supports_ddl: false,
         }
     );
 }
@@ -53,11 +53,13 @@ fn mysql_capabilities_match_relational_profile() {
 async fn postgres_rejects_non_table_locator() {
     let src = PostgresSource::new("pg".into(), "postgres://nobody@localhost/x".into());
     let binding = EntityBinding {
-        source:      "pg".into(),
-        locator:     BindingLocator::GenericEntityRow { entity_type: "x".into() },
+        source: "pg".into(),
+        locator: BindingLocator::GenericEntityRow {
+            entity_type: "x".into(),
+        },
         primary_key: vec!["id".into()],
-        read_only:   false,
-        column_map:  BTreeMap::new(),
+        read_only: false,
+        column_map: BTreeMap::new(),
     };
     // Wir koennen list_page aufrufen, ohne init() — der Locator-Check
     // greift vor dem Connection-Check.
@@ -82,7 +84,7 @@ async fn boot_registry_recognises_postgres_and_mysql_kinds_but_fails_connect() {
         "pg".into(),
         SourceConfig {
             kind: "postgres".into(),
-            url:  Some("postgres://does-not-exist:1/nope".into()),
+            url: Some("postgres://does-not-exist:1/nope".into()),
         },
     );
     let res = server::source::boot_registry(&cfg).await;
@@ -97,7 +99,7 @@ async fn boot_registry_recognises_postgres_and_mysql_kinds_but_fails_connect() {
         "my".into(),
         SourceConfig {
             kind: "mysql".into(),
-            url:  Some("mysql://does-not-exist:1/nope".into()),
+            url: Some("mysql://does-not-exist:1/nope".into()),
         },
     );
     let res = server::source::boot_registry(&cfg).await;

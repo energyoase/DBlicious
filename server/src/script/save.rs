@@ -53,10 +53,7 @@ pub struct PreparedSave {
 /// Validiert das Manifest gegen den User-Tier-Deckel und gegen die statisch
 /// erlaubte Capability-Liste pro Tier. Zusaetzliche Caps darf nur ein hoher
 /// Tier deklarieren.
-fn validate_manifest(
-    manifest: &ScriptManifest,
-    user: ScriptTier,
-) -> Result<(), ScriptError> {
+fn validate_manifest(manifest: &ScriptManifest, user: ScriptTier) -> Result<(), ScriptError> {
     if manifest.tier > user {
         return Err(ScriptError::TierExceeded {
             declared: manifest.tier,
@@ -190,8 +187,8 @@ pub async fn persist_save(
         .transpose()
         .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
 
-    let kind_value = serde_json::to_value(&input.kind)
-        .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+    let kind_value =
+        serde_json::to_value(&input.kind).map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
     let kind_tag = kind_value
         .get("kind")
         .and_then(|v| v.as_str())

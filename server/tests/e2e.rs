@@ -78,13 +78,11 @@ async fn anonymous_login_with_wrong_password_returns_invalid_credentials() {
 #[serial_test::serial]
 async fn navigation_requires_authentication() {
     boot().await;
-    let res = exec(
-        r#"query{ navigation { id } }"#,
-        json!({}),
-        anon(),
-    )
-    .await;
-    assert!(!res.errors.is_empty(), "anonyme navigation muss fehlschlagen");
+    let res = exec(r#"query{ navigation { id } }"#, json!({}), anon()).await;
+    assert!(
+        !res.errors.is_empty(),
+        "anonyme navigation muss fehlschlagen"
+    );
     let msg = res.errors[0].message.clone();
     assert!(msg.contains("unauthenticated"), "got: {msg}");
 }
@@ -283,7 +281,12 @@ async fn entities_sort_by_display_name_asc_then_desc() {
     assert!(asc_items.len() >= 2, "Seed sollte mehrere Customer haben");
     let asc_names: Vec<String> = asc_items
         .iter()
-        .map(|e| e["fields"]["displayName"].as_str().unwrap_or("").to_string())
+        .map(|e| {
+            e["fields"]["displayName"]
+                .as_str()
+                .unwrap_or("")
+                .to_string()
+        })
         .collect();
     let mut sorted = asc_names.clone();
     sorted.sort();
@@ -302,11 +305,19 @@ async fn entities_sort_by_display_name_asc_then_desc() {
         .unwrap();
     let desc_names: Vec<String> = desc_items
         .iter()
-        .map(|e| e["fields"]["displayName"].as_str().unwrap_or("").to_string())
+        .map(|e| {
+            e["fields"]["displayName"]
+                .as_str()
+                .unwrap_or("")
+                .to_string()
+        })
         .collect();
     let mut expected_desc = asc_names.clone();
     expected_desc.reverse();
-    assert_eq!(desc_names, expected_desc, "desc-Sort ist nicht die Umkehrung");
+    assert_eq!(
+        desc_names, expected_desc,
+        "desc-Sort ist nicht die Umkehrung"
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -349,7 +360,10 @@ async fn entities_filter_text_contains_narrows_result_set() {
     let total_filtered = res.data.into_json().unwrap()["entities"]["totalCount"]
         .as_i64()
         .unwrap();
-    assert!(total_filtered > 0, "globalSearch '@' muss mindestens einen Treffer haben");
+    assert!(
+        total_filtered > 0,
+        "globalSearch '@' muss mindestens einen Treffer haben"
+    );
     assert!(
         total_filtered <= total_unfiltered,
         "gefilterte Anzahl darf die Gesamtzahl nicht uebersteigen"
@@ -387,7 +401,10 @@ async fn entities_filter_predicate_text_equals_matches_exact_record() {
         .as_array()
         .cloned()
         .unwrap();
-    let probe = items[0]["fields"]["displayName"].as_str().unwrap().to_string();
+    let probe = items[0]["fields"]["displayName"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     // Praedikats-Filter `textEquals` auf displayName == probe.
     let q = r#"query($t:String!, $f:JSON!){
@@ -434,8 +451,16 @@ async fn entities_unknown_sort_field_does_not_crash() {
         }
     }"#;
     let res = exec(q, json!({"t":"customer"}), ctx).await;
-    assert!(res.errors.is_empty(), "unbekanntes Sort-Feld darf nicht failen");
-    assert!(res.data.into_json().unwrap()["entities"]["totalCount"].as_i64().unwrap() >= 0);
+    assert!(
+        res.errors.is_empty(),
+        "unbekanntes Sort-Feld darf nicht failen"
+    );
+    assert!(
+        res.data.into_json().unwrap()["entities"]["totalCount"]
+            .as_i64()
+            .unwrap()
+            >= 0
+    );
 }
 
 // =============================================================================
@@ -497,8 +522,15 @@ async fn new_permissions_resolver_blocks_when_table_populated() {
         ctx,
     )
     .await;
-    assert!(!res.errors.is_empty(), "admin darf nach Phase-0.7.4-Switch nicht mehr lesen");
-    assert!(res.errors[0].message.contains("forbidden"), "got: {:?}", res.errors[0]);
+    assert!(
+        !res.errors.is_empty(),
+        "admin darf nach Phase-0.7.4-Switch nicht mehr lesen"
+    );
+    assert!(
+        res.errors[0].message.contains("forbidden"),
+        "got: {:?}",
+        res.errors[0]
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -507,15 +539,7 @@ async fn new_permissions_resolver_allows_when_user_has_grant() {
     boot().await;
     let ctx = login_as("admin", "admin").await;
     let admin_id = ctx.user.as_ref().unwrap().id.clone();
-    insert_permission_row(
-        "user",
-        &admin_id,
-        "entityType",
-        "product",
-        "read",
-        "allow",
-    )
-    .await;
+    insert_permission_row("user", &admin_id, "entityType", "product", "read", "allow").await;
 
     let res = exec(
         r#"query($t:String!){ entities(entityType:$t, page:1, pageSize:1) { totalCount } }"#,
@@ -523,7 +547,11 @@ async fn new_permissions_resolver_allows_when_user_has_grant() {
         ctx,
     )
     .await;
-    assert!(res.errors.is_empty(), "admin mit expliziter Permission darf lesen: {:?}", res.errors);
+    assert!(
+        res.errors.is_empty(),
+        "admin mit expliziter Permission darf lesen: {:?}",
+        res.errors
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -532,15 +560,7 @@ async fn my_permissions_lists_rules_for_authenticated_user() {
     boot().await;
     let ctx = login_as("admin", "admin").await;
     let admin_id = ctx.user.as_ref().unwrap().id.clone();
-    insert_permission_row(
-        "user",
-        &admin_id,
-        "entityType",
-        "product",
-        "read",
-        "allow",
-    )
-    .await;
+    insert_permission_row("user", &admin_id, "entityType", "product", "read", "allow").await;
     insert_permission_row(
         "user",
         "u-someone-else",
@@ -572,15 +592,7 @@ async fn why_allowed_returns_trace_for_self() {
     boot().await;
     let ctx = login_as("admin", "admin").await;
     let admin_id = ctx.user.as_ref().unwrap().id.clone();
-    insert_permission_row(
-        "user",
-        &admin_id,
-        "entityType",
-        "product",
-        "read",
-        "allow",
-    )
-    .await;
+    insert_permission_row("user", &admin_id, "entityType", "product", "read", "allow").await;
     insert_permission_row(
         "user",
         &admin_id,
@@ -794,19 +806,18 @@ async fn save_entity_design_bumps_version() {
     assert_eq!(v["saveEntityDesign"]["ok"], json!(true));
     assert_eq!(v["saveEntityDesign"]["design"]["version"], json!(1));
     assert_ne!(
-        v["saveEntityDesign"]["design"]["createdBy"], json!("system"),
+        v["saveEntityDesign"]["design"]["createdBy"],
+        json!("system"),
         "User-Save darf nicht als 'system' zaehlen"
     );
 
     // Zweite Save: expectedVersion=1 → wird 2.
-    let res = exec(
-        q,
-        json!({"t":"product","sv":1,"s":state,"e":1}),
-        ctx,
-    )
-    .await;
+    let res = exec(q, json!({"t":"product","sv":1,"s":state,"e":1}), ctx).await;
     assert!(res.errors.is_empty());
-    assert_eq!(res.data.into_json().unwrap()["saveEntityDesign"]["design"]["version"], json!(2));
+    assert_eq!(
+        res.data.into_json().unwrap()["saveEntityDesign"]["design"]["version"],
+        json!(2)
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -824,12 +835,7 @@ async fn save_entity_design_returns_conflict_on_stale_expected_version() {
     }"#;
 
     // Boot-Snapshot ist version=0; expected=42 ist falsch.
-    let res = exec(
-        q,
-        json!({"t":"product","sv":1,"s":state,"e":42}),
-        ctx,
-    )
-    .await;
+    let res = exec(q, json!({"t":"product","sv":1,"s":state,"e":42}), ctx).await;
     assert!(res.errors.is_empty(), "{:?}", res.errors);
     let v = res.data.into_json().unwrap();
     assert_eq!(v["saveEntityDesign"]["ok"], json!(false));
@@ -837,7 +843,10 @@ async fn save_entity_design_returns_conflict_on_stale_expected_version() {
         v["saveEntityDesign"]["error"],
         json!("concurrent_design_modification")
     );
-    assert_eq!(v["saveEntityDesign"]["conflictCurrent"]["version"], json!(0));
+    assert_eq!(
+        v["saveEntityDesign"]["conflictCurrent"]["version"],
+        json!(0)
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -875,20 +884,23 @@ async fn revert_entity_design_creates_new_version_with_old_state() {
             ok design { version state createdBy }
         }
     }"#;
-    let res = exec(
-        revert_q,
-        json!({"t":"product","v":0}),
-        ctx.clone(),
-    )
-    .await;
+    let res = exec(revert_q, json!({"t":"product","v":0}), ctx.clone()).await;
     assert!(res.errors.is_empty(), "{:?}", res.errors);
     let v = res.data.into_json().unwrap();
     assert_eq!(v["revertEntityDesign"]["ok"], json!(true));
-    let reverted_version = v["revertEntityDesign"]["design"]["version"].as_i64().unwrap();
-    assert_eq!(reverted_version, 2, "Revert muss neue Version anlegen, keine Loeschung");
+    let reverted_version = v["revertEntityDesign"]["design"]["version"]
+        .as_i64()
+        .unwrap();
+    assert_eq!(
+        reverted_version, 2,
+        "Revert muss neue Version anlegen, keine Loeschung"
+    );
     // Der createdBy des Revert ist der admin (nicht "system"), auch wenn der
     // Original-State von system stammt.
-    assert_ne!(v["revertEntityDesign"]["design"]["createdBy"], json!("system"));
+    assert_ne!(
+        v["revertEntityDesign"]["design"]["createdBy"],
+        json!("system")
+    );
     // State.tree muss leer sein (wie in Version 0).
     let nodes = &v["revertEntityDesign"]["design"]["state"]["tree"]["nodes"];
     assert_eq!(nodes.as_array().map(|a| a.len()).unwrap_or(99), 0);
@@ -1076,7 +1088,10 @@ async fn set_plugin_enabled_toggles() {
     )
     .await;
     assert!(res.errors.is_empty(), "{:?}", res.errors);
-    assert_eq!(res.data.into_json().unwrap()["setPluginEnabled"], json!(true));
+    assert_eq!(
+        res.data.into_json().unwrap()["setPluginEnabled"],
+        json!(true)
+    );
 
     let q = exec(
         r#"query { plugin(id:"com.example.toggle") { enabled } }"#,
@@ -1085,7 +1100,10 @@ async fn set_plugin_enabled_toggles() {
     )
     .await;
     assert!(q.errors.is_empty());
-    assert_eq!(q.data.into_json().unwrap()["plugin"]["enabled"], json!(false));
+    assert_eq!(
+        q.data.into_json().unwrap()["plugin"]["enabled"],
+        json!(false)
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1130,12 +1148,7 @@ async fn delete_plugin_removes_it() {
 async fn plugin_endpoints_require_admin_wildcard() {
     boot().await;
     let ctx = login_as("viewer", "viewer").await;
-    let res = exec(
-        r#"query { plugins { id } }"#,
-        json!({}),
-        ctx,
-    )
-    .await;
+    let res = exec(r#"query { plugins { id } }"#, json!({}), ctx).await;
     assert!(!res.errors.is_empty(), "viewer darf keine Plugins listen");
     assert!(res.errors[0].message.contains("forbidden"));
 }
@@ -1325,7 +1338,10 @@ async fn set_implementation_choice_persists_and_resolves() {
     )
     .await;
     assert!(set_res.errors.is_empty(), "{:?}", set_res.errors);
-    assert_eq!(set_res.data.into_json().unwrap()["setImplementationChoice"], json!(true));
+    assert_eq!(
+        set_res.data.into_json().unwrap()["setImplementationChoice"],
+        json!(true)
+    );
 
     // Resolve fragt nach dem User → liefert die persistierte Wahl,
     // nicht den FieldType-Default.
@@ -1369,7 +1385,8 @@ async fn set_implementation_choice_rejects_unknown_id() {
     assert!(!res.errors.is_empty());
     assert!(
         res.errors[0].message.contains("not_allowed_for_property"),
-        "got: {:?}", res.errors[0]
+        "got: {:?}",
+        res.errors[0]
     );
 }
 
@@ -1464,15 +1481,7 @@ async fn login_returns_projected_allows_when_permissions_table_populated() {
     )
     .await;
     // Plus ein Deny, der NICHT projiziert werden soll.
-    insert_permission_row(
-        "user",
-        "u-1",
-        "entityType",
-        "product",
-        "delete",
-        "deny",
-    )
-    .await;
+    insert_permission_row("user", "u-1", "entityType", "product", "delete", "deny").await;
 
     let res = exec(
         r#"mutation($u:String!,$p:String!){
@@ -1491,31 +1500,25 @@ async fn login_returns_projected_allows_when_permissions_table_populated() {
         .expect("effective sollte Liste sein, kein null");
     // Mind. der read-Eintrag muss da sein.
     let has_read = effective.iter().any(|e| {
-        e["resourceKind"] == "entityType"
-            && e["resourceId"] == "product"
-            && e["op"] == "read"
+        e["resourceKind"] == "entityType" && e["resourceId"] == "product" && e["op"] == "read"
     });
-    assert!(has_read, "read-allow muss in effective stehen: {effective:?}");
+    assert!(
+        has_read,
+        "read-allow muss in effective stehen: {effective:?}"
+    );
     // Kein Deny.
-    let has_delete = effective
-        .iter()
-        .any(|e| e["op"] == "delete");
-    assert!(!has_delete, "deny-Regel darf nicht in der projizierten Liste sein");
+    let has_delete = effective.iter().any(|e| e["op"] == "delete");
+    assert!(
+        !has_delete,
+        "deny-Regel darf nicht in der projizierten Liste sein"
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[serial_test::serial]
 async fn current_effective_query_returns_same_shape() {
     boot().await;
-    insert_permission_row(
-        "user",
-        "u-1",
-        "entityType",
-        "product",
-        "read",
-        "allow",
-    )
-    .await;
+    insert_permission_row("user", "u-1", "entityType", "product", "read", "allow").await;
 
     let ctx = login_as("admin", "admin").await;
     let res = exec(
@@ -1525,10 +1528,7 @@ async fn current_effective_query_returns_same_shape() {
     )
     .await;
     assert!(res.errors.is_empty(), "{:?}", res.errors);
-    let arr = res
-        .data
-        .into_json()
-        .unwrap()["currentEffective"]
+    let arr = res.data.into_json().unwrap()["currentEffective"]
         .as_array()
         .cloned()
         .unwrap();
@@ -1561,12 +1561,7 @@ async fn logout_invalidates_only_this_token() {
     let token_b = ctx_b.token.clone().unwrap();
     assert_ne!(token_a, token_b);
 
-    let res = exec(
-        r#"mutation{ logout }"#,
-        json!({}),
-        ctx_a.clone(),
-    )
-    .await;
+    let res = exec(r#"mutation{ logout }"#, json!({}), ctx_a.clone()).await;
     assert!(res.errors.is_empty());
     assert_eq!(res.data.into_json().unwrap()["logout"], json!(true));
 
@@ -1644,7 +1639,10 @@ async fn save_entity_view_creates_then_conflicts_on_stale_version() {
     )
     .await;
     assert!(res2.errors.is_empty(), "{:?}", res2.errors);
-    assert_eq!(res2.data.into_json().unwrap()["saveEntityView"]["kind"], json!("CONFLICT"));
+    assert_eq!(
+        res2.data.into_json().unwrap()["saveEntityView"]["kind"],
+        json!("CONFLICT")
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1665,7 +1663,10 @@ async fn save_entity_view_forbidden_without_auth() {
     )
     .await;
     assert!(res.errors.is_empty(), "{:?}", res.errors);
-    assert_eq!(res.data.into_json().unwrap()["saveEntityView"]["kind"], json!("FORBIDDEN"));
+    assert_eq!(
+        res.data.into_json().unwrap()["saveEntityView"]["kind"],
+        json!("FORBIDDEN")
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1692,7 +1693,10 @@ async fn revert_entity_view_removes_user_layer_only() {
     )
     .await;
     assert!(save.errors.is_empty(), "{:?}", save.errors);
-    assert_eq!(save.data.into_json().unwrap()["saveEntityView"]["kind"], json!("OK"));
+    assert_eq!(
+        save.data.into_json().unwrap()["saveEntityView"]["kind"],
+        json!("OK")
+    );
 
     // User-Layer wieder loeschen (revert).
     let revert = exec(
@@ -1709,7 +1713,10 @@ async fn revert_entity_view_removes_user_layer_only() {
     )
     .await;
     assert!(revert.errors.is_empty(), "{:?}", revert.errors);
-    assert_eq!(revert.data.into_json().unwrap()["revertEntityView"]["ok"], json!(true));
+    assert_eq!(
+        revert.data.into_json().unwrap()["revertEntityView"]["ok"],
+        json!(true)
+    );
 
     // Global-Layer aus F1-Seed bleibt erhalten.
     let q = exec(
@@ -1719,7 +1726,10 @@ async fn revert_entity_view_removes_user_layer_only() {
     )
     .await;
     assert!(q.errors.is_empty(), "{:?}", q.errors);
-    assert_eq!(q.data.into_json().unwrap()["entityView"]["viewName"], json!("default"));
+    assert_eq!(
+        q.data.into_json().unwrap()["entityView"]["viewName"],
+        json!("default")
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]

@@ -90,7 +90,11 @@ fn render_decimal(ctx: FormatterContext, precision: u8) -> AnyView {
 
 fn render_boolean(ctx: FormatterContext) -> AnyView {
     let b = ctx.value.as_bool().unwrap_or(false);
-    let key = if b { "value.bool.true" } else { "value.bool.false" };
+    let key = if b {
+        "value.bool.true"
+    } else {
+        "value.bool.false"
+    };
     view! { <span>{crate::i18n::t(key)}</span> }.into_any()
 }
 
@@ -109,7 +113,9 @@ fn render_datetime(ctx: FormatterContext) -> AnyView {
 fn render_money(ctx: FormatterContext) -> AnyView {
     let amount = ctx.value.as_f64().unwrap_or(0.0);
     let currency = match &ctx.column.field_type {
-        shared::FieldType::Money { currency_code_field: Some(cf) } => ctx
+        shared::FieldType::Money {
+            currency_code_field: Some(cf),
+        } => ctx
             .fields
             .get(cf)
             .and_then(|v| v.as_str())

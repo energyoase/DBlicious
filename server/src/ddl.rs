@@ -8,11 +8,7 @@ use shared::{DbColumnType, DbSchema, DbTable};
 pub fn render_create_table(table: &DbTable) -> String {
     let mut parts: Vec<String> = Vec::new();
     for col in &table.columns {
-        let mut line = format!(
-            "  \"{}\" {}",
-            col.name,
-            sqlite_type(&col.data_type)
-        );
+        let mut line = format!("  \"{}\" {}", col.name, sqlite_type(&col.data_type));
         if col.primary_key {
             line.push_str(" PRIMARY KEY");
         }
@@ -100,7 +96,15 @@ mod tests {
             columns: vec![
                 col("id", DbColumnType::Text, true, false),
                 col("name", DbColumnType::Text, false, false),
-                col("price", DbColumnType::Decimal { precision: 10, scale: 2 }, false, true),
+                col(
+                    "price",
+                    DbColumnType::Decimal {
+                        precision: 10,
+                        scale: 2,
+                    },
+                    false,
+                    true,
+                ),
             ],
         };
         let sql = render_create_table(&t);

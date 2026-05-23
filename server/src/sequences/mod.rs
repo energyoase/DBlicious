@@ -56,11 +56,11 @@ pub async fn ensure_sequence(
         .await?;
     if existing.is_none() {
         number_sequences::ActiveModel {
-            scope:           ActiveValue::Set(scope.to_string()),
-            year:            ActiveValue::Set(year),
-            current:         ActiveValue::Set(0),
+            scope: ActiveValue::Set(scope.to_string()),
+            year: ActiveValue::Set(year),
+            current: ActiveValue::Set(0),
             format_template: ActiveValue::Set(format_template.to_string()),
-            tenant_id:       ActiveValue::Set(None),
+            tenant_id: ActiveValue::Set(None),
         }
         .insert(conn)
         .await?;
@@ -71,9 +71,9 @@ pub async fn ensure_sequence(
 /// Aktuelle Zahl ohne Increment. Liefert `0`, wenn die Sequenz noch nicht
 /// existiert.
 pub async fn current_number(
-    conn:  &DatabaseConnection,
+    conn: &DatabaseConnection,
     scope: &str,
-    year:  i32,
+    year: i32,
 ) -> Result<i64, SequenceError> {
     Ok(number_sequences::Entity::find()
         .filter(number_sequences::Column::Scope.eq(scope))
@@ -93,9 +93,9 @@ pub async fn current_number(
 /// MySQL) ist die Transaktion mit `SELECT ... FOR UPDATE` gleichwertig,
 /// aber SeaORM macht das hier ueber den row-update-Pfad ohnehin atomar.
 pub async fn next_number(
-    conn:  &DatabaseConnection,
+    conn: &DatabaseConnection,
     scope: &str,
-    year:  i32,
+    year: i32,
 ) -> Result<String, SequenceError> {
     let txn = conn.begin().await?;
     let row = number_sequences::Entity::find()
@@ -115,11 +115,11 @@ pub async fn next_number(
         None => {
             // Neu anlegen mit Default-Template + current=1 (erste Vergabe).
             number_sequences::ActiveModel {
-                scope:           ActiveValue::Set(scope.to_string()),
-                year:            ActiveValue::Set(year),
-                current:         ActiveValue::Set(1),
+                scope: ActiveValue::Set(scope.to_string()),
+                year: ActiveValue::Set(year),
+                current: ActiveValue::Set(1),
                 format_template: ActiveValue::Set(DEFAULT_FORMAT_TEMPLATE.to_string()),
-                tenant_id:       ActiveValue::Set(None),
+                tenant_id: ActiveValue::Set(None),
             }
             .insert(&txn)
             .await?;
@@ -136,9 +136,9 @@ pub async fn next_number(
 /// Achtung: keine Audit-Spur — wer das per CLI/UI auslöst, ist
 /// Aufrufer-Verantwortung.
 pub async fn reset_sequence(
-    conn:  &DatabaseConnection,
+    conn: &DatabaseConnection,
     scope: &str,
-    year:  i32,
+    year: i32,
 ) -> Result<(), SequenceError> {
     if let Some(m) = number_sequences::Entity::find()
         .filter(number_sequences::Column::Scope.eq(scope))

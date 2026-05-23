@@ -12,35 +12,35 @@ use shared::state_machine::{StateMachine, Transition};
 async fn install_invoice_settings_with_sm() {
     use server::entity::metadata_settings;
     let sm = StateMachine {
-        states:      vec!["draft".into(), "posted".into(), "cancelled".into()],
-        initial:     Some("draft".into()),
+        states: vec!["draft".into(), "posted".into(), "cancelled".into()],
+        initial: Some("draft".into()),
         state_field: "state".into(),
         transitions: vec![
             Transition {
-                from:       "draft".into(),
-                to:         "posted".into(),
-                event:      "post".into(),
-                guard:      Some(GuardExpr::new("fields.amount > 0")),
+                from: "draft".into(),
+                to: "posted".into(),
+                event: "post".into(),
+                guard: Some(GuardExpr::new("fields.amount > 0")),
                 permission: Some("invoice.post".into()),
             },
             Transition {
-                from:       "posted".into(),
-                to:         "cancelled".into(),
-                event:      "cancel".into(),
-                guard:      None,
+                from: "posted".into(),
+                to: "cancelled".into(),
+                event: "cancel".into(),
+                guard: None,
                 permission: None,
             },
         ],
     };
     let settings = shared::EntitySettings {
-        entity_type:   "invoice".into(),
+        entity_type: "invoice".into(),
         state_machine: Some(sm),
         ..Default::default()
     };
     let json = serde_json::to_string(&settings).unwrap();
     let conn = server::db::conn();
     let _ = metadata_settings::Entity::insert(metadata_settings::ActiveModel {
-        entity_type:   ActiveValue::Set("invoice".into()),
+        entity_type: ActiveValue::Set("invoice".into()),
         settings_json: ActiveValue::Set(json),
     })
     .exec(&conn)
@@ -56,9 +56,9 @@ async fn insert_invoice(id: &str, state: &str, amount: i64) {
     });
     let _ = entities::Entity::insert(entities::ActiveModel {
         entity_type: ActiveValue::Set("invoice".into()),
-        id:          ActiveValue::Set(id.into()),
+        id: ActiveValue::Set(id.into()),
         fields_json: ActiveValue::Set(fields.to_string()),
-        hash:        ActiveValue::Set("0".into()),
+        hash: ActiveValue::Set("0".into()),
     })
     .exec(&conn)
     .await;
@@ -71,7 +71,10 @@ async fn no_state_machine_returns_specific_error() {
     let err = server::state_machine::apply_transition("nope", "x", "post", None)
         .await
         .unwrap_err();
-    assert!(matches!(err, server::state_machine::TransitionError::NoStateMachine(_)));
+    assert!(matches!(
+        err,
+        server::state_machine::TransitionError::NoStateMachine(_)
+    ));
 }
 
 #[tokio::test]
@@ -82,7 +85,10 @@ async fn missing_entity_returns_not_found() {
     let err = server::state_machine::apply_transition("invoice", "nope-id", "post", None)
         .await
         .unwrap_err();
-    assert!(matches!(err, server::state_machine::TransitionError::NotFound { .. }));
+    assert!(matches!(
+        err,
+        server::state_machine::TransitionError::NotFound { .. }
+    ));
 }
 
 #[tokio::test]
@@ -109,7 +115,10 @@ async fn guard_failure_blocks_transition() {
     let err = server::state_machine::apply_transition("invoice", "inv-zero", "post", None)
         .await
         .unwrap_err();
-    assert!(matches!(err, server::state_machine::TransitionError::GuardFailed { .. }));
+    assert!(matches!(
+        err,
+        server::state_machine::TransitionError::GuardFailed { .. }
+    ));
 }
 
 #[tokio::test]
@@ -123,8 +132,8 @@ async fn happy_path_transitions_and_writes_audit() {
     let outcome = server::state_machine::apply_transition("invoice", "inv-2", "post", None)
         .await
         .unwrap();
-    assert_eq!(outcome.from,  "draft");
-    assert_eq!(outcome.to,    "posted");
+    assert_eq!(outcome.from, "draft");
+    assert_eq!(outcome.to, "posted");
     assert_eq!(outcome.event, "post");
 
     // Audit-Eintrag muss existieren.
@@ -140,10 +149,8 @@ async fn happy_path_transitions_and_writes_audit() {
     let row = &audit_rows[0];
     assert_eq!(row.op.as_deref(), Some("post"));
     assert!(row.resource_id.as_deref().unwrap_or("").contains("inv-2"));
-    let payload: serde_json::Value = serde_json::from_str(
-        row.payload_json.as_deref().unwrap_or("null"),
-    )
-    .unwrap();
+    let payload: serde_json::Value =
+        serde_json::from_str(row.payload_json.as_deref().unwrap_or("null")).unwrap();
     assert_eq!(payload["from"], serde_json::json!("draft"));
-    assert_eq!(payload["to"],   serde_json::json!("posted"));
+    assert_eq!(payload["to"], serde_json::json!("posted"));
 }

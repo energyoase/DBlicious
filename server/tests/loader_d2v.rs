@@ -61,10 +61,16 @@ fn d2v_loads_all_17_entities() {
 fn d2v_every_entity_has_columns_editor_settings_and_binding() {
     let set = example::load(&d2v_dir()).expect("laden");
     for ty in EXPECTED_ENTITY_TYPES {
-        let e = set.entities.get(*ty).unwrap_or_else(|| panic!("'{ty}' fehlt"));
+        let e = set
+            .entities
+            .get(*ty)
+            .unwrap_or_else(|| panic!("'{ty}' fehlt"));
         assert!(!e.columns.is_empty(), "{ty}: columns leer");
         assert!(e.editor.is_some(), "{ty}: editor fehlt");
-        let settings = e.settings.as_ref().unwrap_or_else(|| panic!("{ty}: settings fehlt"));
+        let settings = e
+            .settings
+            .as_ref()
+            .unwrap_or_else(|| panic!("{ty}: settings fehlt"));
         let binding = settings
             .binding
             .as_ref()
@@ -83,8 +89,14 @@ fn d2v_every_entity_has_columns_editor_settings_and_binding() {
 fn d2v_composite_pks_are_correct() {
     let set = example::load(&d2v_dir()).expect("laden");
     let cases = [
-        ("datev_account_entry", &["entryId", "accountNr", "offsetAccountNr"][..]),
-        ("datev_calculation_value", &["calculationId", "year", "method"][..]),
+        (
+            "datev_account_entry",
+            &["entryId", "accountNr", "offsetAccountNr"][..],
+        ),
+        (
+            "datev_calculation_value",
+            &["calculationId", "year", "method"][..],
+        ),
         ("star_money_account", &["bankCode", "code"][..]),
         ("susa_entry", &["accountNr", "year"][..]),
     ];
@@ -97,11 +109,7 @@ fn d2v_composite_pks_are_correct() {
             .as_ref()
             .unwrap()
             .primary_key;
-        assert_eq!(
-            pk.as_slice(),
-            expected,
-            "{ty}: PK weicht ab"
-        );
+        assert_eq!(pk.as_slice(), expected, "{ty}: PK weicht ab");
     }
 }
 
@@ -144,7 +152,14 @@ fn d2v_column_map_covers_every_column() {
     let set = example::load(&d2v_dir()).expect("laden");
     for ty in EXPECTED_ENTITY_TYPES {
         let e = &set.entities[*ty];
-        let map = &e.settings.as_ref().unwrap().binding.as_ref().unwrap().column_map;
+        let map = &e
+            .settings
+            .as_ref()
+            .unwrap()
+            .binding
+            .as_ref()
+            .unwrap()
+            .column_map;
         for col in &e.columns {
             assert!(
                 map.contains_key(&col.key),

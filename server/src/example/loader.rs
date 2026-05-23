@@ -123,9 +123,8 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
     let entities_root = dir.join("entities");
     let mut entities: BTreeMap<String, EntityTypeSet> = BTreeMap::new();
     if entities_root.is_dir() {
-        let read = std::fs::read_dir(&entities_root).with_context(|| {
-            format!("kann '{}' nicht lesen", entities_root.display())
-        })?;
+        let read = std::fs::read_dir(&entities_root)
+            .with_context(|| format!("kann '{}' nicht lesen", entities_root.display()))?;
         for entry in read {
             let entry = entry?;
             let path = entry.path();
@@ -272,10 +271,8 @@ fn load_entity_type(dir: &Path) -> Result<EntityTypeSet> {
     let columns: Vec<shared::ColumnMeta> =
         read_typed_opt(find_file(dir, "columns"))?.unwrap_or_default();
     let editor: Option<shared::EditorMeta> = read_typed_opt(find_file(dir, "editor"))?;
-    let mut settings: Option<shared::EntitySettings> =
-        read_typed_opt(find_file(dir, "settings"))?;
-    let binding: Option<shared::source::EntityBinding> =
-        read_typed_opt(find_file(dir, "binding"))?;
+    let mut settings: Option<shared::EntitySettings> = read_typed_opt(find_file(dir, "settings"))?;
+    let binding: Option<shared::source::EntityBinding> = read_typed_opt(find_file(dir, "binding"))?;
     if let Some(b) = binding {
         let entry = settings.get_or_insert_with(shared::EntitySettings::default);
         entry.binding = Some(b);

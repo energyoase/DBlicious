@@ -31,11 +31,7 @@ impl CommandRegistry {
         self.commands.insert(id.into(), Arc::new(handler));
     }
 
-    pub fn dispatch(
-        &self,
-        id: &str,
-        args: &serde_json::Map<String, serde_json::Value>,
-    ) -> bool {
+    pub fn dispatch(&self, id: &str, args: &serde_json::Map<String, serde_json::Value>) -> bool {
         if let Some(handler) = self.commands.get(id) {
             handler(args);
             true
@@ -54,11 +50,7 @@ impl CommandRegistryHandle {
         f(&mut self.0.lock().expect("CommandRegistry mutex poisoned"));
     }
 
-    pub fn dispatch(
-        &self,
-        id: &str,
-        args: &serde_json::Map<String, serde_json::Value>,
-    ) -> bool {
+    pub fn dispatch(&self, id: &str, args: &serde_json::Map<String, serde_json::Value>) -> bool {
         self.0
             .lock()
             .expect("CommandRegistry mutex poisoned")

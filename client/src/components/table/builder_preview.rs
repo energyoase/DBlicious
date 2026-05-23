@@ -188,7 +188,10 @@ mod tests {
     #[test]
     fn placeholder_boolean_alternates() {
         assert_eq!(placeholder_value(&FieldType::Boolean, 0), Value::Bool(true));
-        assert_eq!(placeholder_value(&FieldType::Boolean, 1), Value::Bool(false));
+        assert_eq!(
+            placeholder_value(&FieldType::Boolean, 1),
+            Value::Bool(false)
+        );
         assert_eq!(placeholder_value(&FieldType::Boolean, 2), Value::Bool(true));
     }
 

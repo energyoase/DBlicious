@@ -75,11 +75,7 @@ fn setup_minimal_example(test_name: &str) -> PathBuf {
 fn migrate_security_writes_three_files_with_expected_shape() {
     let dir = setup_minimal_example("write_three_files");
 
-    let out = run_cli(&[
-        "migrate-security",
-        "--data-dir",
-        dir.to_str().unwrap(),
-    ]);
+    let out = run_cli(&["migrate-security", "--data-dir", dir.to_str().unwrap()]);
     assert!(
         out.status.success(),
         "stdout: {}\nstderr: {}",
@@ -123,20 +119,15 @@ fn migrate_security_writes_three_files_with_expected_shape() {
 fn migrate_security_idempotent_with_force() {
     let dir = setup_minimal_example("idempotent");
 
-    let first = run_cli(&[
-        "migrate-security",
-        "--data-dir",
-        dir.to_str().unwrap(),
-    ]);
+    let first = run_cli(&["migrate-security", "--data-dir", dir.to_str().unwrap()]);
     assert!(first.status.success());
 
     // Zweiter Lauf ohne --force muss scheitern.
-    let second = run_cli(&[
-        "migrate-security",
-        "--data-dir",
-        dir.to_str().unwrap(),
-    ]);
-    assert!(!second.status.success(), "zweiter Lauf ohne --force muss scheitern");
+    let second = run_cli(&["migrate-security", "--data-dir", dir.to_str().unwrap()]);
+    assert!(
+        !second.status.success(),
+        "zweiter Lauf ohne --force muss scheitern"
+    );
 
     // Inhalt der Dateien vor dem dritten Lauf festhalten.
     let perm_before = fs::read_to_string(dir.join("security").join("permissions.json")).unwrap();
@@ -170,7 +161,10 @@ fn migrate_security_dry_run_does_not_write() {
     ]);
     assert!(out.status.success());
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("dry-run"), "dry-run-Hinweis im Output: {stdout}");
+    assert!(
+        stdout.contains("dry-run"),
+        "dry-run-Hinweis im Output: {stdout}"
+    );
 
     assert!(
         !dir.join("security").join("permissions.json").exists(),

@@ -95,10 +95,7 @@ async fn main() {
             std::process::exit(2);
         }
     };
-    let bind = args
-        .bind
-        .clone()
-        .unwrap_or_else(|| set.config.bind.clone());
+    let bind = args.bind.clone().unwrap_or_else(|| set.config.bind.clone());
     let example_name = set.config.name.clone();
     let entity_types: Vec<String> = set.entity_types().map(str::to_string).collect();
     let sources = set.sources.clone();
@@ -136,10 +133,8 @@ async fn main() {
     // ist konservativ — Cron-Granularitaet ist 1 Minute, also reicht das
     // doppelt so haeufige Polling, um jeden Slot ohne Drift zu treffen.
     // Handle leakt absichtlich (Loop laeuft, bis der Prozess endet).
-    let _scheduler_handle = server::jobs::start_scheduler_loop(
-        server::db::conn(),
-        std::time::Duration::from_secs(30),
-    );
+    let _scheduler_handle =
+        server::jobs::start_scheduler_loop(server::db::conn(), std::time::Duration::from_secs(30));
     tracing::info!("Job-Scheduler-Loop gestartet (Intervall 30s)");
 
     let schema: AppSchema = build_schema();

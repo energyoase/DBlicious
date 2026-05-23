@@ -94,7 +94,11 @@ impl FieldRegistry for DefaultFieldRegistry {
             }
 
             (FieldType::Boolean, Value::Bool(b)) => {
-                let key = if *b { "value.bool.true" } else { "value.bool.false" };
+                let key = if *b {
+                    "value.bool.true"
+                } else {
+                    "value.bool.false"
+                };
                 view! { <span>{crate::i18n::t(key)}</span> }.into_any()
             }
 
@@ -105,8 +109,17 @@ impl FieldRegistry for DefaultFieldRegistry {
                 view! { <span>{format::datetime(s, ctx.locale)}</span> }.into_any()
             }
 
-            (FieldType::Money { currency_code_field }, Value::Number(_)) => {
-                let amount = ctx.fields.get(ctx.key).and_then(Value::as_f64).unwrap_or(0.0);
+            (
+                FieldType::Money {
+                    currency_code_field,
+                },
+                Value::Number(_),
+            ) => {
+                let amount = ctx
+                    .fields
+                    .get(ctx.key)
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0);
                 let currency = currency_code_field
                     .as_deref()
                     .and_then(|cf| ctx.fields.get(cf))
@@ -123,9 +136,7 @@ impl FieldRegistry for DefaultFieldRegistry {
             // entweder einen Batch-Resolver auf dem Server oder einen Cache-
             // Pfad in `DataSource`; bis dahin ist die ID lesbar und kopierbar,
             // was eine Verbesserung gegenueber dem reinen `⟨Verweis⟩` ist.
-            (FieldType::Reference { .. }, Value::String(s)) if !s.is_empty() => {
-                render_reference(s)
-            }
+            (FieldType::Reference { .. }, Value::String(s)) if !s.is_empty() => render_reference(s),
             (FieldType::Reference { .. }, Value::Number(n)) => render_reference(&n.to_string()),
             (FieldType::Reference { .. }, Value::Null) => render_empty(),
             (FieldType::Reference { .. }, _) => placeholder("table.placeholder.reference"),
@@ -169,12 +180,9 @@ fn render_collection(arr: &[Value]) -> AnyView {
     const INLINE_LIMIT: usize = 3;
     let count = arr.len() as i64;
 
-    let all_scalar = arr.iter().all(|v| {
-        matches!(
-            v,
-            Value::String(_) | Value::Number(_) | Value::Bool(_)
-        )
-    });
+    let all_scalar = arr
+        .iter()
+        .all(|v| matches!(v, Value::String(_) | Value::Number(_) | Value::Bool(_)));
 
     if arr.len() <= INLINE_LIMIT && all_scalar && !arr.is_empty() {
         let joined = arr
@@ -318,7 +326,9 @@ fn format_validation(key: &str, args: &serde_json::Map<String, serde_json::Value
         let fv: Option<FluentValue<'static>> = match v {
             serde_json::Value::String(s) => Some(FluentValue::from(s.clone())),
             serde_json::Value::Number(n) => n.as_f64().map(FluentValue::from),
-            serde_json::Value::Bool(b) => Some(FluentValue::from(if *b { "true" } else { "false" })),
+            serde_json::Value::Bool(b) => {
+                Some(FluentValue::from(if *b { "true" } else { "false" }))
+            }
             _ => None,
         };
         if let Some(fv) = fv {

@@ -50,11 +50,15 @@ impl TableState {
     pub fn toggle_sort(&self, field: &str) {
         let current = self.sort.get();
         let next = match current {
-            Some(s) if s.field == field && s.direction == SortDirection::Asc => {
-                Some(Sort { field: field.into(), direction: SortDirection::Desc })
-            }
+            Some(s) if s.field == field && s.direction == SortDirection::Asc => Some(Sort {
+                field: field.into(),
+                direction: SortDirection::Desc,
+            }),
             Some(s) if s.field == field && s.direction == SortDirection::Desc => None,
-            _ => Some(Sort { field: field.into(), direction: SortDirection::Asc }),
+            _ => Some(Sort {
+                field: field.into(),
+                direction: SortDirection::Asc,
+            }),
         };
         self.sort.set(next);
         self.page.set(1);

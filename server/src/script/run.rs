@@ -132,16 +132,16 @@ where
     // Bei Compile-Fehler erzeugen wir trotzdem einen Audit-Eintrag,
     // damit jeder Run-Versuch nachvollziehbar bleibt.
     let (outcome_str, value, error, token_uses) = match ast_result {
-        Err(e) => (outcome_tag(&Some(e.clone())).to_string(), None, Some(e), Vec::new()),
+        Err(e) => (
+            outcome_tag(&Some(e.clone())).to_string(),
+            None,
+            Some(e),
+            Vec::new(),
+        ),
         Ok(ast) => {
             let mut sb = Sandbox::new(&script.manifest);
             match body(&engine, &ast, &mut sb, &ctx) {
-                Ok(v) => (
-                    "ok".to_string(),
-                    Some(v),
-                    None,
-                    sb.token_uses().to_vec(),
-                ),
+                Ok(v) => ("ok".to_string(), Some(v), None, sb.token_uses().to_vec()),
                 Err(e) => (
                     outcome_tag(&Some(e.clone())).to_string(),
                     None,

@@ -72,10 +72,7 @@ async fn make_fixture_db(ddl: &[&str]) -> (String, sea_orm::DatabaseConnection) 
     (url, anchor)
 }
 
-async fn make_fixture_source(
-    url: &str,
-    source_name: &str,
-) -> ForeignSqliteSource {
+async fn make_fixture_source(url: &str, source_name: &str) -> ForeignSqliteSource {
     let mut src = ForeignSqliteSource::new(source_name.into(), url.into());
     src.init().await.unwrap();
     src
@@ -136,10 +133,7 @@ async fn test_datev_account_list_page() {
         "Feld 'number' (camelCase) fehlt, vorhanden: {:?}",
         first.fields.keys().collect::<Vec<_>>()
     );
-    assert!(
-        first.fields.contains_key("name"),
-        "Feld 'name' fehlt"
-    );
+    assert!(first.fields.contains_key("name"), "Feld 'name' fehlt");
     // Kein PascalCase soll durchrutschen
     assert!(
         !first.fields.contains_key("Number"),
@@ -179,7 +173,10 @@ async fn test_star_money_account_composite_get() {
     let id = shared::source::EntityId::Composite(vec!["BANK1".into(), "ACC1".into()]);
     let result = src.get(&binding, &id).await.unwrap();
 
-    assert!(result.is_some(), "Entity muss gefunden werden (Composite-PK)");
+    assert!(
+        result.is_some(),
+        "Entity muss gefunden werden (Composite-PK)"
+    );
     let entity = result.unwrap();
     assert_eq!(
         entity.fields.get("code").and_then(|v| v.as_str()),
@@ -246,7 +243,10 @@ async fn test_star_money_booking_text_read_only_rejects_update() {
         )
         .await
         .unwrap();
-    assert_eq!(page.total_count, 2, "Lesen muss bei read-only funktionieren");
+    assert_eq!(
+        page.total_count, 2,
+        "Lesen muss bei read-only funktionieren"
+    );
 
     // update muss ReadOnly-Fehler liefern
     let id = shared::source::EntityId::Single("1".into());

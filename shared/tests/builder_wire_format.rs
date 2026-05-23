@@ -35,7 +35,9 @@ fn event_trigger_click_navigate_serializes_camelcase() {
 #[test]
 fn event_trigger_change_carries_field_name() {
     let t = EventTrigger {
-        event: EventKind::Change { field: "price".into() },
+        event: EventKind::Change {
+            field: "price".into(),
+        },
         target: TriggerTarget::BuiltinAction {
             name: "save".into(),
             args: json!({}),
@@ -100,7 +102,9 @@ fn event_trigger_server_kinds_serialize_camelcase() {
 #[test]
 fn event_trigger_custom_carries_name() {
     let t = EventTrigger {
-        event: EventKind::Custom { name: "shipOrder".into() },
+        event: EventKind::Custom {
+            name: "shipOrder".into(),
+        },
         target: TriggerTarget::BuiltinAction {
             name: "noop".into(),
             args: json!({}),
@@ -121,7 +125,10 @@ fn event_trigger_optionals_are_omitted_when_none() {
         debounce_ms: None,
     };
     let v = serde_json::to_value(&t).unwrap();
-    assert!(v.get("guard").is_none(), "guard sollte weggelassen werden: {v}");
+    assert!(
+        v.get("guard").is_none(),
+        "guard sollte weggelassen werden: {v}"
+    );
     assert!(
         v.get("debounceMs").is_none(),
         "debounceMs sollte weggelassen werden: {v}"
@@ -167,10 +174,9 @@ fn unknown_event_kind_fails_to_deserialize() {
 fn guard_expr_parses_and_evaluates_simple_predicate() {
     let g = GuardExpr::new("fields.status == \"draft\"");
     let ast = g.parse().expect("parse ok");
-    let fields: serde_json::Map<String, serde_json::Value> =
-        match json!({"status": "draft"}) {
-            serde_json::Value::Object(m) => m,
-            _ => unreachable!(),
-        };
+    let fields: serde_json::Map<String, serde_json::Value> = match json!({"status": "draft"}) {
+        serde_json::Value::Object(m) => m,
+        _ => unreachable!(),
+    };
     assert!(ast.evaluate(&fields));
 }

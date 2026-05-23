@@ -28,7 +28,9 @@ pub fn project_columns(tree: &UiTree) -> Vec<ColumnMeta> {
     let mut out: Vec<ColumnMeta> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     for node in tree.walk() {
-        let Some(bound) = &node.bound_field else { continue };
+        let Some(bound) = &node.bound_field else {
+            continue;
+        };
         if !seen.insert(bound.key.clone()) {
             continue;
         }
@@ -43,7 +45,9 @@ pub fn project_columns_from_node(node: &UiNode) -> Vec<ColumnMeta> {
     let mut out: Vec<ColumnMeta> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     for n in node.walk() {
-        let Some(bound) = &n.bound_field else { continue };
+        let Some(bound) = &n.bound_field else {
+            continue;
+        };
         if !seen.insert(bound.key.clone()) {
             continue;
         }
@@ -58,8 +62,12 @@ fn column_from(bound: &BoundField) -> ColumnMeta {
         .label_key
         .clone()
         .unwrap_or_else(|| format!("column.{}", bound.key));
-    let sortable = bound.sortable.unwrap_or_else(|| default_sortable(&field_type));
-    let filterable = bound.filterable.unwrap_or_else(|| default_filterable(&field_type));
+    let sortable = bound
+        .sortable
+        .unwrap_or_else(|| default_sortable(&field_type));
+    let filterable = bound
+        .filterable
+        .unwrap_or_else(|| default_filterable(&field_type));
     ColumnMeta {
         key: bound.key.clone(),
         label_key,
@@ -136,7 +144,10 @@ mod tests {
         t.push_root(UiNode::new(NodeId(1))); // kein bound_field
         t.push_root(bound(2, "price", Some(FieldType::Decimal { precision: 2 })));
         let cols = project_columns(&t);
-        assert_eq!(cols.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(), vec!["price"]);
+        assert_eq!(
+            cols.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(),
+            vec!["price"]
+        );
     }
 
     #[test]
@@ -167,8 +178,20 @@ mod tests {
     #[test]
     fn reference_and_collection_default_to_non_sortable() {
         let mut t = UiTree::empty();
-        t.push_root(bound(1, "owner", Some(FieldType::Reference { entity: "user".into() })));
-        t.push_root(bound(2, "tags", Some(FieldType::Collection { entity: "tag".into() })));
+        t.push_root(bound(
+            1,
+            "owner",
+            Some(FieldType::Reference {
+                entity: "user".into(),
+            }),
+        ));
+        t.push_root(bound(
+            2,
+            "tags",
+            Some(FieldType::Collection {
+                entity: "tag".into(),
+            }),
+        ));
         let cols = project_columns(&t);
         assert!(!cols[0].sortable && !cols[0].filterable);
         assert!(!cols[1].sortable && !cols[1].filterable);

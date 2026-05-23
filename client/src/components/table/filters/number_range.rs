@@ -3,8 +3,8 @@
 use leptos::prelude::*;
 use shared::{ColumnMeta, FilterPredicate};
 
-use super::helpers::{current_predicate, upsert_predicate};
 use super::super::shell::use_shell;
+use super::helpers::{current_predicate, upsert_predicate};
 use crate::styling::use_design;
 
 pub const ID: &str = "number-range";

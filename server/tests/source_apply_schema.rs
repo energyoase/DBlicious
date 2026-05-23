@@ -11,41 +11,39 @@ use sea_orm::{ConnectionTrait, Database, DbBackend, FromQueryResult, JsonValue, 
 use server::source::foreign_sqlite::ForeignSqliteSource;
 use server::source::managed_sqlite::ManagedSqliteSource;
 use server::source::{Source, SourceError};
-use shared::{
-    AuditRole, ColumnGenerated, DbColumn, DbColumnType, DbSchema, DbTable, Position,
-};
+use shared::{AuditRole, ColumnGenerated, DbColumn, DbColumnType, DbSchema, DbTable, Position};
 
 fn t_col(name: &str, ty: DbColumnType, pk: bool) -> DbColumn {
     DbColumn {
-        id:                 name.into(),
-        name:               name.into(),
-        data_type:          ty,
-        nullable:           !pk,
-        primary_key:        pk,
-        unique:             false,
-        generated:          ColumnGenerated::Never,
-        concurrency_token:  false,
-        default_value:      None,
-        audit_role:         AuditRole::None,
+        id: name.into(),
+        name: name.into(),
+        data_type: ty,
+        nullable: !pk,
+        primary_key: pk,
+        unique: false,
+        generated: ColumnGenerated::Never,
+        concurrency_token: false,
+        default_value: None,
+        audit_role: AuditRole::None,
     }
 }
 
 fn minimal_schema() -> DbSchema {
     DbSchema {
-        id:        "phase06_b5".into(),
-        name:      "phase06_b5_test".into(),
-        tables:    vec![DbTable {
-            id:       "t1".into(),
-            name:     "phase06_b5_widget".into(),
+        id: "phase06_b5".into(),
+        name: "phase06_b5_test".into(),
+        tables: vec![DbTable {
+            id: "t1".into(),
+            name: "phase06_b5_widget".into(),
             position: Position::default(),
-            columns:  vec![
-                t_col("id",   DbColumnType::Text, true),
+            columns: vec![
+                t_col("id", DbColumnType::Text, true),
                 t_col("name", DbColumnType::Text, false),
             ],
         }],
         relations: vec![],
-        keys:      vec![],
-        indices:   vec![],
+        keys: vec![],
+        indices: vec![],
     }
 }
 
@@ -73,10 +71,7 @@ async fn managed_sqlite_applies_schema_and_creates_table() {
         DbBackend::Sqlite,
         "SELECT name FROM sqlite_master WHERE type='table' AND name='phase06_b5_widget'",
     );
-    let rows: Vec<serde_json::Value> = JsonValue::find_by_statement(stmt)
-        .all(&conn)
-        .await
-        .unwrap();
+    let rows: Vec<serde_json::Value> = JsonValue::find_by_statement(stmt).all(&conn).await.unwrap();
     assert_eq!(rows.len(), 1, "Tabelle phase06_b5_widget muss existieren");
 }
 

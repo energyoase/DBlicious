@@ -16,12 +16,23 @@ url  = "sqlite::memory:"
 kind = "foreign-sqlite"
 url  = "sqlite::memory:"
         "#,
-    ).unwrap();
+    )
+    .unwrap();
 
     let set = server::example::loader::load(tmp.path()).expect("load");
-    let names: BTreeMap<_, _> = set.sources.iter().map(|(k, v)| (k.clone(), v.kind.clone())).collect();
-    assert_eq!(names.get("local").map(String::as_str), Some("managed-sqlite"));
-    assert_eq!(names.get("d2v_legacy").map(String::as_str), Some("foreign-sqlite"));
+    let names: BTreeMap<_, _> = set
+        .sources
+        .iter()
+        .map(|(k, v)| (k.clone(), v.kind.clone()))
+        .collect();
+    assert_eq!(
+        names.get("local").map(String::as_str),
+        Some("managed-sqlite")
+    );
+    assert_eq!(
+        names.get("d2v_legacy").map(String::as_str),
+        Some("foreign-sqlite")
+    );
 }
 
 #[test]
@@ -29,7 +40,10 @@ fn loader_synthesizes_local_when_no_sources_toml() {
     let tmp = tempfile::tempdir().unwrap();
     // kein sources.toml in tmp
     let set = server::example::loader::load(tmp.path()).expect("load");
-    assert_eq!(set.sources.get("local").map(|c| c.kind.as_str()), Some("managed-sqlite"));
+    assert_eq!(
+        set.sources.get("local").map(|c| c.kind.as_str()),
+        Some("managed-sqlite")
+    );
 }
 
 #[test]
@@ -38,7 +52,9 @@ fn loader_picks_up_per_entity_binding_toml() {
     let entities = tmp.path().join("entities").join("datev_account");
     std::fs::create_dir_all(&entities).unwrap();
     std::fs::write(entities.join("columns.json"), "[]").unwrap();
-    std::fs::write(entities.join("binding.toml"), r#"
+    std::fs::write(
+        entities.join("binding.toml"),
+        r#"
 source = "d2v_legacy"
 primaryKey = ["number"]
 readOnly = false
@@ -50,7 +66,9 @@ table = "DatevAccounts"
 [columnMap]
 number = "Number"
 name   = "Name"
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     let set = server::example::loader::load(tmp.path()).expect("load");
     let ty = set.entities.get("datev_account").expect("entity loaded");

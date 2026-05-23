@@ -182,7 +182,9 @@ where
     F: FnOnce(&mut ExampleSet),
 {
     let mut guard = slot().write();
-    let Some(set) = guard.as_mut() else { return false };
+    let Some(set) = guard.as_mut() else {
+        return false;
+    };
     f(set);
     true
 }

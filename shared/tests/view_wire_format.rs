@@ -36,14 +36,23 @@ fn entity_view_global_serializes_to_pinned_camelcase_json() {
 
 #[test]
 fn view_layer_serializes_lowercase() {
-    assert_eq!(serde_json::to_string(&ViewLayer::Global).unwrap(), "\"global\"");
-    assert_eq!(serde_json::to_string(&ViewLayer::Group).unwrap(),  "\"group\"");
-    assert_eq!(serde_json::to_string(&ViewLayer::User).unwrap(),   "\"user\"");
+    assert_eq!(
+        serde_json::to_string(&ViewLayer::Global).unwrap(),
+        "\"global\""
+    );
+    assert_eq!(
+        serde_json::to_string(&ViewLayer::Group).unwrap(),
+        "\"group\""
+    );
+    assert_eq!(serde_json::to_string(&ViewLayer::User).unwrap(), "\"user\"");
 }
 
 #[test]
 fn empty_overrides_drop_via_skip_serializing_if() {
-    let o = ViewPropertyOverride { key: "x".into(), ..Default::default() };
+    let o = ViewPropertyOverride {
+        key: "x".into(),
+        ..Default::default()
+    };
     let s = serde_json::to_string(&o).unwrap();
     assert_eq!(s, r#"{"key":"x"}"#);
 }

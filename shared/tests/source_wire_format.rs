@@ -32,7 +32,10 @@ fn composite_with_embedded_separator_escalates_to_json_array() {
     // Eine Komponente enthaelt selbst "::", daher JSON-Array-Form.
     let id = EntityId::Composite(vec!["a::b".into(), "7".into()]);
     let encoded = id.encode();
-    assert!(encoded.starts_with('['), "expected JSON-array form, got {encoded}");
+    assert!(
+        encoded.starts_with('['),
+        "expected JSON-array form, got {encoded}"
+    );
     assert_eq!(EntityId::decode(&encoded), id);
 }
 
@@ -40,7 +43,10 @@ fn composite_with_embedded_separator_escalates_to_json_array() {
 fn composite_with_empty_part_escalates_to_json_array() {
     let id = EntityId::Composite(vec!["".into(), "x".into()]);
     let encoded = id.encode();
-    assert!(encoded.starts_with('['), "expected JSON-array form, got {encoded}");
+    assert!(
+        encoded.starts_with('['),
+        "expected JSON-array form, got {encoded}"
+    );
     assert_eq!(EntityId::decode(&encoded), id);
 }
 
@@ -48,7 +54,10 @@ fn composite_with_empty_part_escalates_to_json_array() {
 fn composite_with_whitespace_edges_escalates_to_json_array() {
     let id = EntityId::Composite(vec![" x ".into(), "y".into()]);
     let encoded = id.encode();
-    assert!(encoded.starts_with('['), "expected JSON-array form, got {encoded}");
+    assert!(
+        encoded.starts_with('['),
+        "expected JSON-array form, got {encoded}"
+    );
     assert_eq!(EntityId::decode(&encoded), id);
 }
 
@@ -73,8 +82,11 @@ fn single_containing_double_colon_violates_contract() {
     let s = EntityId::Single("a::b".into());
     let encoded = s.encode();
     let decoded = EntityId::decode(&encoded);
-    assert_eq!(decoded, EntityId::Composite(vec!["a".into(), "b".into()]),
-        "documented contract violation");
+    assert_eq!(
+        decoded,
+        EntityId::Composite(vec!["a".into(), "b".into()]),
+        "documented contract violation"
+    );
 }
 
 #[test]
@@ -84,8 +96,11 @@ fn single_looking_like_json_array_violates_contract() {
     let s = EntityId::Single(r#"["a","b"]"#.into());
     let encoded = s.encode();
     let decoded = EntityId::decode(&encoded);
-    assert_eq!(decoded, EntityId::Composite(vec!["a".into(), "b".into()]),
-        "documented contract violation");
+    assert_eq!(
+        decoded,
+        EntityId::Composite(vec!["a".into(), "b".into()]),
+        "documented contract violation"
+    );
 }
 
 use shared::source::{BindingLocator, EntityBinding};
@@ -93,7 +108,9 @@ use std::collections::BTreeMap;
 
 #[test]
 fn binding_locator_table_roundtrips_as_tagged_json() {
-    let loc = BindingLocator::Table { table: "DatevAccounts".into() };
+    let loc = BindingLocator::Table {
+        table: "DatevAccounts".into(),
+    };
     let json = serde_json::to_string(&loc).unwrap();
     assert!(json.contains(r#""kind":"table""#));
     assert!(json.contains(r#""table":"DatevAccounts""#));
@@ -103,11 +120,15 @@ fn binding_locator_table_roundtrips_as_tagged_json() {
 
 #[test]
 fn binding_locator_generic_entity_row_uses_camel_case_inner_field() {
-    let loc = BindingLocator::GenericEntityRow { entity_type: "product".into() };
+    let loc = BindingLocator::GenericEntityRow {
+        entity_type: "product".into(),
+    };
     let json = serde_json::to_string(&loc).unwrap();
     assert!(json.contains(r#""kind":"genericEntityRow""#));
-    assert!(json.contains(r#""entityType":"product""#),
-        "expected camelCase inner field, got {json}");
+    assert!(
+        json.contains(r#""entityType":"product""#),
+        "expected camelCase inner field, got {json}"
+    );
     let back: BindingLocator = serde_json::from_str(&json).unwrap();
     assert_eq!(back, loc);
 }
@@ -116,13 +137,18 @@ fn binding_locator_generic_entity_row_uses_camel_case_inner_field() {
 fn entity_binding_omits_empty_column_map_and_default_read_only() {
     let b = EntityBinding {
         source: "local".into(),
-        locator: BindingLocator::GenericEntityRow { entity_type: "product".into() },
+        locator: BindingLocator::GenericEntityRow {
+            entity_type: "product".into(),
+        },
         primary_key: vec!["id".into()],
         read_only: false,
         column_map: BTreeMap::new(),
     };
     let json = serde_json::to_string(&b).unwrap();
-    assert!(!json.contains("columnMap"), "empty columnMap should be omitted, got {json}");
+    assert!(
+        !json.contains("columnMap"),
+        "empty columnMap should be omitted, got {json}"
+    );
     // read_only=false is the default and may or may not be present;
     // we only require it round-trips.
     let back: EntityBinding = serde_json::from_str(&json).unwrap();
@@ -136,16 +162,22 @@ fn entity_binding_preserves_column_map_and_camel_case_primary_key() {
     map.insert("name".into(), "Name".into());
     let b = EntityBinding {
         source: "d2v_legacy".into(),
-        locator: BindingLocator::Table { table: "DatevAccounts".into() },
+        locator: BindingLocator::Table {
+            table: "DatevAccounts".into(),
+        },
         primary_key: vec!["number".into()],
         read_only: true,
         column_map: map,
     };
     let json = serde_json::to_string(&b).unwrap();
-    assert!(json.contains(r#""primaryKey":["number"]"#),
-        "expected camelCase primaryKey, got {json}");
-    assert!(json.contains(r#""columnMap":{"name":"Name","number":"Number"}"#),
-        "expected sorted BTreeMap serialization, got {json}");
+    assert!(
+        json.contains(r#""primaryKey":["number"]"#),
+        "expected camelCase primaryKey, got {json}"
+    );
+    assert!(
+        json.contains(r#""columnMap":{"name":"Name","number":"Number"}"#),
+        "expected sorted BTreeMap serialization, got {json}"
+    );
     let back: EntityBinding = serde_json::from_str(&json).unwrap();
     assert_eq!(back, b);
 }
@@ -169,7 +201,10 @@ fn default_binding_uses_local_managed_sqlite_with_entity_type() {
 fn entity_settings_serializes_without_binding_when_none() {
     let s = shared::EntitySettings::default();
     let json = serde_json::to_string(&s).unwrap();
-    assert!(!json.contains("\"binding\""), "binding should be omitted when None, got {json}");
+    assert!(
+        !json.contains("\"binding\""),
+        "binding should be omitted when None, got {json}"
+    );
 }
 
 #[test]

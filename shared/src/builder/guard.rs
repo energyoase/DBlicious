@@ -106,13 +106,27 @@ pub enum CmpOp {
 /// Fehler beim Parsen oder Auswerten eines Guards.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GuardError {
-    UnexpectedChar { pos: usize, ch: char },
+    UnexpectedChar {
+        pos: usize,
+        ch: char,
+    },
     UnexpectedEof,
-    UnexpectedToken { pos: usize, found: String },
-    UnterminatedString { pos: usize },
-    InvalidNumber { pos: usize, src: String },
+    UnexpectedToken {
+        pos: usize,
+        found: String,
+    },
+    UnterminatedString {
+        pos: usize,
+    },
+    InvalidNumber {
+        pos: usize,
+        src: String,
+    },
     /// Operand-Pfad beginnt nicht mit dem Reserved-Word `fields`.
-    InvalidFieldRef { pos: usize, src: String },
+    InvalidFieldRef {
+        pos: usize,
+        src: String,
+    },
 }
 
 impl core::fmt::Display for GuardError {
@@ -132,7 +146,10 @@ impl core::fmt::Display for GuardError {
                 write!(f, "invalid number '{src}' at pos {pos}")
             }
             GuardError::InvalidFieldRef { pos, src } => {
-                write!(f, "invalid field reference '{src}' at pos {pos} (must start with 'fields.')")
+                write!(
+                    f,
+                    "invalid field reference '{src}' at pos {pos} (must start with 'fields.')"
+                )
             }
         }
     }
@@ -225,51 +242,87 @@ fn tokenize(input: &str) -> Result<Vec<Token>, GuardError> {
         let start = i;
         match c {
             '(' => {
-                out.push(Token { kind: TokKind::LParen, start });
+                out.push(Token {
+                    kind: TokKind::LParen,
+                    start,
+                });
                 i += 1;
             }
             ')' => {
-                out.push(Token { kind: TokKind::RParen, start });
+                out.push(Token {
+                    kind: TokKind::RParen,
+                    start,
+                });
                 i += 1;
             }
             '.' => {
-                out.push(Token { kind: TokKind::Dot, start });
+                out.push(Token {
+                    kind: TokKind::Dot,
+                    start,
+                });
                 i += 1;
             }
             '&' if i + 1 < bytes.len() && bytes[i + 1] == b'&' => {
-                out.push(Token { kind: TokKind::And, start });
+                out.push(Token {
+                    kind: TokKind::And,
+                    start,
+                });
                 i += 2;
             }
             '|' if i + 1 < bytes.len() && bytes[i + 1] == b'|' => {
-                out.push(Token { kind: TokKind::Or, start });
+                out.push(Token {
+                    kind: TokKind::Or,
+                    start,
+                });
                 i += 2;
             }
             '=' if i + 1 < bytes.len() && bytes[i + 1] == b'=' => {
-                out.push(Token { kind: TokKind::Eq, start });
+                out.push(Token {
+                    kind: TokKind::Eq,
+                    start,
+                });
                 i += 2;
             }
             '!' if i + 1 < bytes.len() && bytes[i + 1] == b'=' => {
-                out.push(Token { kind: TokKind::Ne, start });
+                out.push(Token {
+                    kind: TokKind::Ne,
+                    start,
+                });
                 i += 2;
             }
             '!' => {
-                out.push(Token { kind: TokKind::Not, start });
+                out.push(Token {
+                    kind: TokKind::Not,
+                    start,
+                });
                 i += 1;
             }
             '<' if i + 1 < bytes.len() && bytes[i + 1] == b'=' => {
-                out.push(Token { kind: TokKind::Le, start });
+                out.push(Token {
+                    kind: TokKind::Le,
+                    start,
+                });
                 i += 2;
             }
             '<' => {
-                out.push(Token { kind: TokKind::Lt, start });
+                out.push(Token {
+                    kind: TokKind::Lt,
+                    start,
+                });
                 i += 1;
             }
             '>' if i + 1 < bytes.len() && bytes[i + 1] == b'=' => {
-                out.push(Token { kind: TokKind::Ge, start });
+                out.push(Token {
+                    kind: TokKind::Ge,
+                    start,
+                });
                 i += 2;
             }
             '>' => {
-                out.push(Token { kind: TokKind::Gt, start });
+                out.push(Token {
+                    kind: TokKind::Gt,
+                    start,
+                });
                 i += 1;
             }
             '"' | '\'' => {
@@ -304,10 +357,15 @@ fn tokenize(input: &str) -> Result<Vec<Token>, GuardError> {
                 if !closed {
                     return Err(GuardError::UnterminatedString { pos: start });
                 }
-                out.push(Token { kind: TokKind::Str(buf), start });
+                out.push(Token {
+                    kind: TokKind::Str(buf),
+                    start,
+                });
                 i = j;
             }
-            c if c.is_ascii_digit() || (c == '-' && i + 1 < bytes.len() && (bytes[i + 1] as char).is_ascii_digit()) => {
+            c if c.is_ascii_digit()
+                || (c == '-' && i + 1 < bytes.len() && (bytes[i + 1] as char).is_ascii_digit()) =>
+            {
                 let mut j = i;
                 if bytes[j] == b'-' {
                     j += 1;
@@ -321,10 +379,14 @@ fn tokenize(input: &str) -> Result<Vec<Token>, GuardError> {
                     }
                 }
                 let src = &input[start..j];
-                let n: f64 = src
-                    .parse()
-                    .map_err(|_| GuardError::InvalidNumber { pos: start, src: src.into() })?;
-                out.push(Token { kind: TokKind::Num(n), start });
+                let n: f64 = src.parse().map_err(|_| GuardError::InvalidNumber {
+                    pos: start,
+                    src: src.into(),
+                })?;
+                out.push(Token {
+                    kind: TokKind::Num(n),
+                    start,
+                });
                 i = j;
             }
             c if c.is_ascii_alphabetic() || c == '_' => {
@@ -687,9 +749,15 @@ mod tests {
     fn evaluates_and_or_combination() {
         let ast =
             parse("fields.status == \"draft\" && (fields.price > 0 || fields.featured)").unwrap();
-        assert!(ast.evaluate(&map(json!({"status": "draft", "price": 10, "featured": false}))));
-        assert!(ast.evaluate(&map(json!({"status": "draft", "price": 0, "featured": true}))));
-        assert!(!ast.evaluate(&map(json!({"status": "draft", "price": 0, "featured": false}))));
+        assert!(ast.evaluate(&map(
+            json!({"status": "draft", "price": 10, "featured": false})
+        )));
+        assert!(ast.evaluate(&map(
+            json!({"status": "draft", "price": 0, "featured": true})
+        )));
+        assert!(!ast.evaluate(&map(
+            json!({"status": "draft", "price": 0, "featured": false})
+        )));
         assert!(!ast.evaluate(&map(json!({"status": "published", "price": 10}))));
     }
 

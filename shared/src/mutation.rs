@@ -70,10 +70,18 @@ pub struct EntityChangeResult {
 
 impl EntityChangeResult {
     pub fn success(entity: Entity) -> Self {
-        Self { ok: true, entity: Some(entity), validation: ValidationResult::default() }
+        Self {
+            ok: true,
+            entity: Some(entity),
+            validation: ValidationResult::default(),
+        }
     }
 
     pub fn failure(validation: ValidationResult) -> Self {
-        Self { ok: false, entity: None, validation }
+        Self {
+            ok: false,
+            entity: None,
+            validation,
+        }
     }
 }

@@ -39,7 +39,7 @@ async fn delete_all_entity_designs_removes_seeded_versions() {
 async fn delete_all_entity_designs_only_affects_target_type() {
     server::fresh_test_setup().await;
     let _ = data::seed_entity_designs_from_example(&server::db::conn()).await;
-    let before_product  = data::count_entity_designs("product").await.unwrap();
+    let before_product = data::count_entity_designs("product").await.unwrap();
     let before_customer = data::count_entity_designs("customer").await.unwrap();
     assert!(before_product >= 1 && before_customer >= 1);
     let deleted = data::delete_all_entity_designs("product").await.unwrap();

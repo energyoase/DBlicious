@@ -204,17 +204,16 @@ fn EditorBody(
             }
         }
         let source = Rc::new(RemoteSource::new(entity_type.clone())) as Rc<dyn DataSource>;
-        let expected = header_for_delete
-            .with(|hr| hr.get(&entity_type, &id).map(|h| h.original_hash));
+        let expected =
+            header_for_delete.with(|hr| hr.get(&entity_type, &id).map(|h| h.original_hash));
         spawn_local(async move {
             if let Some(deletable) = source.deletable() {
                 match deletable.delete(id.clone(), expected).await {
                     Ok(res) => {
                         if res.ok {
                             if let Some(win) = web_sys::window() {
-                                let _ = win
-                                    .location()
-                                    .set_href(&format!("/entities/{entity_type}"));
+                                let _ =
+                                    win.location().set_href(&format!("/entities/{entity_type}"));
                             }
                         } else {
                             validation_messages.set(res.validation.messages.clone());
@@ -232,13 +231,17 @@ fn EditorBody(
 
     let header_for_dirty = header_registry.clone();
     let is_dirty = move || {
-        let Some(id) = id_signal.get() else { return false };
+        let Some(id) = id_signal.get() else {
+            return false;
+        };
         let live = compute_hash(&Entity {
             id: id.clone(),
             fields: fields_signal.get(),
         });
-        let original = header_for_dirty
-            .with(|hr| hr.get(&entity_type_signal.get(), &id).map(|h| h.original_hash));
+        let original = header_for_dirty.with(|hr| {
+            hr.get(&entity_type_signal.get(), &id)
+                .map(|h| h.original_hash)
+        });
         original.map(|orig| orig != live).unwrap_or(false)
     };
 

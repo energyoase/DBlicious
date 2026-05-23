@@ -21,11 +21,7 @@ use server::{data, db};
 const DEFAULT_DB_URL: &str = "sqlite://./dblicious.db?mode=rwc";
 
 #[derive(Parser)]
-#[command(
-    name = "dblicious",
-    about = "Verwaltungs-CLI fuer dblicious",
-    version
-)]
+#[command(name = "dblicious", about = "Verwaltungs-CLI fuer dblicious", version)]
 struct Cli {
     /// SQLite-Verbindung. Default: sqlite://./dblicious.db?mode=rwc
     /// (alternativ via Env DBLICIOUS_DATABASE_URL).
@@ -120,15 +116,9 @@ enum UserCmd {
         password: Option<String>,
     },
     /// Nutzer in eine Gruppe aufnehmen
-    Join {
-        username: String,
-        group_id: String,
-    },
+    Join { username: String, group_id: String },
     /// Nutzer aus einer Gruppe entfernen
-    Leave {
-        username: String,
-        group_id: String,
-    },
+    Leave { username: String, group_id: String },
 }
 
 #[derive(Subcommand)]
@@ -183,7 +173,10 @@ async fn main() -> Result<()> {
 
 async fn handle_design(cmd: DesignCmd) -> Result<()> {
     match cmd {
-        DesignCmd::Reset { entity_type, dry_run } => {
+        DesignCmd::Reset {
+            entity_type,
+            dry_run,
+        } => {
             let count = data::count_entity_designs(&entity_type)
                 .await
                 .map_err(|e| anyhow!("count entity_designs: {e}"))?;
@@ -272,7 +265,9 @@ fn run_migrate_security(args: &MigrateSecurityArgs) -> Result<()> {
                 for &op in &ops {
                     permissions.push(shared::auth::Permission {
                         subject: shared::auth::Subject::Role { id: g.id.clone() },
-                        resource: shared::auth::Resource::EntityType { name: target.clone() },
+                        resource: shared::auth::Resource::EntityType {
+                            name: target.clone(),
+                        },
                         op,
                         effect: shared::auth::Effect::Allow,
                         priority: 0,
@@ -302,7 +297,11 @@ fn run_migrate_security(args: &MigrateSecurityArgs) -> Result<()> {
 
     if args.dry_run {
         println!("== dry-run — keine Dateien werden geaendert ==");
-        println!("\n# {} ({} Eintraege)", perm_target.display(), permissions.len());
+        println!(
+            "\n# {} ({} Eintraege)",
+            perm_target.display(),
+            permissions.len()
+        );
         println!("{perm_json}");
         println!("\n# {} ({} Eintraege)", roles_target.display(), roles.len());
         println!("{roles_json}");
@@ -341,8 +340,12 @@ fn run_migrate_security(args: &MigrateSecurityArgs) -> Result<()> {
 }
 
 fn read_existing_groups(security_dir: &std::path::Path) -> Result<Vec<shared::SecurityGroup>> {
-    let path = pick_existing(security_dir, "groups")
-        .ok_or_else(|| anyhow!("groups.{{json,toml}} nicht in {} gefunden", security_dir.display()))?;
+    let path = pick_existing(security_dir, "groups").ok_or_else(|| {
+        anyhow!(
+            "groups.{{json,toml}} nicht in {} gefunden",
+            security_dir.display()
+        )
+    })?;
     parse_file(&path)
 }
 
@@ -400,14 +403,13 @@ fn pick_existing(dir: &std::path::Path, stem: &str) -> Option<std::path::PathBuf
 }
 
 fn parse_file<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<T> {
-    let raw = std::fs::read_to_string(path)
-        .with_context(|| format!("lesen {}", path.display()))?;
+    let raw = std::fs::read_to_string(path).with_context(|| format!("lesen {}", path.display()))?;
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
     match ext {
-        "json" => serde_json::from_str(&raw)
-            .with_context(|| format!("parsen JSON {}", path.display())),
-        "toml" => toml_to_t::<T>(&raw)
-            .with_context(|| format!("parsen TOML {}", path.display())),
+        "json" => {
+            serde_json::from_str(&raw).with_context(|| format!("parsen JSON {}", path.display()))
+        }
+        "toml" => toml_to_t::<T>(&raw).with_context(|| format!("parsen TOML {}", path.display())),
         _ => Err(anyhow!("unbekannte Erweiterung: {}", path.display())),
     }
 }
@@ -502,7 +504,11 @@ async fn handle_user(cmd: UserCmd) -> Result<()> {
             }
             for u in users {
                 let active = if u.active { "*" } else { "-" };
-                let has_pw = if u.password_hash.is_some() { "pw" } else { "--" };
+                let has_pw = if u.password_hash.is_some() {
+                    "pw"
+                } else {
+                    "--"
+                };
                 let groups = if u.group_ids.is_empty() {
                     "-".to_string()
                 } else {
@@ -523,9 +529,7 @@ async fn handle_user(cmd: UserCmd) -> Result<()> {
             data::set_user_password(&username, &pw)
                 .await
                 .map_err(anyhow::Error::msg)?;
-            println!(
-                "Passwort fuer '{username}' aktualisiert. Bestehende Sessions invalidiert."
-            );
+            println!("Passwort fuer '{username}' aktualisiert. Bestehende Sessions invalidiert.");
             Ok(())
         }
         UserCmd::Join { username, group_id } => {
@@ -563,16 +567,11 @@ async fn handle_group(cmd: GroupCmd) -> Result<()> {
             let group = data::create_group(&id, &name, description.as_deref())
                 .await
                 .map_err(anyhow::Error::msg)?;
-            println!(
-                "Gruppe '{}' angelegt (name='{}')",
-                group.id, group.name_key
-            );
+            println!("Gruppe '{}' angelegt (name='{}')", group.id, group.name_key);
             Ok(())
         }
         GroupCmd::Delete { id } => {
-            let ok = data::delete_group(&id)
-                .await
-                .map_err(anyhow::Error::msg)?;
+            let ok = data::delete_group(&id).await.map_err(anyhow::Error::msg)?;
             if ok {
                 println!("Gruppe '{id}' geloescht (Mitgliedschaften entfernt)");
             } else {
@@ -602,13 +601,13 @@ async fn handle_group(cmd: GroupCmd) -> Result<()> {
 }
 
 fn prompt_new_password() -> Result<String> {
-    let p1 = rpassword::prompt_password("Neues Passwort: ")
-        .context("Passwort-Prompt fehlgeschlagen")?;
+    let p1 =
+        rpassword::prompt_password("Neues Passwort: ").context("Passwort-Prompt fehlgeschlagen")?;
     if p1.is_empty() {
         return Err(anyhow!("Passwort darf nicht leer sein"));
     }
-    let p2 = rpassword::prompt_password("Wiederholen: ")
-        .context("Passwort-Prompt fehlgeschlagen")?;
+    let p2 =
+        rpassword::prompt_password("Wiederholen: ").context("Passwort-Prompt fehlgeschlagen")?;
     if p1 != p2 {
         return Err(anyhow!("Passwoerter stimmen nicht ueberein"));
     }

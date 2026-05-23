@@ -63,7 +63,7 @@ fn client_fallback(ft: &FieldType, registry: &str) -> Option<String> {
         ("editor", FieldType::Date) => "date-picker",
         ("editor", FieldType::DateTime) => "date-picker",
         ("editor", FieldType::Enum { .. }) => "text-input", // kein dedicated select-default
-        ("editor", _) => return None, // Reference/Collection: kein Default
+        ("editor", _) => return None,                       // Reference/Collection: kein Default
         ("formatter", FieldType::Text) => "text",
         ("formatter", FieldType::Integer) => "integer",
         ("formatter", FieldType::Decimal { .. }) => "decimal-2",
@@ -118,11 +118,15 @@ mod tests {
 
     #[test]
     fn field_type_default_used_when_no_column_override() {
-        let c = col(FieldType::Money { currency_code_field: None });
+        let c = col(FieldType::Money {
+            currency_code_field: None,
+        });
         let mut settings = EntitySettings::default();
         let mut defaults = shared::FieldTypeDefaults::default();
         defaults.editor_id = Some("money-editor".into());
-        settings.field_type_defaults.insert("money".into(), defaults);
+        settings
+            .field_type_defaults
+            .insert("money".into(), defaults);
         assert_eq!(
             resolve_implementation_id(&c, Some(&settings), "editor"),
             Some("money-editor".to_string())
@@ -148,7 +152,9 @@ mod tests {
 
     #[test]
     fn no_fallback_for_reference_editor() {
-        let c = col(FieldType::Reference { entity: "tag".into() });
+        let c = col(FieldType::Reference {
+            entity: "tag".into(),
+        });
         assert!(resolve_implementation_id(&c, None, "editor").is_none());
         assert!(resolve_implementation_id(&c, None, "formatter").is_none());
     }

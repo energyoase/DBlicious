@@ -29,12 +29,13 @@ pub mod tree;
 
 pub use canvas::BuilderCanvas;
 pub use history::{
-    mutate_with_history, provide_history, redo, undo, use_history, BuilderHistory,
-    DEFAULT_CAPACITY,
+    mutate_with_history, provide_history, redo, undo, use_history, BuilderHistory, DEFAULT_CAPACITY,
 };
 pub use node::{BoundField, NodeId, Style, Transform, UiNode};
 pub use persist::{build_state_blob, load_tree, save_tree, SaveOutcome};
-pub use project::{default_filterable, default_sortable, project_columns, project_columns_from_node};
+pub use project::{
+    default_filterable, default_sortable, project_columns, project_columns_from_node,
+};
 pub use tree::{UiTree, UiTreeSignal, TREE_SCHEMA_VERSION};
 
 use leptos::prelude::*;

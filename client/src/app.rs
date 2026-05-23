@@ -19,8 +19,8 @@ use crate::routes::{
     BuilderPage, DashboardPage, DesignerPage, EditorPage, EntityListPage, LoginPage, NotFoundPage,
 };
 use crate::styling::{
-    provide_design_system, provide_style_overrides, use_design, use_style_overrides,
-    ButtonVariant, SurfaceLevel, TextVariant,
+    provide_design_system, provide_style_overrides, use_design, use_style_overrides, ButtonVariant,
+    SurfaceLevel, TextVariant,
 };
 use crate::tabs::{provide_tabs_state, TabBar};
 use crate::validation::provide_validation_system;
@@ -35,10 +35,7 @@ pub fn App() -> impl IntoView {
     // DesignSystem-Trait zu beruehren. Beispiel: das Search-Input in der
     // Tabellen-Toolbar bekommt eine sanftere Max-Breite.
     use_style_overrides().update(|o| {
-        o.set_inline(
-            "table.toolbar.search",
-            "max-width: 320px; flex: 1 1 auto;",
-        );
+        o.set_inline("table.toolbar.search", "max-width: 320px; flex: 1 1 auto;");
     });
     provide_field_registry();
     provide_validation_system();

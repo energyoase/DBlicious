@@ -31,12 +31,18 @@ fn field_type_money_uses_snake_case_inner_field() {
         currency_code_field: Some("currency".into()),
     })
     .unwrap();
-    assert_eq!(v, json!({"kind": "money", "currency_code_field": "currency"}));
+    assert_eq!(
+        v,
+        json!({"kind": "money", "currency_code_field": "currency"})
+    );
 }
 
 #[test]
 fn field_type_money_without_currency_field_keeps_null() {
-    let v = serde_json::to_value(FieldType::Money { currency_code_field: None }).unwrap();
+    let v = serde_json::to_value(FieldType::Money {
+        currency_code_field: None,
+    })
+    .unwrap();
     assert_eq!(v, json!({"kind": "money", "currency_code_field": null}));
 }
 
@@ -48,10 +54,16 @@ fn field_type_decimal_carries_precision() {
 
 #[test]
 fn field_type_reference_and_collection_use_entity_field() {
-    let r = serde_json::to_value(FieldType::Reference { entity: "category".into() }).unwrap();
+    let r = serde_json::to_value(FieldType::Reference {
+        entity: "category".into(),
+    })
+    .unwrap();
     assert_eq!(r, json!({"kind": "reference", "entity": "category"}));
 
-    let c = serde_json::to_value(FieldType::Collection { entity: "tag".into() }).unwrap();
+    let c = serde_json::to_value(FieldType::Collection {
+        entity: "tag".into(),
+    })
+    .unwrap();
     assert_eq!(c, json!({"kind": "collection", "entity": "tag"}));
 }
 
@@ -73,10 +85,18 @@ fn field_type_roundtrips_through_json() {
         FieldType::Boolean,
         FieldType::Date,
         FieldType::DateTime,
-        FieldType::Money { currency_code_field: Some("currency".into()) },
-        FieldType::Reference { entity: "user".into() },
-        FieldType::Collection { entity: "tag".into() },
-        FieldType::Enum { values: vec!["a".into(), "b".into()] },
+        FieldType::Money {
+            currency_code_field: Some("currency".into()),
+        },
+        FieldType::Reference {
+            entity: "user".into(),
+        },
+        FieldType::Collection {
+            entity: "tag".into(),
+        },
+        FieldType::Enum {
+            values: vec!["a".into(), "b".into()],
+        },
     ];
     for ft in originals {
         let s = serde_json::to_string(&ft).unwrap();
@@ -107,7 +127,10 @@ fn sort_direction_serializes_as_lowercase_string() {
 
 #[test]
 fn sort_serializes_field_and_direction_camelcase() {
-    let s = Sort { field: "createdAt".into(), direction: SortDirection::Desc };
+    let s = Sort {
+        field: "createdAt".into(),
+        direction: SortDirection::Desc,
+    };
     let v = serde_json::to_value(&s).unwrap();
     assert_eq!(v, json!({"field": "createdAt", "direction": "desc"}));
 }

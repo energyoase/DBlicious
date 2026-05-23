@@ -76,7 +76,10 @@ fn before_save_input_carries_user_and_fields() {
     assert_eq!(v["entityType"], json!("product"));
     assert_eq!(v["fieldsAfter"]["name"], json!("Test"));
     assert_eq!(v["user"], json!("u-1"));
-    assert!(v.get("fieldsBefore").is_none(), "None soll skip_serializing");
+    assert!(
+        v.get("fieldsBefore").is_none(),
+        "None soll skip_serializing"
+    );
 }
 
 #[test]

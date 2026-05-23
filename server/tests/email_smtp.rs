@@ -14,13 +14,13 @@ use server::email::{
 #[test]
 fn build_message_minimal_text_only() {
     let msg = EmailMessage {
-        from:        "alice@example.com",
-        to:          &["bob@example.com"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "Hallo",
-        body_text:   "Erste Zeile",
-        body_html:   None,
+        from: "alice@example.com",
+        to: &["bob@example.com"],
+        cc: &[],
+        bcc: &[],
+        subject: "Hallo",
+        body_text: "Erste Zeile",
+        body_html: None,
         attachments: &[],
     };
     let m = build_message(&msg, None).expect("build");
@@ -35,13 +35,13 @@ fn build_message_minimal_text_only() {
 #[test]
 fn build_message_uses_default_from_when_empty() {
     let msg = EmailMessage {
-        from:        "",
-        to:          &["bob@example.com"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "X",
-        body_text:   "Y",
-        body_html:   None,
+        from: "",
+        to: &["bob@example.com"],
+        cc: &[],
+        bcc: &[],
+        subject: "X",
+        body_text: "Y",
+        body_html: None,
         attachments: &[],
     };
     let m = build_message(&msg, Some("noreply@example.com")).expect("build with default_from");
@@ -52,13 +52,13 @@ fn build_message_uses_default_from_when_empty() {
 #[test]
 fn build_message_requires_from_or_default() {
     let msg = EmailMessage {
-        from:        "",
-        to:          &["bob@example.com"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "X",
-        body_text:   "Y",
-        body_html:   None,
+        from: "",
+        to: &["bob@example.com"],
+        cc: &[],
+        bcc: &[],
+        subject: "X",
+        body_text: "Y",
+        body_html: None,
         attachments: &[],
     };
     let err = build_message(&msg, None).expect_err("must reject without from");
@@ -68,13 +68,13 @@ fn build_message_requires_from_or_default() {
 #[test]
 fn build_message_rejects_invalid_to_address() {
     let msg = EmailMessage {
-        from:        "alice@example.com",
-        to:          &["nicht-eine-email"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "X",
-        body_text:   "Y",
-        body_html:   None,
+        from: "alice@example.com",
+        to: &["nicht-eine-email"],
+        cc: &[],
+        bcc: &[],
+        subject: "X",
+        body_text: "Y",
+        body_html: None,
         attachments: &[],
     };
     let err = build_message(&msg, None).expect_err("invalid to");
@@ -84,19 +84,22 @@ fn build_message_rejects_invalid_to_address() {
 #[test]
 fn build_message_supports_html_alternative() {
     let msg = EmailMessage {
-        from:        "alice@example.com",
-        to:          &["bob@example.com"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "HTML",
-        body_text:   "Plain",
-        body_html:   Some("<p>Reich</p>"),
+        from: "alice@example.com",
+        to: &["bob@example.com"],
+        cc: &[],
+        bcc: &[],
+        subject: "HTML",
+        body_text: "Plain",
+        body_html: Some("<p>Reich</p>"),
         attachments: &[],
     };
     let m = build_message(&msg, None).expect("build");
     let text = String::from_utf8_lossy(&m.formatted()).to_string();
     // MIME-multipart/alternative wird im Header und Body sichtbar.
-    assert!(text.contains("multipart/alternative"), "alternative-Part: {text}");
+    assert!(
+        text.contains("multipart/alternative"),
+        "alternative-Part: {text}"
+    );
     assert!(text.contains("Plain"), "Plain-Body: {text}");
     assert!(text.contains("<p>Reich</p>"), "HTML-Body: {text}");
 }
@@ -105,37 +108,43 @@ fn build_message_supports_html_alternative() {
 fn build_message_supports_attachment() {
     let att = EmailAttachment {
         filename: "rechnung.pdf",
-        mime:     "application/pdf",
-        bytes:    b"%PDF-1.4 stub",
+        mime: "application/pdf",
+        bytes: b"%PDF-1.4 stub",
     };
     let msg = EmailMessage {
-        from:        "alice@example.com",
-        to:          &["bob@example.com"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "Mit Anhang",
-        body_text:   "Anbei die Rechnung.",
-        body_html:   None,
+        from: "alice@example.com",
+        to: &["bob@example.com"],
+        cc: &[],
+        bcc: &[],
+        subject: "Mit Anhang",
+        body_text: "Anbei die Rechnung.",
+        body_html: None,
         attachments: std::slice::from_ref(&att),
     };
     let m = build_message(&msg, None).expect("build");
     let text = String::from_utf8_lossy(&m.formatted()).to_string();
     assert!(text.contains("multipart/mixed"), "mixed-Part fehlt: {text}");
-    assert!(text.contains("rechnung.pdf"), "Attachment-Name fehlt: {text}");
-    assert!(text.contains("application/pdf"), "Attachment-MIME fehlt: {text}");
+    assert!(
+        text.contains("rechnung.pdf"),
+        "Attachment-Name fehlt: {text}"
+    );
+    assert!(
+        text.contains("application/pdf"),
+        "Attachment-MIME fehlt: {text}"
+    );
 }
 
 #[tokio::test]
 async fn smtp_stub_sender_records_message_via_lettre_transport() {
     let sender = SmtpSender::stub(Some("noreply@example.com".into()));
     let msg = EmailMessage {
-        from:        "alice@example.com",
-        to:          &["bob@example.com"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "Stub-Roundtrip",
-        body_text:   "Body",
-        body_html:   None,
+        from: "alice@example.com",
+        to: &["bob@example.com"],
+        cc: &[],
+        bcc: &[],
+        subject: "Stub-Roundtrip",
+        body_text: "Body",
+        body_html: None,
         attachments: &[],
     };
     sender.send(msg).await.expect("stub send ok");
@@ -156,13 +165,13 @@ async fn smtp_stub_sender_kind_is_smtp_stub() {
 async fn smtp_stub_sender_default_from_used_when_message_from_empty() {
     let sender = SmtpSender::stub(Some("noreply@example.com".into()));
     let msg = EmailMessage {
-        from:        "",
-        to:          &["bob@example.com"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "Default-From",
-        body_text:   "Body",
-        body_html:   None,
+        from: "",
+        to: &["bob@example.com"],
+        cc: &[],
+        bcc: &[],
+        subject: "Default-From",
+        body_text: "Body",
+        body_html: None,
         attachments: &[],
     };
     sender.send(msg).await.unwrap();

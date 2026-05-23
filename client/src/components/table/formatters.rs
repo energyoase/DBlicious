@@ -51,7 +51,7 @@ pub fn FieldCell(
 /// `label_key` ist der Fluent-Schluessel fuer die Anzeige im Dropdown.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormatterDescriptor {
-    pub id:        String,
+    pub id: String,
     pub label_key: String,
 }
 
@@ -64,29 +64,32 @@ pub fn compatible_formatters_for(ft: &shared::FieldType) -> Vec<FormatterDescrip
     use shared::FieldType::*;
     let raw: &[(&str, &str)] = match ft {
         Money { .. } => &[
-            ("money-symbol",   "formatter.money.symbol"),
-            ("money-code",     "formatter.money.code"),
+            ("money-symbol", "formatter.money.symbol"),
+            ("money-code", "formatter.money.code"),
             ("money-decimals", "formatter.money.decimals"),
         ],
         Decimal { .. } => &[
             ("decimal-default", "formatter.decimal.default"),
-            ("decimal-2",       "formatter.decimal.2"),
+            ("decimal-2", "formatter.decimal.2"),
         ],
         Date => &[
-            ("date-iso",   "formatter.date.iso"),
+            ("date-iso", "formatter.date.iso"),
             ("date-local", "formatter.date.local"),
         ],
         DateTime => &[
-            ("datetime-iso",   "formatter.datetime.iso"),
+            ("datetime-iso", "formatter.datetime.iso"),
             ("datetime-local", "formatter.datetime.local"),
         ],
-        Integer  => &[("int-default", "formatter.int.default")],
-        Boolean  => &[("bool-yesno",  "formatter.bool.yesno")],
-        Text     => &[("text-plain",  "formatter.text.plain")],
-        _        => &[],
+        Integer => &[("int-default", "formatter.int.default")],
+        Boolean => &[("bool-yesno", "formatter.bool.yesno")],
+        Text => &[("text-plain", "formatter.text.plain")],
+        _ => &[],
     };
     raw.iter()
-        .map(|(id, key)| FormatterDescriptor { id: (*id).into(), label_key: (*key).into() })
+        .map(|(id, key)| FormatterDescriptor {
+            id: (*id).into(),
+            label_key: (*key).into(),
+        })
         .collect()
 }
 
@@ -97,7 +100,9 @@ mod compatible_tests {
 
     #[test]
     fn money_has_three_formatters() {
-        let d = compatible_formatters_for(&FieldType::Money { currency_code_field: None });
+        let d = compatible_formatters_for(&FieldType::Money {
+            currency_code_field: None,
+        });
         assert_eq!(d.len(), 3);
     }
 

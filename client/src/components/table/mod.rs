@@ -41,8 +41,8 @@
 
 pub mod actions;
 pub mod bottom_menu;
-pub mod column_editor;
 pub mod builder_preview;
+pub mod column_editor;
 pub mod data_source;
 pub mod entity_menu;
 pub mod filters;
@@ -60,13 +60,11 @@ pub mod top_menu;
 pub mod view;
 
 pub use actions::{DeleteAction, EditAction, EntityAction, RowContext};
+pub use bottom_menu::BottomMenu;
+pub use builder_preview::{synthesize_preview_rows, BuilderPreviewSource, DEFAULT_PREVIEW_ROWS};
 pub use column_editor::{
     apply_pending_overrides, compute_reorder, ActiveDrag, ColumnEditorPopover, DragReorderCtx,
     DragState, HeaderRect,
-};
-pub use bottom_menu::BottomMenu;
-pub use builder_preview::{
-    synthesize_preview_rows, BuilderPreviewSource, DEFAULT_PREVIEW_ROWS,
 };
 pub use data_source::{DataRequest, DataSource, LocalSource, RemoteSource};
 pub use entity_menu::EntityMenu;

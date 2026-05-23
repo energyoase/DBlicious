@@ -39,11 +39,11 @@ impl Source for ManagedSqliteSource {
         Capabilities {
             supports_write: true,
             supports_transactions: true,
-            supports_sql_pushdown: true,    // im Table-Locator-Pfad echt genutzt (B4)
-            supports_introspection: false,  // wir kennen unser Schema durch SeaORM-Entities
-            supports_composite_pk: true,    // im Table-Locator-Pfad voll unterstuetzt (B4);
-                                            // GenericEntityRow bleibt Single-PK.
-            supports_ddl: true,             // Designer-Schemas laufen ueber diese Source.
+            supports_sql_pushdown: true, // im Table-Locator-Pfad echt genutzt (B4)
+            supports_introspection: false, // wir kennen unser Schema durch SeaORM-Entities
+            supports_composite_pk: true, // im Table-Locator-Pfad voll unterstuetzt (B4);
+            // GenericEntityRow bleibt Single-PK.
+            supports_ddl: true, // Designer-Schemas laufen ueber diese Source.
         }
     }
 
@@ -60,16 +60,14 @@ impl Source for ManagedSqliteSource {
         query: &PageQuery,
     ) -> Result<EntityPage, SourceError> {
         match &binding.locator {
-            BindingLocator::GenericEntityRow { entity_type } => {
-                Ok(crate::data::entities_page_raw(
-                    entity_type,
-                    query.page,
-                    query.page_size,
-                    query.sort.clone(),
-                    query.filter.clone(),
-                )
-                .await)
-            }
+            BindingLocator::GenericEntityRow { entity_type } => Ok(crate::data::entities_page_raw(
+                entity_type,
+                query.page,
+                query.page_size,
+                query.sort.clone(),
+                query.filter.clone(),
+            )
+            .await),
             BindingLocator::Table { table } => {
                 sql::relational_list_page(
                     &crate::db::conn(),
@@ -128,9 +126,9 @@ impl Source for ManagedSqliteSource {
             return Err(SourceError::ReadOnly);
         }
         match &binding.locator {
-            BindingLocator::GenericEntityRow { entity_type } => Ok(
-                crate::data::create_entity_raw(entity_type, id, fields, actor_user_id).await,
-            ),
+            BindingLocator::GenericEntityRow { entity_type } => {
+                Ok(crate::data::create_entity_raw(entity_type, id, fields, actor_user_id).await)
+            }
             BindingLocator::Table { table } => {
                 sql::relational_create(
                     &crate::db::conn(),
@@ -183,11 +181,7 @@ impl Source for ManagedSqliteSource {
         }
     }
 
-    async fn delete(
-        &self,
-        binding: &EntityBinding,
-        id: &EntityId,
-    ) -> Result<bool, SourceError> {
+    async fn delete(&self, binding: &EntityBinding, id: &EntityId) -> Result<bool, SourceError> {
         if binding.read_only {
             return Err(SourceError::ReadOnly);
         }
@@ -204,27 +198,17 @@ impl Source for ManagedSqliteSource {
                 Ok(crate::data::delete_entity_raw(entity_type, &key).await)
             }
             BindingLocator::Table { table } => {
-                sql::relational_delete(
-                    &crate::db::conn(),
-                    DbBackend::Sqlite,
-                    binding,
-                    table,
-                    id,
-                )
-                .await
+                sql::relational_delete(&crate::db::conn(), DbBackend::Sqlite, binding, table, id)
+                    .await
             }
             other => Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
         }
     }
 
-    async fn apply_schema(
-        &self,
-        schema: &shared::DbSchema,
-    ) -> Result<usize, SourceError> {
+    async fn apply_schema(&self, schema: &shared::DbSchema) -> Result<usize, SourceError> {
         // Delegiert an den bestehenden ddl-Pfad (CREATE TABLE IF NOT EXISTS).
         // try_apply_schema toleriert Statement-Level-Fehler intern und liefert
         // die Anzahl erfolgreich ausgefuehrter Statements.
         Ok(crate::ddl::try_apply_schema(schema).await)
     }
 }
-

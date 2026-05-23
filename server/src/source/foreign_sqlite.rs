@@ -29,8 +29,12 @@ impl ForeignSqliteSource {
 
 #[async_trait]
 impl Source for ForeignSqliteSource {
-    fn name(&self) -> &str { &self.name }
-    fn kind(&self) -> &'static str { "foreign-sqlite" }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn kind(&self) -> &'static str {
+        "foreign-sqlite"
+    }
 
     fn capabilities(&self) -> Capabilities {
         Capabilities {
@@ -61,8 +65,14 @@ impl Source for ForeignSqliteSource {
             shared::source::BindingLocator::Table { table } => table.clone(),
             other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
         };
-        let conn = self.conn.as_ref().ok_or_else(|| SourceError::Other("init not called".into()))?;
-        let table_meta = self.introspected.tables.get(&table)
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("init not called".into()))?;
+        let table_meta = self
+            .introspected
+            .tables
+            .get(&table)
             .ok_or_else(|| SourceError::Other(format!("table not found: {table}")))?;
 
         // SELECT columns: when column_map is empty -> all table columns;
@@ -70,12 +80,19 @@ impl Source for ForeignSqliteSource {
         let select_cols: Vec<String> = if binding.column_map.is_empty() {
             table_meta.columns.iter().map(|c| c.name.clone()).collect()
         } else {
-            let mut s: std::collections::BTreeSet<String> = binding.column_map.values().cloned().collect();
-            for pk in &table_meta.primary_key { s.insert(pk.clone()); }
+            let mut s: std::collections::BTreeSet<String> =
+                binding.column_map.values().cloned().collect();
+            for pk in &table_meta.primary_key {
+                s.insert(pk.clone());
+            }
             s.into_iter().collect()
         };
 
-        let cols_sql = select_cols.iter().map(|c| quote_ident(c)).collect::<Vec<_>>().join(", ");
+        let cols_sql = select_cols
+            .iter()
+            .map(|c| quote_ident(c))
+            .collect::<Vec<_>>()
+            .join(", ");
         let table_sql = quote_ident(&table);
 
         let page = query.page.max(1);
@@ -85,7 +102,11 @@ impl Source for ForeignSqliteSource {
         // ORDER BY: only single-column sort, with logical-name -> DB-name mapping.
         let order_sql = match &query.sort {
             Some(s) => {
-                let db_col = binding.column_map.get(&s.field).cloned().unwrap_or_else(|| s.field.clone());
+                let db_col = binding
+                    .column_map
+                    .get(&s.field)
+                    .cloned()
+                    .unwrap_or_else(|| s.field.clone());
                 let dir = match s.direction {
                     shared::SortDirection::Asc => "ASC",
                     shared::SortDirection::Desc => "DESC",
@@ -105,32 +126,44 @@ impl Source for ForeignSqliteSource {
         use sea_orm::{DbBackend, FromQueryResult, JsonValue};
 
         let stmt_list = sea_orm::Statement::from_sql_and_values(
-            DbBackend::Sqlite, sql_list, where_values.clone()
+            DbBackend::Sqlite,
+            sql_list,
+            where_values.clone(),
         );
-        let rows_json: Vec<serde_json::Value> = JsonValue::find_by_statement(stmt_list).all(conn).await?;
+        let rows_json: Vec<serde_json::Value> =
+            JsonValue::find_by_statement(stmt_list).all(conn).await?;
 
         #[derive(FromQueryResult)]
-        struct CountRow { c: i64 }
-        let stmt_count = sea_orm::Statement::from_sql_and_values(
-            DbBackend::Sqlite, sql_count, where_values
-        );
-        let count_row: CountRow = CountRow::find_by_statement(stmt_count).one(conn).await?
+        struct CountRow {
+            c: i64,
+        }
+        let stmt_count =
+            sea_orm::Statement::from_sql_and_values(DbBackend::Sqlite, sql_count, where_values);
+        let count_row: CountRow = CountRow::find_by_statement(stmt_count)
+            .one(conn)
+            .await?
             .ok_or_else(|| SourceError::Other("count returned no row".into()))?;
 
         // Map DB column names back to logical keys (reverse of column_map).
-        let reverse_map: std::collections::BTreeMap<String, String> =
-            binding.column_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
+        let reverse_map: std::collections::BTreeMap<String, String> = binding
+            .column_map
+            .iter()
+            .map(|(k, v)| (v.clone(), k.clone()))
+            .collect();
 
-        let items: Vec<shared::Entity> = rows_json.into_iter().map(|row| {
-            let obj = row.as_object().cloned().unwrap_or_default();
-            let mut fields = serde_json::Map::new();
-            for (db_col, val) in obj {
-                let logical = reverse_map.get(&db_col).cloned().unwrap_or(db_col);
-                fields.insert(logical, val);
-            }
-            let id = encode_pk_from_row(&fields, &binding.primary_key);
-            shared::Entity { id, fields }
-        }).collect();
+        let items: Vec<shared::Entity> = rows_json
+            .into_iter()
+            .map(|row| {
+                let obj = row.as_object().cloned().unwrap_or_default();
+                let mut fields = serde_json::Map::new();
+                for (db_col, val) in obj {
+                    let logical = reverse_map.get(&db_col).cloned().unwrap_or(db_col);
+                    fields.insert(logical, val);
+                }
+                let id = encode_pk_from_row(&fields, &binding.primary_key);
+                shared::Entity { id, fields }
+            })
+            .collect();
 
         Ok(EntityPage {
             items,
@@ -148,8 +181,14 @@ impl Source for ForeignSqliteSource {
             shared::source::BindingLocator::Table { table } => table.clone(),
             other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
         };
-        let conn = self.conn.as_ref().ok_or_else(|| SourceError::Other("init not called".into()))?;
-        let table_meta = self.introspected.tables.get(&table)
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("init not called".into()))?;
+        let table_meta = self
+            .introspected
+            .tables
+            .get(&table)
             .ok_or_else(|| SourceError::Other(format!("table not found: {table}")))?;
 
         // PK column values, matching the binding's primary_key column order.
@@ -158,7 +197,8 @@ impl Source for ForeignSqliteSource {
             EntityId::Single(s) => {
                 if pk_logical.len() != 1 {
                     return Err(SourceError::Other(format!(
-                        "single-PK id but binding has {} PK columns", pk_logical.len()
+                        "single-PK id but binding has {} PK columns",
+                        pk_logical.len()
                     )));
                 }
                 vec![s.clone()]
@@ -167,7 +207,8 @@ impl Source for ForeignSqliteSource {
                 if parts.len() != pk_logical.len() {
                     return Err(SourceError::Other(format!(
                         "composite-PK id has {} parts, binding has {} columns",
-                        parts.len(), pk_logical.len()
+                        parts.len(),
+                        pk_logical.len()
                     )));
                 }
                 parts.clone()
@@ -175,32 +216,54 @@ impl Source for ForeignSqliteSource {
         };
 
         // WHERE: AND of (pk_db_col = ?) — values bound, not interpolated.
-        let where_clauses: Vec<String> = pk_logical.iter().map(|logical| {
-            let db_col = binding.column_map.get(logical).cloned().unwrap_or_else(|| logical.clone());
-            format!("{} = ?", quote_ident(&db_col))
-        }).collect();
+        let where_clauses: Vec<String> = pk_logical
+            .iter()
+            .map(|logical| {
+                let db_col = binding
+                    .column_map
+                    .get(logical)
+                    .cloned()
+                    .unwrap_or_else(|| logical.clone());
+                format!("{} = ?", quote_ident(&db_col))
+            })
+            .collect();
         let where_sql = format!(" WHERE {}", where_clauses.join(" AND "));
 
         let select_cols: Vec<String> = if binding.column_map.is_empty() {
             table_meta.columns.iter().map(|c| c.name.clone()).collect()
         } else {
-            let mut s: std::collections::BTreeSet<String> = binding.column_map.values().cloned().collect();
-            for pk in &table_meta.primary_key { s.insert(pk.clone()); }
+            let mut s: std::collections::BTreeSet<String> =
+                binding.column_map.values().cloned().collect();
+            for pk in &table_meta.primary_key {
+                s.insert(pk.clone());
+            }
             s.into_iter().collect()
         };
 
-        let cols_sql = select_cols.iter().map(|c| quote_ident(c)).collect::<Vec<_>>().join(", ");
-        let sql = format!("SELECT {cols_sql} FROM {} {} LIMIT 1", quote_ident(&table), where_sql);
+        let cols_sql = select_cols
+            .iter()
+            .map(|c| quote_ident(c))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!(
+            "SELECT {cols_sql} FROM {} {} LIMIT 1",
+            quote_ident(&table),
+            where_sql
+        );
 
-        use sea_orm::{DbBackend, FromQueryResult, Statement, Value, JsonValue};
+        use sea_orm::{DbBackend, FromQueryResult, JsonValue, Statement, Value};
         let values: Vec<Value> = pk_values.into_iter().map(Value::from).collect();
         let stmt = Statement::from_sql_and_values(DbBackend::Sqlite, sql, values);
 
-        let row_opt: Option<serde_json::Value> = JsonValue::find_by_statement(stmt).one(conn).await?;
+        let row_opt: Option<serde_json::Value> =
+            JsonValue::find_by_statement(stmt).one(conn).await?;
         let Some(row) = row_opt else { return Ok(None) };
 
-        let reverse_map: std::collections::BTreeMap<String, String> =
-            binding.column_map.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
+        let reverse_map: std::collections::BTreeMap<String, String> = binding
+            .column_map
+            .iter()
+            .map(|(k, v)| (v.clone(), k.clone()))
+            .collect();
         let obj = row.as_object().cloned().unwrap_or_default();
         let mut fields = serde_json::Map::new();
         for (db_col, val) in obj {
@@ -208,7 +271,10 @@ impl Source for ForeignSqliteSource {
             fields.insert(logical, val);
         }
         let id_string = encode_pk_from_row(&fields, &binding.primary_key);
-        Ok(Some(shared::Entity { id: id_string, fields }))
+        Ok(Some(shared::Entity {
+            id: id_string,
+            fields,
+        }))
     }
     async fn create(
         &self,
@@ -224,10 +290,19 @@ impl Source for ForeignSqliteSource {
             shared::source::BindingLocator::Table { table } => table.clone(),
             other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
         };
-        let conn = self.conn.as_ref().ok_or_else(|| SourceError::Other("init not called".into()))?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("init not called".into()))?;
 
         // logical column name -> DB name
-        let resolve = |logical: &str| binding.column_map.get(logical).cloned().unwrap_or_else(|| logical.to_string());
+        let resolve = |logical: &str| {
+            binding
+                .column_map
+                .get(logical)
+                .cloned()
+                .unwrap_or_else(|| logical.to_string())
+        };
 
         let mut cols: Vec<String> = Vec::new();
         let mut placeholders: Vec<String> = Vec::new();
@@ -249,7 +324,10 @@ impl Source for ForeignSqliteSource {
         conn.execute(stmt).await?;
 
         let id_string = encode_pk_from_row(&fields, &binding.primary_key);
-        Ok(shared::Entity { id: id_string, fields })
+        Ok(shared::Entity {
+            id: id_string,
+            fields,
+        })
     }
 
     async fn update(
@@ -266,9 +344,18 @@ impl Source for ForeignSqliteSource {
             shared::source::BindingLocator::Table { table } => table.clone(),
             other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
         };
-        let conn = self.conn.as_ref().ok_or_else(|| SourceError::Other("init not called".into()))?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("init not called".into()))?;
 
-        let resolve = |logical: &str| binding.column_map.get(logical).cloned().unwrap_or_else(|| logical.to_string());
+        let resolve = |logical: &str| {
+            binding
+                .column_map
+                .get(logical)
+                .cloned()
+                .unwrap_or_else(|| logical.to_string())
+        };
 
         if patch.is_empty() {
             return self.get(binding, id).await;
@@ -286,10 +373,13 @@ impl Source for ForeignSqliteSource {
             EntityId::Single(s) => vec![s.clone()],
             EntityId::Composite(parts) => parts.clone(),
         };
-        let where_clauses: Vec<String> = pk_logical.iter().map(|logical| {
-            format!("{} = ?", quote_ident(&resolve(logical)))
-        }).collect();
-        for pv in &pk_values { values.push(sea_orm::Value::from(pv.clone())); }
+        let where_clauses: Vec<String> = pk_logical
+            .iter()
+            .map(|logical| format!("{} = ?", quote_ident(&resolve(logical))))
+            .collect();
+        for pv in &pk_values {
+            values.push(sea_orm::Value::from(pv.clone()));
+        }
 
         let sql = format!(
             "UPDATE {} SET {} WHERE {}",
@@ -304,11 +394,7 @@ impl Source for ForeignSqliteSource {
         self.get(binding, id).await
     }
 
-    async fn delete(
-        &self,
-        binding: &EntityBinding,
-        id: &EntityId,
-    ) -> Result<bool, SourceError> {
+    async fn delete(&self, binding: &EntityBinding, id: &EntityId) -> Result<bool, SourceError> {
         if binding.read_only {
             return Err(SourceError::ReadOnly);
         }
@@ -316,19 +402,31 @@ impl Source for ForeignSqliteSource {
             shared::source::BindingLocator::Table { table } => table.clone(),
             other => return Err(SourceError::UnsupportedLocator(format!("{other:?}"))),
         };
-        let conn = self.conn.as_ref().ok_or_else(|| SourceError::Other("init not called".into()))?;
-        let resolve = |logical: &str| binding.column_map.get(logical).cloned().unwrap_or_else(|| logical.to_string());
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| SourceError::Other("init not called".into()))?;
+        let resolve = |logical: &str| {
+            binding
+                .column_map
+                .get(logical)
+                .cloned()
+                .unwrap_or_else(|| logical.to_string())
+        };
 
         let pk_logical = &binding.primary_key;
         let pk_values: Vec<String> = match id {
             EntityId::Single(s) => vec![s.clone()],
             EntityId::Composite(parts) => parts.clone(),
         };
-        let where_clauses: Vec<String> = pk_logical.iter().map(|logical| {
-            format!("{} = ?", quote_ident(&resolve(logical)))
-        }).collect();
+        let where_clauses: Vec<String> = pk_logical
+            .iter()
+            .map(|logical| format!("{} = ?", quote_ident(&resolve(logical))))
+            .collect();
         let mut values: Vec<sea_orm::Value> = Vec::new();
-        for pv in &pk_values { values.push(sea_orm::Value::from(pv.clone())); }
+        for pv in &pk_values {
+            values.push(sea_orm::Value::from(pv.clone()));
+        }
 
         let sql = format!(
             "DELETE FROM {} WHERE {}",
@@ -341,4 +439,3 @@ impl Source for ForeignSqliteSource {
         Ok(res.rows_affected() > 0)
     }
 }
-

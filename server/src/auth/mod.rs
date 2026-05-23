@@ -11,7 +11,9 @@
 
 pub mod resolver;
 
-use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::password_hash::{
+    rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+};
 use argon2::Argon2;
 use base64::Engine;
 use chrono::Utc;
@@ -36,7 +38,9 @@ pub fn hash_password(plain: &str) -> Result<String, String> {
 }
 
 pub fn verify_password(plain: &str, hash: &str) -> bool {
-    let Ok(parsed) = PasswordHash::new(hash) else { return false };
+    let Ok(parsed) = PasswordHash::new(hash) else {
+        return false;
+    };
     Argon2::default()
         .verify_password(plain.as_bytes(), &parsed)
         .is_ok()

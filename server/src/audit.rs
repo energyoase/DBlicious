@@ -147,11 +147,11 @@ pub async fn record_approval_decision(
 /// uebersetzen das in der DB-`kind`-Spalte als 1:1-Wert.
 pub async fn record_email_event(
     actor_user_id: Option<&str>,
-    from:          &str,
-    to_joined:     &str,
-    subject:       &str,
-    kind_str:      &str,
-    error:         Option<String>,
+    from: &str,
+    to_joined: &str,
+    subject: &str,
+    kind_str: &str,
+    error: Option<String>,
 ) {
     use sea_orm::{ActiveModelTrait, ActiveValue};
     let db = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(conn)) {
@@ -165,14 +165,14 @@ pub async fn record_email_event(
         "error":   error,
     });
     let am = entity::audit_log::ActiveModel {
-        id:            ActiveValue::NotSet,
-        occurred_at:   ActiveValue::Set(Utc::now().to_rfc3339()),
-        kind:          ActiveValue::Set(kind_str.to_string()),
+        id: ActiveValue::NotSet,
+        occurred_at: ActiveValue::Set(Utc::now().to_rfc3339()),
+        kind: ActiveValue::Set(kind_str.to_string()),
         actor_user_id: ActiveValue::Set(actor_user_id.map(str::to_string)),
         resource_kind: ActiveValue::Set(Some("email".into())),
-        resource_id:   ActiveValue::Set(Some(to_joined.to_string())),
-        op:            ActiveValue::Set(Some("send".into())),
-        payload_json:  ActiveValue::Set(Some(payload.to_string())),
+        resource_id: ActiveValue::Set(Some(to_joined.to_string())),
+        op: ActiveValue::Set(Some("send".into())),
+        payload_json: ActiveValue::Set(Some(payload.to_string())),
     };
     if let Err(e) = am.insert(&db).await {
         tracing::warn!(target: "server::audit", "email-audit insert failed: {e}");

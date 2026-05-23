@@ -53,11 +53,15 @@ pub fn default_tokens_for_tier(tier: ScriptTier) -> Vec<CapabilityToken> {
         ReadOwnEntities,
         ReadI18n,
         ComputeOnly,
-        EmitUiNode { scope: UiScope::Leaf },
+        EmitUiNode {
+            scope: UiScope::Leaf,
+        },
     ];
     if tier >= ScriptTier::Author {
         out.push(ReadAllEntitiesWhereAllowed);
-        out.push(EmitUiNode { scope: UiScope::Composite });
+        out.push(EmitUiNode {
+            scope: UiScope::Composite,
+        });
         out.push(ReadAuditLog { own_only: true });
     }
     if tier >= ScriptTier::Developer {

@@ -86,10 +86,16 @@ where
     if let Some(errors) = parsed.errors {
         if !errors.is_empty() {
             return Err(GqlError::GraphQl(
-                errors.into_iter().map(|e| e.message).collect::<Vec<_>>().join("; "),
+                errors
+                    .into_iter()
+                    .map(|e| e.message)
+                    .collect::<Vec<_>>()
+                    .join("; "),
             ));
         }
     }
 
-    parsed.data.ok_or_else(|| GqlError::GraphQl("Antwort enthaelt keine `data`".into()))
+    parsed
+        .data
+        .ok_or_else(|| GqlError::GraphQl("Antwort enthaelt keine `data`".into()))
 }

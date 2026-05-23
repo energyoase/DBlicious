@@ -12,20 +12,20 @@ async fn stub_send_records_message() {
     StubSender::reset();
     let sender = StubSender;
     let msg = EmailMessage {
-        from:        "noreply@example.com",
-        to:          &["alice@example.com"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "Rechnung INV-2026-000007",
-        body_text:   "Anbei Ihre Rechnung.",
-        body_html:   None,
+        from: "noreply@example.com",
+        to: &["alice@example.com"],
+        cc: &[],
+        bcc: &[],
+        subject: "Rechnung INV-2026-000007",
+        body_text: "Anbei Ihre Rechnung.",
+        body_html: None,
         attachments: &[],
     };
     sender.send(msg).await.unwrap();
     let sent = StubSender::sent();
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].subject, "Rechnung INV-2026-000007");
-    assert_eq!(sent[0].to,      vec!["alice@example.com".to_string()]);
+    assert_eq!(sent[0].to, vec!["alice@example.com".to_string()]);
 }
 
 #[tokio::test]
@@ -34,10 +34,7 @@ async fn missing_from_or_to_returns_invalid_input() {
     server::fresh_test_setup().await;
     StubSender::reset();
     let sender = StubSender;
-    let err = sender
-        .send(EmailMessage::empty())
-        .await
-        .unwrap_err();
+    let err = sender.send(EmailMessage::empty()).await.unwrap_err();
     let msg = format!("{err}");
     assert!(msg.contains("invalid_input"), "got: {msg}");
 }
@@ -49,16 +46,18 @@ async fn send_with_audit_writes_email_sent_kind() {
     StubSender::reset();
     let sender = StubSender;
     let msg = EmailMessage {
-        from:        "noreply@x",
-        to:          &["a@b"],
-        cc:          &[],
-        bcc:         &[],
-        subject:     "T",
-        body_text:   "T",
-        body_html:   None,
+        from: "noreply@x",
+        to: &["a@b"],
+        cc: &[],
+        bcc: &[],
+        subject: "T",
+        body_text: "T",
+        body_html: None,
         attachments: &[],
     };
-    email::send_with_audit(&sender, msg, Some("alice")).await.unwrap();
+    email::send_with_audit(&sender, msg, Some("alice"))
+        .await
+        .unwrap();
 
     let conn = server::db::conn();
     use server::entity::audit_log;

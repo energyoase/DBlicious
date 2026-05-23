@@ -67,7 +67,9 @@ impl AuthContext {
 
     /// Schreibt den Auth-State aus LocalStorage zurueck (falls vorhanden).
     fn hydrate_from_storage(&self) {
-        let Some(storage) = local_storage() else { return };
+        let Some(storage) = local_storage() else {
+            return;
+        };
         if let Ok(Some(token)) = storage.get_item(LS_TOKEN_KEY) {
             set_auth_token(Some(token.clone()));
             self.token.set(Some(token));
@@ -142,12 +144,15 @@ impl AuthContext {
     /// Server sie liefert.
     pub fn is_allowed(&self, entity_type: &str, op: PermissionOp) -> bool {
         self.permissions.with(|perms| {
-            perms.iter().filter(|p| p.matches(entity_type)).any(|p| match op {
-                PermissionOp::Read => p.can_read,
-                PermissionOp::Create => p.can_create,
-                PermissionOp::Update => p.can_update,
-                PermissionOp::Delete => p.can_delete,
-            })
+            perms
+                .iter()
+                .filter(|p| p.matches(entity_type))
+                .any(|p| match op {
+                    PermissionOp::Read => p.can_read,
+                    PermissionOp::Create => p.can_create,
+                    PermissionOp::Update => p.can_update,
+                    PermissionOp::Delete => p.can_delete,
+                })
         })
     }
 
@@ -347,7 +352,9 @@ mod tests {
             ctx.effective.set(Some(vec![
                 EffectivePermission::entity_type("product", NewOp::Read),
                 EffectivePermission::new(
-                    Resource::Action { name: "exportCsv".into() },
+                    Resource::Action {
+                        name: "exportCsv".into(),
+                    },
                     NewOp::Execute,
                 ),
             ]));
@@ -358,8 +365,7 @@ mod tests {
             assert!(!ctx.can_entity_type("product", NewOp::Update));
             assert!(!ctx.can_execute("rebuildIndex"));
             // Legacy-Permissions werden in Projektions-Modus IGNORIERT.
-            ctx.permissions
-                .set(vec![legacy_perm("order", true, true)]);
+            ctx.permissions.set(vec![legacy_perm("order", true, true)]);
             assert!(!ctx.can_entity_type("order", NewOp::Read));
         });
     }

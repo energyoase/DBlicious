@@ -40,7 +40,9 @@ pub struct StateMachine {
     pub transitions: Vec<Transition>,
 }
 
-fn default_state_field() -> String { "state".to_string() }
+fn default_state_field() -> String {
+    "state".to_string()
+}
 
 impl Default for StateMachine {
     fn default() -> Self {
@@ -78,9 +80,9 @@ impl StateMachine {
     /// Findet die erste Transition, die auf `(current_state, event)`
     /// passt. `"*"`-from matcht jeden State.
     pub fn find_transition(&self, current_state: &str, event: &str) -> Option<&Transition> {
-        self.transitions.iter().find(|t| {
-            t.event == event && (t.from == "*" || t.from == current_state)
-        })
+        self.transitions
+            .iter()
+            .find(|t| t.event == event && (t.from == "*" || t.from == current_state))
     }
 
     pub fn state_field_name(&self) -> &str {
@@ -100,29 +102,29 @@ mod tests {
 
     fn sample() -> StateMachine {
         StateMachine {
-            states:      vec!["draft".into(), "posted".into(), "cancelled".into()],
-            initial:     Some("draft".into()),
+            states: vec!["draft".into(), "posted".into(), "cancelled".into()],
+            initial: Some("draft".into()),
             state_field: "state".into(),
             transitions: vec![
                 Transition {
-                    from:       "draft".into(),
-                    to:         "posted".into(),
-                    event:      "post".into(),
-                    guard:      None,
+                    from: "draft".into(),
+                    to: "posted".into(),
+                    event: "post".into(),
+                    guard: None,
                     permission: Some("invoice.post".into()),
                 },
                 Transition {
-                    from:       "posted".into(),
-                    to:         "cancelled".into(),
-                    event:      "cancel".into(),
-                    guard:      None,
+                    from: "posted".into(),
+                    to: "cancelled".into(),
+                    event: "cancel".into(),
+                    guard: None,
                     permission: None,
                 },
                 Transition {
-                    from:       "*".into(),
-                    to:         "draft".into(),
-                    event:      "reset".into(),
-                    guard:      None,
+                    from: "*".into(),
+                    to: "draft".into(),
+                    event: "reset".into(),
+                    guard: None,
                     permission: None,
                 },
             ],
@@ -174,7 +176,7 @@ mod tests {
         let sm: StateMachine = serde_json::from_str(json).unwrap();
         assert_eq!(sm.transitions.len(), 1);
         assert_eq!(sm.state_field, "state"); // default
-        // Re-serialize: defaults werden weggelassen
+                                             // Re-serialize: defaults werden weggelassen
         let out = serde_json::to_string(&sm).unwrap();
         assert!(out.contains(r#""transitions""#));
     }

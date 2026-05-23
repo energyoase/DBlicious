@@ -41,12 +41,12 @@ pub use security::{
     PermissionOp, PropertyAccessLevel, PropertyPermission, SecurityGroup, SecurityUser,
     SecurityUser2Group,
 };
-pub use source::{
-    default_binding_for, BindingLocator, EntityBinding, EntityId, COMPOSITE_KEY_SEPARATOR,
-};
 pub use settings::{
     Access, EntitySettings, FieldTypeDefaults, LoadMethod, PropertyAccess, PropertySettings,
     SettingsBundle, Visibility,
+};
+pub use source::{
+    default_binding_for, BindingLocator, EntityBinding, EntityId, COMPOSITE_KEY_SEPARATOR,
 };
 pub use tabs::TabInfo;
 pub use translatable::{
@@ -128,12 +128,12 @@ fn augment_node(mut n: NavigationNode) -> NavigationNode {
         let already = n.children.iter().any(|c| c.id == designer_id);
         if !already {
             n.children.push(NavigationNode {
-                id:        designer_id,
+                id: designer_id,
                 label_key: "nav.builder".into(),
-                route:     Some(format!("/builder/{entity_type}")),
-                icon:      None,
-                children:  Vec::new(),
-                action:    None,
+                route: Some(format!("/builder/{entity_type}")),
+                icon: None,
+                children: Vec::new(),
+                action: None,
             });
         }
     }
@@ -151,19 +151,29 @@ fn augment_node(mut n: NavigationNode) -> NavigationNode {
 pub enum FieldType {
     Text,
     Integer,
-    Decimal { precision: u8 },
+    Decimal {
+        precision: u8,
+    },
     Boolean,
     Date,
     DateTime,
     /// Geldbetrag. `currency_code_field` verweist auf ein anderes Feld
     /// derselben Entitaet, das den ISO-4217-Code enthaelt.
-    Money { currency_code_field: Option<String> },
+    Money {
+        currency_code_field: Option<String>,
+    },
     /// Verweis auf eine andere Entitaet (1:1).
-    Reference { entity: String },
+    Reference {
+        entity: String,
+    },
     /// Sammlung von Verweisen (1:n).
-    Collection { entity: String },
+    Collection {
+        entity: String,
+    },
     /// Aufzaehlungstyp mit fest definierten Werten.
-    Enum { values: Vec<String> },
+    Enum {
+        values: Vec<String>,
+    },
 }
 
 impl FieldType {
@@ -289,13 +299,31 @@ pub struct Sort {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "op", rename_all = "camelCase")]
 pub enum FilterPredicate {
-    TextContains { value: String, case_insensitive: bool },
-    TextEquals { value: String, case_insensitive: bool },
-    NumberEquals { value: f64 },
-    NumberRange { min: Option<f64>, max: Option<f64> },
-    BoolEquals { value: bool },
-    DateRange { from: Option<String>, to: Option<String> },
-    EnumIn { values: Vec<String> },
+    TextContains {
+        value: String,
+        case_insensitive: bool,
+    },
+    TextEquals {
+        value: String,
+        case_insensitive: bool,
+    },
+    NumberEquals {
+        value: f64,
+    },
+    NumberRange {
+        min: Option<f64>,
+        max: Option<f64>,
+    },
+    BoolEquals {
+        value: bool,
+    },
+    DateRange {
+        from: Option<String>,
+        to: Option<String>,
+    },
+    EnumIn {
+        values: Vec<String>,
+    },
     IsNull,
     IsNotNull,
 }
@@ -372,7 +400,10 @@ pub enum DbColumnType {
     Text,
     Integer,
     BigInt,
-    Decimal { precision: u8, scale: u8 },
+    Decimal {
+        precision: u8,
+        scale: u8,
+    },
     Boolean,
     Date,
     DateTime,
@@ -440,7 +471,10 @@ impl AuditRole {
     pub fn fills_on_create(self) -> bool {
         matches!(
             self,
-            AuditRole::CreatedAt | AuditRole::UpdatedAt | AuditRole::CreatedBy | AuditRole::UpdatedBy
+            AuditRole::CreatedAt
+                | AuditRole::UpdatedAt
+                | AuditRole::CreatedBy
+                | AuditRole::UpdatedBy
         )
     }
     pub fn fills_on_update(self) -> bool {

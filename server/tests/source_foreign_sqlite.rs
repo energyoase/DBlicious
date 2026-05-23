@@ -19,7 +19,7 @@ fn foreign_sqlite_capabilities() {
     );
 }
 
-use sea_orm::{ConnectOptions, ConnectionTrait, Database, Statement, DbBackend};
+use sea_orm::{ConnectOptions, ConnectionTrait, Database, DbBackend, Statement};
 
 async fn build_fixture_db() -> sea_orm::DatabaseConnection {
     let opts = ConnectOptions::new("sqlite::memory:");
@@ -34,7 +34,9 @@ async fn build_fixture_db() -> sea_orm::DatabaseConnection {
         )"#,
     ];
     for s in stmts {
-        db.execute(Statement::from_string(DbBackend::Sqlite, s)).await.unwrap();
+        db.execute(Statement::from_string(DbBackend::Sqlite, s))
+            .await
+            .unwrap();
     }
     db
 }
@@ -54,7 +56,10 @@ async fn introspect_reads_composite_pk_in_correct_order() {
     let db = build_fixture_db().await;
     let schema = server::source::introspect::read_schema(&db).await.unwrap();
     let comp = schema.tables.get("Composite").expect("table Composite");
-    assert_eq!(comp.primary_key, vec!["BankCode".to_string(), "Code".to_string()]);
+    assert_eq!(
+        comp.primary_key,
+        vec!["BankCode".to_string(), "Code".to_string()]
+    );
     let col_names: Vec<&str> = comp.columns.iter().map(|c| c.name.as_str()).collect();
     assert!(col_names.contains(&"BankCode"));
     assert!(col_names.contains(&"Balance"));
@@ -67,7 +72,10 @@ fn uuid_like() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
     static SEQ: AtomicU64 = AtomicU64::new(0);
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let seq = SEQ.fetch_add(1, Ordering::Relaxed);
     format!("{nanos}_{seq}")
 }
@@ -75,7 +83,9 @@ fn uuid_like() -> String {
 async fn fixture_source_with_data() -> (ForeignSqliteSource, sea_orm::DatabaseConnection) {
     // Named shared-memory DB so the source's own connection sees the same data.
     let url = format!("sqlite:file:test_{}?mode=memory&cache=shared", uuid_like());
-    let anchor = sea_orm::Database::connect(sea_orm::ConnectOptions::new(url.clone())).await.unwrap();
+    let anchor = sea_orm::Database::connect(sea_orm::ConnectOptions::new(url.clone()))
+        .await
+        .unwrap();
     let stmts = [
         "CREATE TABLE DatevAccounts (Number INTEGER PRIMARY KEY, Name TEXT NOT NULL)",
         "INSERT INTO DatevAccounts (Number, Name) VALUES (1000, 'Kasse')",
@@ -83,7 +93,13 @@ async fn fixture_source_with_data() -> (ForeignSqliteSource, sea_orm::DatabaseCo
         "INSERT INTO DatevAccounts (Number, Name) VALUES (1800, 'Privat')",
     ];
     for s in stmts {
-        anchor.execute(sea_orm::Statement::from_string(sea_orm::DbBackend::Sqlite, s)).await.unwrap();
+        anchor
+            .execute(sea_orm::Statement::from_string(
+                sea_orm::DbBackend::Sqlite,
+                s,
+            ))
+            .await
+            .unwrap();
     }
     let mut src = ForeignSqliteSource::new("d2v_test".into(), url);
     src.init().await.unwrap();
@@ -96,7 +112,9 @@ fn account_binding() -> EntityBinding {
     map.insert("name".into(), "Name".into());
     EntityBinding {
         source: "d2v_test".into(),
-        locator: BindingLocator::Table { table: "DatevAccounts".into() },
+        locator: BindingLocator::Table {
+            table: "DatevAccounts".into(),
+        },
         primary_key: vec!["number".into()],
         read_only: false,
         column_map: map,
@@ -106,9 +124,18 @@ fn account_binding() -> EntityBinding {
 #[tokio::test]
 async fn foreign_list_page_returns_all_rows() {
     let (src, _anchor) = fixture_source_with_data().await;
-    let page = src.list_page(&account_binding(), &server::source::PageQuery {
-        page: 1, page_size: 10, sort: None, filter: shared::FilterCriteria::default(),
-    }).await.unwrap();
+    let page = src
+        .list_page(
+            &account_binding(),
+            &server::source::PageQuery {
+                page: 1,
+                page_size: 10,
+                sort: None,
+                filter: shared::FilterCriteria::default(),
+            },
+        )
+        .await
+        .unwrap();
     assert_eq!(page.total_count, 3);
     assert_eq!(page.items.len(), 3);
 }
@@ -116,9 +143,18 @@ async fn foreign_list_page_returns_all_rows() {
 #[tokio::test]
 async fn foreign_list_page_paginates() {
     let (src, _anchor) = fixture_source_with_data().await;
-    let page = src.list_page(&account_binding(), &server::source::PageQuery {
-        page: 1, page_size: 2, sort: None, filter: shared::FilterCriteria::default(),
-    }).await.unwrap();
+    let page = src
+        .list_page(
+            &account_binding(),
+            &server::source::PageQuery {
+                page: 1,
+                page_size: 2,
+                sort: None,
+                filter: shared::FilterCriteria::default(),
+            },
+        )
+        .await
+        .unwrap();
     assert_eq!(page.total_count, 3);
     assert_eq!(page.items.len(), 2);
 }
@@ -129,12 +165,17 @@ async fn foreign_get_single_pk() {
     let id = shared::source::EntityId::Single("1200".into());
     let e = src.get(&account_binding(), &id).await.unwrap();
     assert!(e.is_some());
-    assert_eq!(e.unwrap().fields.get("name").and_then(|v| v.as_str()), Some("Bank"));
+    assert_eq!(
+        e.unwrap().fields.get("name").and_then(|v| v.as_str()),
+        Some("Bank")
+    );
 }
 
 async fn fixture_composite_pk() -> (ForeignSqliteSource, sea_orm::DatabaseConnection) {
     let url = format!("sqlite:file:test_{}?mode=memory&cache=shared", uuid_like());
-    let anchor = sea_orm::Database::connect(sea_orm::ConnectOptions::new(url.clone())).await.unwrap();
+    let anchor = sea_orm::Database::connect(sea_orm::ConnectOptions::new(url.clone()))
+        .await
+        .unwrap();
     let stmts = [
         "CREATE TABLE StarMoneyAccounts (
             BankCode TEXT NOT NULL,
@@ -146,7 +187,13 @@ async fn fixture_composite_pk() -> (ForeignSqliteSource, sea_orm::DatabaseConnec
         "INSERT INTO StarMoneyAccounts VALUES ('60050101', '5678', 200.0)",
     ];
     for s in stmts {
-        anchor.execute(sea_orm::Statement::from_string(sea_orm::DbBackend::Sqlite, s)).await.unwrap();
+        anchor
+            .execute(sea_orm::Statement::from_string(
+                sea_orm::DbBackend::Sqlite,
+                s,
+            ))
+            .await
+            .unwrap();
     }
     let mut src = ForeignSqliteSource::new("sm".into(), url);
     src.init().await.unwrap();
@@ -160,7 +207,9 @@ fn sm_binding() -> EntityBinding {
     map.insert("balance".into(), "Balance".into());
     EntityBinding {
         source: "sm".into(),
-        locator: BindingLocator::Table { table: "StarMoneyAccounts".into() },
+        locator: BindingLocator::Table {
+            table: "StarMoneyAccounts".into(),
+        },
         primary_key: vec!["bankCode".into(), "code".into()],
         read_only: false,
         column_map: map,
@@ -174,7 +223,10 @@ async fn foreign_get_composite_pk() {
     let e = src.get(&sm_binding(), &id).await.unwrap();
     assert!(e.is_some());
     let row = e.unwrap();
-    assert_eq!(row.fields.get("code").and_then(|v| v.as_str()), Some("5678"));
+    assert_eq!(
+        row.fields.get("code").and_then(|v| v.as_str()),
+        Some("5678")
+    );
 }
 
 #[tokio::test]
@@ -183,7 +235,10 @@ async fn foreign_create_inserts_row_and_returns_entity() {
     let mut fields = serde_json::Map::new();
     fields.insert("number".into(), serde_json::json!(9999));
     fields.insert("name".into(), serde_json::json!("Neu"));
-    let created = src.create(&account_binding(), None, fields, None).await.unwrap();
+    let created = src
+        .create(&account_binding(), None, fields, None)
+        .await
+        .unwrap();
     assert_eq!(created.id, "9999");
 
     let id = shared::source::EntityId::Single("9999".into());
@@ -198,8 +253,15 @@ async fn foreign_update_and_delete() {
 
     let mut patch = serde_json::Map::new();
     patch.insert("name".into(), serde_json::json!("Renamed"));
-    let upd = src.update(&account_binding(), &id, patch, None).await.unwrap().unwrap();
-    assert_eq!(upd.fields.get("name").and_then(|v| v.as_str()), Some("Renamed"));
+    let upd = src
+        .update(&account_binding(), &id, patch, None)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        upd.fields.get("name").and_then(|v| v.as_str()),
+        Some("Renamed")
+    );
 
     let removed = src.delete(&account_binding(), &id).await.unwrap();
     assert!(removed);
@@ -214,7 +276,11 @@ async fn foreign_read_only_binding_rejects_mutations() {
     b.read_only = true;
 
     let fields = serde_json::Map::new();
-    let err = src.create(&b, None, fields, None).await.err().expect("should error");
+    let err = src
+        .create(&b, None, fields, None)
+        .await
+        .err()
+        .expect("should error");
     assert!(matches!(err, server::source::SourceError::ReadOnly));
 }
 
@@ -228,11 +294,23 @@ async fn foreign_list_page_filters_by_number_equals_via_sql() {
             predicate: shared::FilterPredicate::NumberEquals { value: 1200.0 },
         }],
     };
-    let page = src.list_page(&account_binding(), &server::source::PageQuery {
-        page: 1, page_size: 10, sort: None, filter,
-    }).await.unwrap();
+    let page = src
+        .list_page(
+            &account_binding(),
+            &server::source::PageQuery {
+                page: 1,
+                page_size: 10,
+                sort: None,
+                filter,
+            },
+        )
+        .await
+        .unwrap();
     assert_eq!(page.total_count, 1);
-    assert_eq!(page.items[0].fields.get("name").and_then(|v| v.as_str()), Some("Bank"));
+    assert_eq!(
+        page.items[0].fields.get("name").and_then(|v| v.as_str()),
+        Some("Bank")
+    );
 }
 
 #[tokio::test]
@@ -248,8 +326,17 @@ async fn foreign_list_page_filters_by_text_contains_case_insensitive() {
             },
         }],
     };
-    let page = src.list_page(&account_binding(), &server::source::PageQuery {
-        page: 1, page_size: 10, sort: None, filter,
-    }).await.unwrap();
+    let page = src
+        .list_page(
+            &account_binding(),
+            &server::source::PageQuery {
+                page: 1,
+                page_size: 10,
+                sort: None,
+                filter,
+            },
+        )
+        .await
+        .unwrap();
     assert_eq!(page.total_count, 1);
 }

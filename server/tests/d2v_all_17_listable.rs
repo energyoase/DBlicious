@@ -28,7 +28,10 @@ fn d2v_dir() -> PathBuf {
 
 fn unique_db_url() -> String {
     static SEQ: AtomicU64 = AtomicU64::new(0);
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let seq = SEQ.fetch_add(1, Ordering::Relaxed);
     format!("sqlite:file:test_all17_{nanos}_{seq}?mode=memory&cache=shared")
 }
@@ -36,7 +39,7 @@ fn unique_db_url() -> String {
 /// Aggregiert pro (Tabellen-Name) die Menge DB-Spalten + PK-Spalten aus allen
 /// Bindings, die auf die Tabelle zeigen.
 struct TableSpec {
-    columns:     BTreeSet<String>,
+    columns: BTreeSet<String>,
     primary_key: Vec<String>,
 }
 
@@ -61,7 +64,7 @@ fn collect_table_specs(set: &ExampleSet) -> BTreeMap<String, TableSpec> {
         };
         let pk_db: Vec<String> = binding.primary_key.iter().map(|k| resolve(k)).collect();
         let entry = by_table.entry(table.clone()).or_insert_with(|| TableSpec {
-            columns:     BTreeSet::new(),
+            columns: BTreeSet::new(),
             primary_key: pk_db.clone(),
         });
         // Alle DB-Spalten aus column_map sammeln.
@@ -80,11 +83,7 @@ fn ddl_for(table: &str, spec: &TableSpec) -> String {
     // Alle Spalten typenlos (SQLite-default: BLOB-affinity, akzeptiert alles).
     // Reicht fuer Introspektion + list_page mit 0 Rows; produktive Tests in
     // `d2v_e2e.rs` testen mit echten Typen.
-    let cols_sql: Vec<String> = spec
-        .columns
-        .iter()
-        .map(|c| format!("\"{c}\""))
-        .collect();
+    let cols_sql: Vec<String> = spec.columns.iter().map(|c| format!("\"{c}\"")).collect();
     let pk_sql = spec
         .primary_key
         .iter()
@@ -94,7 +93,7 @@ fn ddl_for(table: &str, spec: &TableSpec) -> String {
     format!(
         "CREATE TABLE \"{table}\" ({cols}, PRIMARY KEY ({pk}))",
         cols = cols_sql.join(", "),
-        pk   = pk_sql,
+        pk = pk_sql,
     )
 }
 
@@ -211,8 +210,7 @@ async fn explain_query_plan_uses_pk_index_on_datev_accounts() {
 
     // Genau das SQL, das `ForeignSqliteSource::get` baut (siehe
     // foreign_sqlite.rs: SELECT cols FROM "table" WHERE "pk" = ? LIMIT 1).
-    let explain_sql =
-        r#"EXPLAIN QUERY PLAN SELECT "Number","Name","CompanyId" FROM "DatevAccounts" WHERE "Number" = ? LIMIT 1"#;
+    let explain_sql = r#"EXPLAIN QUERY PLAN SELECT "Number","Name","CompanyId" FROM "DatevAccounts" WHERE "Number" = ? LIMIT 1"#;
     let stmt = Statement::from_sql_and_values(
         DbBackend::Sqlite,
         explain_sql,

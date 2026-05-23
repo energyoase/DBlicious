@@ -219,10 +219,7 @@ mod tests {
 
     #[test]
     fn parse_script_id_strips_prefix() {
-        assert_eq!(
-            parse_script_id("script:foo"),
-            Some(ScriptId("foo".into()))
-        );
+        assert_eq!(parse_script_id("script:foo"), Some(ScriptId("foo".into())));
         assert!(parse_script_id("text-plain").is_none());
     }
 

@@ -24,12 +24,17 @@ use shared::auth::{Effect, Op, Permission, Resource, Subject};
 #[test]
 fn subject_user_serializes_as_kind_user() {
     let s = Subject::User { id: "u-1".into() };
-    assert_eq!(serde_json::to_value(&s).unwrap(), json!({"kind": "user", "id": "u-1"}));
+    assert_eq!(
+        serde_json::to_value(&s).unwrap(),
+        json!({"kind": "user", "id": "u-1"})
+    );
 }
 
 #[test]
 fn subject_group_serializes_as_kind_group() {
-    let s = Subject::Group { id: "g-admins".into() };
+    let s = Subject::Group {
+        id: "g-admins".into(),
+    };
     assert_eq!(
         serde_json::to_value(&s).unwrap(),
         json!({"kind": "group", "id": "g-admins"})
@@ -38,7 +43,9 @@ fn subject_group_serializes_as_kind_group() {
 
 #[test]
 fn subject_role_serializes_as_kind_role() {
-    let s = Subject::Role { id: "r-editor".into() };
+    let s = Subject::Role {
+        id: "r-editor".into(),
+    };
     assert_eq!(
         serde_json::to_value(&s).unwrap(),
         json!({"kind": "role", "id": "r-editor"})
@@ -78,7 +85,9 @@ fn subject_id_accessor_returns_inner_id() {
 
 #[test]
 fn resource_entity_type_serializes_with_name() {
-    let r = Resource::EntityType { name: "product".into() };
+    let r = Resource::EntityType {
+        name: "product".into(),
+    };
     assert_eq!(
         serde_json::to_value(&r).unwrap(),
         json!({"kind": "entityType", "name": "product"})
@@ -121,7 +130,9 @@ fn resource_entity_instance_uses_snake_case_inner_fields() {
 
 #[test]
 fn resource_action_serializes_with_name() {
-    let r = Resource::Action { name: "exportCsv".into() };
+    let r = Resource::Action {
+        name: "exportCsv".into(),
+    };
     assert_eq!(
         serde_json::to_value(&r).unwrap(),
         json!({"kind": "action", "name": "exportCsv"})
@@ -149,7 +160,9 @@ fn resource_implementation_id_uses_registry_field() {
 
 #[test]
 fn resource_migration_serializes_with_id() {
-    let r = Resource::Migration { id: "mig-2026-05-15-rename-price".into() };
+    let r = Resource::Migration {
+        id: "mig-2026-05-15-rename-price".into(),
+    };
     assert_eq!(
         serde_json::to_value(&r).unwrap(),
         json!({"kind": "migration", "id": "mig-2026-05-15-rename-price"})
@@ -159,7 +172,9 @@ fn resource_migration_serializes_with_id() {
 #[test]
 fn resource_roundtrip_through_json() {
     let originals = vec![
-        Resource::EntityType { name: "product".into() },
+        Resource::EntityType {
+            name: "product".into(),
+        },
         Resource::EntityProperty {
             entity_type: "product".into(),
             property: "price".into(),
@@ -168,7 +183,9 @@ fn resource_roundtrip_through_json() {
             entity_type: "product".into(),
             id: "p-42".into(),
         },
-        Resource::Action { name: "exportCsv".into() },
+        Resource::Action {
+            name: "exportCsv".into(),
+        },
         Resource::Migration { id: "mig-1".into() },
     ];
     for r in originals {
@@ -182,7 +199,9 @@ fn resource_roundtrip_through_json() {
 fn resource_constructors_are_ergonomic() {
     assert_eq!(
         Resource::entity_type("product"),
-        Resource::EntityType { name: "product".into() }
+        Resource::EntityType {
+            name: "product".into()
+        }
     );
     assert_eq!(
         Resource::entity_property("product", "price"),
@@ -266,8 +285,12 @@ fn effect_default_is_allow() {
 #[test]
 fn permission_minimal_roundtrip() {
     let p = Permission {
-        subject: Subject::Role { id: "r-editor".into() },
-        resource: Resource::EntityType { name: "product".into() },
+        subject: Subject::Role {
+            id: "r-editor".into(),
+        },
+        resource: Resource::EntityType {
+            name: "product".into(),
+        },
         op: Op::Update,
         effect: Effect::Allow,
         priority: 0,
@@ -326,7 +349,9 @@ fn permission_with_tenant_id_serializes_as_camelcase() {
     // Das ist konsistent zur Konvention im restlichen `shared`-Modul.
     let p = Permission {
         subject: Subject::Group { id: "g-1".into() },
-        resource: Resource::EntityType { name: "product".into() },
+        resource: Resource::EntityType {
+            name: "product".into(),
+        },
         op: Op::Create,
         effect: Effect::Allow,
         priority: 0,
@@ -344,7 +369,9 @@ fn permission_with_tenant_id_serializes_as_camelcase() {
 fn permission_without_tenant_id_omits_the_field() {
     let p = Permission {
         subject: Subject::Group { id: "g-1".into() },
-        resource: Resource::EntityType { name: "product".into() },
+        resource: Resource::EntityType {
+            name: "product".into(),
+        },
         op: Op::Create,
         effect: Effect::Allow,
         priority: 0,
@@ -376,8 +403,12 @@ fn permission_migration_lifecycle_ops_roundtrip() {
     // Sanity: Approve/Cutover/Contract/Rollback gegen Migration-Resource.
     for op in [Op::Approve, Op::Cutover, Op::Contract, Op::Rollback] {
         let p = Permission {
-            subject: Subject::Role { id: "r-release-manager".into() },
-            resource: Resource::Migration { id: "mig-42".into() },
+            subject: Subject::Role {
+                id: "r-release-manager".into(),
+            },
+            resource: Resource::Migration {
+                id: "mig-42".into(),
+            },
             op,
             effect: Effect::Allow,
             priority: 0,
@@ -393,7 +424,9 @@ fn permission_migration_lifecycle_ops_roundtrip() {
 fn permission_choose_on_implementation_id_works() {
     // Phase-1.5-Vorbote: jemand darf eine konkrete Filter-Implementation waehlen.
     let p = Permission {
-        subject: Subject::Group { id: "g-power-users".into() },
+        subject: Subject::Group {
+            id: "g-power-users".into(),
+        },
         resource: Resource::ImplementationId {
             registry: "filter".into(),
             id: "number-range".into(),

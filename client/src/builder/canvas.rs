@@ -63,7 +63,9 @@ pub fn BuilderCanvas() -> impl IntoView {
 
     // ----- Container-globale Drag-Handler -----
     let on_pointer_move = move |ev: web_sys::PointerEvent| {
-        let Some(d) = drag.get_untracked() else { return };
+        let Some(d) = drag.get_untracked() else {
+            return;
+        };
         let x = (ev.client_x() as f64 - d.offset_x).max(0.0);
         let y = (ev.client_y() as f64 - d.offset_y).max(0.0);
         tree_sig.update(|t| {
@@ -116,7 +118,9 @@ pub fn BuilderCanvas() -> impl IntoView {
     };
 
     let on_delete = move |_| {
-        let Some(id) = selected.get_untracked() else { return };
+        let Some(id) = selected.get_untracked() else {
+            return;
+        };
         mutate_with_history(tree_sig, history, |t| {
             t.remove(id);
         });

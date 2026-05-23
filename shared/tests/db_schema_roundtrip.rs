@@ -151,7 +151,10 @@ fn legacy_schema_without_new_fields_still_parses() {
         "relations": []
     }"#;
     let parsed: DbSchema = serde_json::from_str(legacy).expect("legacy deserialize");
-    assert_eq!(parsed.tables[0].columns[0].generated, ColumnGenerated::Never);
+    assert_eq!(
+        parsed.tables[0].columns[0].generated,
+        ColumnGenerated::Never
+    );
     assert!(!parsed.tables[0].columns[0].concurrency_token);
     assert!(parsed.tables[0].columns[0].default_value.is_none());
     assert!(parsed.keys.is_empty());
@@ -163,8 +166,14 @@ fn camel_case_field_names_on_the_wire() {
     let schema = sample_schema();
     let json = serde_json::to_value(&schema).expect("to_value");
     let rel = &json["relations"][0];
-    assert!(rel.get("columnPairs").is_some(), "columnPairs muss camelCase sein");
-    assert!(rel.get("onDelete").is_some(), "onDelete muss camelCase sein");
+    assert!(
+        rel.get("columnPairs").is_some(),
+        "columnPairs muss camelCase sein"
+    );
+    assert!(
+        rel.get("onDelete").is_some(),
+        "onDelete muss camelCase sein"
+    );
     assert!(rel.get("sourceTableId").is_some());
     assert!(rel.get("targetTableId").is_some());
     let col = &json["tables"][0]["columns"][1];

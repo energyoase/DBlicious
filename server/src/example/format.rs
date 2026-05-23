@@ -35,16 +35,15 @@ pub fn read_typed<T: DeserializeOwned>(path: &Path) -> Result<T> {
         .and_then(|s| s.to_str())
         .map(str::to_ascii_lowercase)
         .unwrap_or_default();
-    let bytes = std::fs::read(path)
-        .with_context(|| format!("kann '{}' nicht lesen", path.display()))?;
+    let bytes =
+        std::fs::read(path).with_context(|| format!("kann '{}' nicht lesen", path.display()))?;
     match ext.as_str() {
         "json" => serde_json::from_slice(&bytes)
             .with_context(|| format!("JSON-Parse-Fehler in '{}'", path.display())),
         "toml" => {
             let s = std::str::from_utf8(&bytes)
                 .with_context(|| format!("'{}' ist kein gueltiges UTF-8", path.display()))?;
-            toml::from_str(s)
-                .with_context(|| format!("TOML-Parse-Fehler in '{}'", path.display()))
+            toml::from_str(s).with_context(|| format!("TOML-Parse-Fehler in '{}'", path.display()))
         }
         // Hier waeren spaeter `yaml`/`yml` / `rhai` / ... anzufuegen.
         other => Err(anyhow!(

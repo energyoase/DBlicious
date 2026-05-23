@@ -24,14 +24,16 @@ async fn fresh_managed_with_table(table_ddl: &str) -> ManagedSqliteSource {
 
 fn widget_binding() -> EntityBinding {
     let mut column_map = BTreeMap::new();
-    column_map.insert("id".into(),    "id".into());
-    column_map.insert("name".into(),  "name".into());
+    column_map.insert("id".into(), "id".into());
+    column_map.insert("name".into(), "name".into());
     column_map.insert("price".into(), "price".into());
     EntityBinding {
-        source:      "local".into(),
-        locator:     BindingLocator::Table { table: "phase06_b4_widget".into() },
+        source: "local".into(),
+        locator: BindingLocator::Table {
+            table: "phase06_b4_widget".into(),
+        },
         primary_key: vec!["id".into()],
-        read_only:   false,
+        read_only: false,
         column_map,
     }
 }
@@ -51,10 +53,13 @@ async fn managed_sqlite_table_locator_full_crud_roundtrip() {
 
     // create
     let mut fields = serde_json::Map::new();
-    fields.insert("id".into(),    serde_json::json!("w-1"));
-    fields.insert("name".into(),  serde_json::json!("Hammer"));
+    fields.insert("id".into(), serde_json::json!("w-1"));
+    fields.insert("name".into(), serde_json::json!("Hammer"));
     fields.insert("price".into(), serde_json::json!(9.99));
-    let created = src.create(&binding, None, fields, None).await.expect("create");
+    let created = src
+        .create(&binding, None, fields, None)
+        .await
+        .expect("create");
     assert_eq!(created.id, "w-1");
 
     // list_page sieht ihn
@@ -72,7 +77,10 @@ async fn managed_sqlite_table_locator_full_crud_roundtrip() {
         .expect("list");
     assert_eq!(page.total_count, 1);
     assert_eq!(page.items.len(), 1);
-    assert_eq!(page.items[0].fields.get("name").unwrap(), &serde_json::json!("Hammer"));
+    assert_eq!(
+        page.items[0].fields.get("name").unwrap(),
+        &serde_json::json!("Hammer")
+    );
 
     // get — price geht durch SQLite REAL (f32-affinity), wir vergleichen
     // mit Toleranz statt mit JSON-Equality.
@@ -82,7 +90,10 @@ async fn managed_sqlite_table_locator_full_crud_roundtrip() {
         .unwrap()
         .expect("get returns Some");
     let got_price = got.fields["price"].as_f64().expect("price ist Number");
-    assert!((got_price - 9.99).abs() < 0.01, "price ~ 9.99, got {got_price}");
+    assert!(
+        (got_price - 9.99).abs() < 0.01,
+        "price ~ 9.99, got {got_price}"
+    );
 
     // update
     let mut patch = serde_json::Map::new();
@@ -126,11 +137,13 @@ async fn managed_sqlite_table_locator_supports_composite_pk_and_sort() {
     cm.insert("code".into(), "code".into());
     cm.insert("name".into(), "name".into());
     let binding = EntityBinding {
-        source:      "local".into(),
-        locator:     BindingLocator::Table { table: "phase06_b4_account".into() },
+        source: "local".into(),
+        locator: BindingLocator::Table {
+            table: "phase06_b4_account".into(),
+        },
         primary_key: vec!["bank".into(), "code".into()],
-        read_only:   false,
-        column_map:  cm,
+        read_only: false,
+        column_map: cm,
     };
 
     for (b, c, n) in &[
@@ -153,7 +166,7 @@ async fn managed_sqlite_table_locator_supports_composite_pk_and_sort() {
                 page: 1,
                 page_size: 10,
                 sort: Some(shared::Sort {
-                    field:     "name".into(),
+                    field: "name".into(),
                     direction: SortDirection::Desc,
                 }),
                 filter: FilterCriteria::default(),
@@ -176,6 +189,9 @@ async fn managed_sqlite_table_locator_supports_composite_pk_and_sort() {
 
     // Composite-PK delete + verify count
     src.delete(&binding, &id).await.unwrap();
-    let page = src.list_page(&binding, &PageQuery::default()).await.unwrap();
+    let page = src
+        .list_page(&binding, &PageQuery::default())
+        .await
+        .unwrap();
     assert_eq!(page.total_count, 2);
 }

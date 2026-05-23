@@ -3,8 +3,8 @@
 use leptos::prelude::*;
 use shared::{ColumnMeta, FilterPredicate};
 
-use super::helpers::{current_predicate, upsert_predicate};
 use super::super::shell::use_shell;
+use super::helpers::{current_predicate, upsert_predicate};
 use crate::i18n::t;
 use crate::styling::use_design;
 
@@ -31,7 +31,10 @@ pub fn TextContainsFilter(column: ColumnMeta) -> impl IntoView {
         let pred = if value.is_empty() {
             None
         } else {
-            Some(FilterPredicate::TextContains { value, case_insensitive: true })
+            Some(FilterPredicate::TextContains {
+                value,
+                case_insensitive: true,
+            })
         };
         upsert_predicate(state, &key_for_event, pred);
     };

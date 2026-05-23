@@ -78,7 +78,9 @@ impl EntityId {
         }
         if s.contains(COMPOSITE_KEY_SEPARATOR) {
             return EntityId::Composite(
-                s.split(COMPOSITE_KEY_SEPARATOR).map(str::to_string).collect(),
+                s.split(COMPOSITE_KEY_SEPARATOR)
+                    .map(str::to_string)
+                    .collect(),
             );
         }
         EntityId::Single(s.to_string())

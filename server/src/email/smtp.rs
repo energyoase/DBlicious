@@ -20,7 +20,8 @@ use lettre::{
         header::ContentType, Attachment, Mailbox, Mailboxes, Message, MultiPart, SinglePart,
     },
     transport::smtp::{
-        authentication::Credentials, client::TlsParameters, AsyncSmtpTransport, AsyncSmtpTransportBuilder,
+        authentication::Credentials, client::TlsParameters, AsyncSmtpTransport,
+        AsyncSmtpTransportBuilder,
     },
     transport::stub::AsyncStubTransport,
     AsyncTransport, Tokio1Executor,
@@ -165,9 +166,7 @@ pub fn build_message(
         .into_iter()
         .collect();
 
-    let mut builder = Message::builder()
-        .from(from_mb)
-        .subject(msg.subject);
+    let mut builder = Message::builder().from(from_mb).subject(msg.subject);
     for mb in to_mbs {
         builder = builder.to(mb);
     }
@@ -214,12 +213,10 @@ fn build_body(msg: &EmailMessage<'_>) -> Result<MultiPart, EmailError> {
 
     let mut mixed = MultiPart::mixed().multipart(body);
     for att in msg.attachments {
-        let ct: ContentType = att
-            .mime
-            .parse()
-            .map_err(|e| EmailError::InvalidInput(format!("attachment mime '{}': {e}", att.mime)))?;
-        let att_part = Attachment::new(att.filename.to_string())
-            .body(att.bytes.to_vec(), ct);
+        let ct: ContentType = att.mime.parse().map_err(|e| {
+            EmailError::InvalidInput(format!("attachment mime '{}': {e}", att.mime))
+        })?;
+        let att_part = Attachment::new(att.filename.to_string()).body(att.bytes.to_vec(), ct);
         mixed = mixed.singlepart(att_part);
     }
     Ok(mixed)

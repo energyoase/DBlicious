@@ -81,7 +81,10 @@ impl FallbackReason {
             FallbackReason::NotActive { script_id, state } => {
                 serde_json::json!({"scriptId": script_id, "state": state})
             }
-            FallbackReason::SlotMismatch { script_id, expected } => {
+            FallbackReason::SlotMismatch {
+                script_id,
+                expected,
+            } => {
                 serde_json::json!({"scriptId": script_id, "expected": expected})
             }
             FallbackReason::CompileFailed { script_id, error } => {

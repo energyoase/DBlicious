@@ -46,7 +46,13 @@ impl Locale {
     }
 
     pub fn from_code(code: &str) -> Self {
-        match code.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase().as_str() {
+        match code
+            .split(['-', '_'])
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .as_str()
+        {
             "de" => Locale::De,
             "fr" => Locale::Fr,
             _ => Locale::En,
@@ -57,7 +63,11 @@ impl Locale {
     /// DB-Bundle-Loader benutzt, um unbekannte Sprachen nur einmal zu
     /// loggen statt sie still auf `En` zu mappen.
     pub fn is_known_code(code: &str) -> bool {
-        let primary = code.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase();
+        let primary = code
+            .split(['-', '_'])
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase();
         matches!(primary.as_str(), "de" | "en" | "fr")
     }
 
@@ -86,7 +96,9 @@ fn make_bundle(locale: Locale) -> Bundle {
     let mut bundle = FluentBundle::new_concurrent(vec![locale.lang_id()]);
     // Unicode-Bidi-Marker abschalten – sonst landen \u{2068} im Output.
     bundle.set_use_isolating(false);
-    bundle.add_resource(resource).expect("FTL-Resource konnte nicht hinzugefuegt werden");
+    bundle
+        .add_resource(resource)
+        .expect("FTL-Resource konnte nicht hinzugefuegt werden");
     bundle
 }
 
@@ -115,7 +127,9 @@ fn bundles_cell() -> &'static Mutex<HashMap<Locale, Bundle>> {
 pub fn install_translatable_bundle(tr: &TranslatableBundle) {
     let mut bundles = bundles_cell().lock().unwrap();
     for lang in &tr.languages {
-        let Some(locale) = match_locale(&lang.code) else { continue };
+        let Some(locale) = match_locale(&lang.code) else {
+            continue;
+        };
         let ftl = tr.ftl_for_language(&lang.id);
         if ftl.is_empty() {
             continue;
@@ -159,7 +173,9 @@ pub fn bump_revision_if_available() {
 /// nicht in der Topbar auf, wuerden aber durch `Locale::from_code` als
 /// `En`-Duplikat erscheinen.
 pub fn set_available_locales_from_bundle(bundle: &TranslatableBundle) {
-    let Some(ctx) = leptos::prelude::use_context::<I18nContext>() else { return };
+    let Some(ctx) = leptos::prelude::use_context::<I18nContext>() else {
+        return;
+    };
     let mut seen: Vec<Locale> = Vec::new();
     for lang in &bundle.languages {
         if !lang.active {
@@ -264,7 +280,9 @@ fn translate(locale: Locale, key: &str, args: Option<&FluentArgs>) -> String {
         return key.to_string();
     };
     let mut errors = vec![];
-    bundle.format_pattern(pattern, args, &mut errors).into_owned()
+    bundle
+        .format_pattern(pattern, args, &mut errors)
+        .into_owned()
 }
 
 /// Liest die bevorzugte Sprache aus dem Browser.
@@ -300,8 +318,16 @@ pub mod format {
 
     pub fn decimal(value: f64, precision: u8, locale: Locale) -> String {
         let opts = Object::new();
-        let _ = Reflect::set(&opts, &"minimumFractionDigits".into(), &JsValue::from_f64(precision as f64));
-        let _ = Reflect::set(&opts, &"maximumFractionDigits".into(), &JsValue::from_f64(precision as f64));
+        let _ = Reflect::set(
+            &opts,
+            &"minimumFractionDigits".into(),
+            &JsValue::from_f64(precision as f64),
+        );
+        let _ = Reflect::set(
+            &opts,
+            &"maximumFractionDigits".into(),
+            &JsValue::from_f64(precision as f64),
+        );
         let formatter = Intl::NumberFormat::new(&locale_array(locale), &opts);
         formatter
             .format()
