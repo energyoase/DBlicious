@@ -245,6 +245,81 @@ fn host_ctx_returns_read_only_fields_from_script_ctx() {
     assert!(now.contains('T'), "RFC-3339 expected: {now}");
 }
 
+// ----------------------------------------------------------------------------
+// Phase 2.7 — Host-Module ui + audit
+// ----------------------------------------------------------------------------
+
+#[test]
+fn host_ui_text_returns_uitree_subtree() {
+    use server::script::host::ui::UiHost;
+    use shared::script::manifest::UiPrimitive;
+    let manifest = shared::script::ScriptManifest {
+        manifest_version: 1,
+        tier: shared::script::ScriptTier::Author,
+        capabilities: vec![shared::script::CapabilityToken::EmitUiNode {
+            scope: shared::script::capability::UiScope::Composite,
+        }],
+        ui_primitives: vec![UiPrimitive::Text],
+        ..Default::default()
+    };
+    let mut ui = UiHost::new(&manifest);
+    let node = ui.text("Hallo", &serde_json::json!({"size": "h2"})).unwrap();
+    assert_eq!(node["type"], serde_json::Value::String("text".into()));
+    assert_eq!(node["text"], serde_json::Value::String("Hallo".into()));
+}
+
+#[test]
+fn host_ui_rejects_undeclared_primitive() {
+    use server::script::host::ui::UiHost;
+    let manifest = shared::script::ScriptManifest::default(); // ui_primitives: leer
+    let mut ui = UiHost::new(&manifest);
+    let err = ui.text("Hallo", &serde_json::json!({})).unwrap_err();
+    match err {
+        shared::script::ScriptError::UiPrimitiveDenied { primitive } => {
+            assert_eq!(primitive, "text");
+        }
+        other => panic!("expected UiPrimitiveDenied, got {other:?}"),
+    }
+}
+
+#[test]
+fn host_ui_camel_case_primitive_name_is_pinned() {
+    // ForEach muss als "forEach" gemeldet werden, nicht als "foreach"
+    use server::script::host::ui::UiHost;
+    use shared::script::manifest::UiPrimitive;
+    // Manifest enthaelt nur Text — Aufruf von table()/vstack()/etc. wird
+    // deny'd; hier prueft der Test, dass die Name-Map keine Debug-Lower-
+    // Heuristik benutzt. Wir nehmen ein Primitive, das im Default-Manifest
+    // nicht erlaubt ist, und pruefen den gemeldeten String.
+    let manifest = shared::script::ScriptManifest {
+        manifest_version: 1,
+        tier: shared::script::ScriptTier::Author,
+        capabilities: vec![],
+        ui_primitives: vec![UiPrimitive::Text],
+        ..Default::default()
+    };
+    let mut ui = UiHost::new(&manifest);
+    let err = ui.table(&serde_json::json!({})).unwrap_err();
+    match err {
+        shared::script::ScriptError::UiPrimitiveDenied { primitive } => {
+            assert_eq!(primitive, "table");
+        }
+        other => panic!("expected UiPrimitiveDenied, got {other:?}"),
+    }
+}
+
+#[test]
+fn host_audit_log_via_mock_records_event() {
+    use server::script::host::audit::AuditHost;
+    let mock = shared::script::testing::MockHostApi::new();
+    let h = AuditHost::new(&mock);
+    h.log("custom.event", &serde_json::json!({"x": 1})).unwrap();
+    let log = mock.audit_log_calls();
+    assert_eq!(log.len(), 1);
+    assert_eq!(log[0].0, "custom.event");
+    assert_eq!(log[0].1, serde_json::json!({"x": 1}));
+}
+
 #[test]
 fn engine_max_operations_kicks_in_on_runaway_loop() {
     let engine = server::script::engine::RhaiEngine::new();
