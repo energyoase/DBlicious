@@ -1439,3 +1439,293 @@ pub async fn revert_entity_view(
     .await?;
     Ok(r.revert_entity_view)
 }
+
+// =============================================================================
+// Q0009 — Scripts (Phase 6)
+// =============================================================================
+//
+// Wire-Strategie wie bei `fetch_columns`: dynamische JSON-Felder (manifest,
+// kind, lastError) kommen als `serde_json::Value` rein und werden in den
+// Typed-Wrapper (`shared::script::*`) deserialisiert. Bei Parse-Fehler des
+// Manifests ist die Konvention "Skript als Draft mit Default-Manifest
+// behandeln" — Spec §9. Der Aufrufer entscheidet, was er damit anfaengt.
+
+use shared::script::{Script, ScriptError, ScriptId, ScriptKind, ScriptManifest, ScriptState};
+
+const FETCH_SCRIPT_QUERY: &str = r#"
+    query Script($id: String!) {
+        script(id: $id) {
+            id kind source version state manifest lastError
+            createdBy createdAt updatedAt
+        }
+    }
+"#;
+
+const FETCH_SCRIPTS_QUERY: &str = r#"
+    query Scripts($filter: ScriptFilter) {
+        scripts(filter: $filter) {
+            id kind source version state manifest lastError
+            createdBy createdAt updatedAt
+        }
+    }
+"#;
+
+const SAVE_SCRIPT_MUTATION: &str = r#"
+    mutation SaveScript($input: SaveScriptInput!) {
+        saveScript(input: $input) {
+            id kind source version state manifest lastError
+            createdBy createdAt updatedAt
+        }
+    }
+"#;
+
+const PREVIEW_SCRIPT_RUN_MUTATION: &str = r#"
+    mutation PreviewScriptRun($input: PreviewScriptRunInput!) {
+        previewScriptRun(input: $input) {
+            output error tokensUsed runId durationMs
+        }
+    }
+"#;
+
+/// Wire-Repraesentation eines Scripts. Vor der `into_typed`-Konvertierung
+/// haengt das Manifest noch als roher JSON-Blob im Feld `manifest`.
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RawScript {
+    pub id: String,
+    pub kind: serde_json::Value,
+    pub source: String,
+    pub version: i32,
+    /// `"DRAFT"` / `"ACTIVE"` / `"LOCKED"` — GraphQL-Enum-Wire-Form (UPPER).
+    pub state: String,
+    pub manifest: serde_json::Value,
+    #[serde(default)]
+    pub last_error: Option<serde_json::Value>,
+    pub created_by: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl RawScript {
+    /// Konvertiert die Wire-Form in das typed-`Script`-Modell.
+    ///
+    /// Falls Manifest oder Kind nicht parseable sind, faellt der entsprechende
+    /// Pfad auf einen Default zurueck — vgl. `fetch_columns`-Pattern fuer
+    /// `FieldType`. Der State wird aus der GraphQL-Enum-Wire-Form rueckgemappt.
+    pub fn into_typed(self) -> Script {
+        let manifest: ScriptManifest =
+            serde_json::from_value(self.manifest).unwrap_or_default();
+        let kind: ScriptKind = serde_json::from_value(self.kind).unwrap_or(
+            ScriptKind::Component {
+                entry: "render".into(),
+            },
+        );
+        let state = match self.state.as_str() {
+            "ACTIVE" => ScriptState::Active,
+            "LOCKED" => ScriptState::Locked,
+            _ => ScriptState::Draft,
+        };
+        let last_error: Option<ScriptError> = self
+            .last_error
+            .and_then(|v| serde_json::from_value(v).ok());
+        Script {
+            id: ScriptId(self.id),
+            kind,
+            manifest,
+            source: self.source,
+            version: self.version.max(0) as u32,
+            state,
+            last_error,
+            created_by: self.created_by,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScriptResp {
+    script: Option<RawScript>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScriptsResp {
+    scripts: Vec<RawScript>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveScriptResp {
+    save_script: RawScript,
+}
+
+#[derive(Serialize)]
+struct FetchScriptVars<'a> {
+    id: &'a str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScriptFilter {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slot: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tier: Option<String>,
+}
+
+impl Default for ScriptFilter {
+    fn default() -> Self {
+        Self {
+            state: None,
+            slot: None,
+            tier: None,
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct FetchScriptsVars {
+    filter: Option<ScriptFilter>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveScriptInputClient {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub source: String,
+    /// Manifest als `serde_json::Value`. Der Aufrufer baut das aus `ScriptManifest`
+    /// via `serde_json::to_value`.
+    pub manifest: serde_json::Value,
+    pub kind: serde_json::Value,
+}
+
+#[derive(Serialize)]
+struct SaveScriptVars {
+    input: SaveScriptInputClient,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewScriptRunInputClient {
+    pub script_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args: Option<serde_json::Value>,
+}
+
+#[derive(Serialize)]
+struct PreviewVars {
+    input: PreviewScriptRunInputClient,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScriptPreviewClient {
+    pub output: Option<serde_json::Value>,
+    pub error: Option<serde_json::Value>,
+    pub tokens_used: serde_json::Value,
+    pub run_id: String,
+    pub duration_ms: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PreviewResp {
+    preview_script_run: ScriptPreviewClient,
+}
+
+pub async fn fetch_script(id: &str) -> Result<Option<Script>, GqlError> {
+    let r: ScriptResp = execute(FETCH_SCRIPT_QUERY, FetchScriptVars { id }).await?;
+    Ok(r.script.map(RawScript::into_typed))
+}
+
+pub async fn fetch_scripts(filter: Option<ScriptFilter>) -> Result<Vec<Script>, GqlError> {
+    let r: ScriptsResp = execute(FETCH_SCRIPTS_QUERY, FetchScriptsVars { filter }).await?;
+    Ok(r.scripts.into_iter().map(RawScript::into_typed).collect())
+}
+
+pub async fn save_script(input: SaveScriptInputClient) -> Result<Script, GqlError> {
+    let r: SaveScriptResp = execute(SAVE_SCRIPT_MUTATION, SaveScriptVars { input }).await?;
+    Ok(r.save_script.into_typed())
+}
+
+pub async fn preview_script_run(
+    input: PreviewScriptRunInputClient,
+) -> Result<ScriptPreviewClient, GqlError> {
+    let r: PreviewResp = execute(PREVIEW_SCRIPT_RUN_MUTATION, PreviewVars { input }).await?;
+    Ok(r.preview_script_run)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Pinnt das `into_typed`-Mapping fuer ein realistisches Wire-Sample:
+    /// camelCase-Felder + GraphQL-State-UPPER + Manifest-JSON-Blob.
+    #[test]
+    fn raw_script_into_typed_roundtrips_active_provider() {
+        let raw = RawScript {
+            id: "x".into(),
+            kind: serde_json::json!({ "kind": "provider", "slot": "formatter" }),
+            source: "1+1".into(),
+            version: 3,
+            state: "ACTIVE".into(),
+            manifest: serde_json::json!({
+                "manifestVersion": 1,
+                "tier": "reader",
+                "capabilities": [{ "kind": "computeOnly" }],
+                "uiPrimitives": [],
+                "timeoutMs": 1000,
+                "memoryKb": 1024,
+                "liftCapable": false
+            }),
+            last_error: None,
+            created_by: "u".into(),
+            created_at: "2026-05-23T00:00:00Z".into(),
+            updated_at: "2026-05-23T00:00:00Z".into(),
+        };
+        let s = raw.into_typed();
+        assert_eq!(s.id, ScriptId("x".into()));
+        assert!(matches!(s.state, ScriptState::Active));
+        assert!(matches!(
+            s.kind,
+            ScriptKind::Provider {
+                slot: shared::script::ProviderSlot::Formatter
+            }
+        ));
+        assert_eq!(s.version, 3);
+        assert_eq!(s.manifest.tier, shared::script::ScriptTier::Reader);
+    }
+
+    #[test]
+    fn raw_script_into_typed_falls_back_on_invalid_manifest() {
+        let raw = RawScript {
+            id: "y".into(),
+            kind: serde_json::Value::Null,
+            source: String::new(),
+            version: 1,
+            state: "DRAFT".into(),
+            manifest: serde_json::json!({ "totally": "broken" }),
+            last_error: Some(serde_json::json!({
+                "kind": "parseFailed",
+                "line": 1, "col": 1, "msg": "x"
+            })),
+            created_by: "u".into(),
+            created_at: "".into(),
+            updated_at: "".into(),
+        };
+        let s = raw.into_typed();
+        assert!(matches!(s.state, ScriptState::Draft));
+        // Manifest faellt auf Default zurueck statt zu panicken.
+        assert_eq!(s.manifest.tier, shared::script::ScriptTier::Reader);
+        // last_error trifft die ParseFailed-Variante.
+        assert!(matches!(
+            s.last_error,
+            Some(ScriptError::ParseFailed { .. })
+        ));
+    }
+}

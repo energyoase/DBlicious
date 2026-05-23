@@ -64,6 +64,44 @@ impl ScriptRegistry {
             .map(|g| g.keys().cloned().collect())
             .unwrap_or_default()
     }
+
+    /// Laedt alle Skripte vom Server und befuellt den Cache (Q0009 Phase 6).
+    ///
+    /// Existierende Eintraege werden ueberschrieben — die letzte Server-
+    /// Version ist authoritative. Eintraege, die der Server NICHT mehr
+    /// kennt, bleiben heute im Cache: ein expliziter `remove` muss vom
+    /// Aufrufer kommen (z.B. nach `state=Locked`-Switch). Phase 7 kann das
+    /// auf "Server-Snapshot ist authoritative" verschaerfen.
+    ///
+    /// `wasm32`-only: das hier ruft ueber `gloo_net::http::Request` — auf
+    /// nativen Targets ist `fetch_scripts` nicht verfuegbar.
+    #[cfg(target_arch = "wasm32")]
+    pub async fn refresh_from_server(
+        &self,
+        filter: Option<crate::graphql::queries::ScriptFilter>,
+    ) -> Result<usize, crate::graphql::GqlError> {
+        let scripts = crate::graphql::queries::fetch_scripts(filter).await?;
+        let count = scripts.len();
+        for s in scripts {
+            self.insert(s);
+        }
+        Ok(count)
+    }
+
+    /// Laedt ein einzelnes Skript per ID vom Server und legt es in den
+    /// Cache. Liefert `Ok(None)`, wenn der Server kein Skript dieser ID
+    /// kennt — der Cache bleibt dann unveraendert.
+    #[cfg(target_arch = "wasm32")]
+    pub async fn refresh_one(
+        &self,
+        id: &ScriptId,
+    ) -> Result<Option<Script>, crate::graphql::GqlError> {
+        let maybe = crate::graphql::queries::fetch_script(&id.0).await?;
+        if let Some(s) = maybe.clone() {
+            self.insert(s);
+        }
+        Ok(maybe)
+    }
 }
 
 #[cfg(test)]
