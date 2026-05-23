@@ -24,7 +24,7 @@ pub fn Pager() -> impl IntoView {
     };
     let total_pages = move || {
         let ps = state.page_size.get().max(1) as u64;
-        ((total_count() + ps - 1) / ps) as u32
+        total_count().div_ceil(ps) as u32
     };
 
     let summary = move || {

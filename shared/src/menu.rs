@@ -12,10 +12,11 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum MenuAction {
     /// Keine Aktion – reiner Gruppenknoten.
+    #[default]
     None,
     /// Navigation zu einer In-App-Route (gleicher String wie heute in `route`).
     Link { route: String },
@@ -37,12 +38,6 @@ pub enum MenuAction {
 
 fn default_focus_existing() -> bool {
     true
-}
-
-impl Default for MenuAction {
-    fn default() -> Self {
-        MenuAction::None
-    }
 }
 
 impl MenuAction {

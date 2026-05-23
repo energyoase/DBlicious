@@ -86,7 +86,6 @@ pub fn TableView() -> impl IntoView {
                         let cell_style_actions = header_cell_filter_actions.clone();
                         let cols = columns_for_filter_row.clone();
                         let filters = filters_for_row.clone();
-                        let row_actions_trigger = row_actions_trigger;
                         view! {
                             <tr>
                                 {move || {
@@ -95,10 +94,10 @@ pub fn TableView() -> impl IntoView {
                                         view! { <th style=cell_style_sel.clone()></th> }
                                     })
                                 }}
-                                {cols.iter().cloned().map(|c| {
+                                {cols.iter().map(|c| {
                                     let cell_style = cell_style.clone();
                                     let filter_view = if c.filterable {
-                                        resolve_filter_id(&c, &filters).and_then(|id| {
+                                        resolve_filter_id(c, &filters).and_then(|id| {
                                             filters.get(id).map(|factory| {
                                                 factory(FilterContext { column: c.clone() })
                                             })

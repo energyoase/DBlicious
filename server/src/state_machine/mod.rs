@@ -18,7 +18,6 @@
 use thiserror::Error;
 
 use shared::auth::{Effect, Op, Resource};
-use shared::state_machine::Transition;
 
 use crate::audit;
 use crate::data;

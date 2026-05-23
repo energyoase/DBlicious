@@ -55,7 +55,7 @@ impl FilterRegistry {
 /// Q0005 — UI-Discovery der pro FieldType passenden Filter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilterDescriptor {
-    pub id:        String,
+    pub id: String,
     pub label_key: String,
 }
 
@@ -65,17 +65,19 @@ impl FilterRegistry {
     pub fn compatible_for(&self, ft: &shared::FieldType) -> Vec<FilterDescriptor> {
         use shared::FieldType::*;
         let candidates: &[&str] = match ft {
-            Text     => &["text-contains"],
+            Text => &["text-contains"],
             Integer | Decimal { .. } | Money { .. } => &["number-range"],
-            Boolean  => &["bool-equals"],
+            Boolean => &["bool-equals"],
             Date | DateTime => &["date-range"],
             Reference { .. } | Collection { .. } | Enum { .. } => &["enum-in"],
         };
-        let mut out: Vec<FilterDescriptor> = candidates.iter()
-            .filter_map(|id| self.has_factory(id).then(|| FilterDescriptor {
+        let mut out: Vec<FilterDescriptor> = candidates
+            .iter()
+            .filter(|&id| self.has_factory(id))
+            .map(|id| FilterDescriptor {
                 id: (*id).into(),
                 label_key: format!("filter.{id}"),
-            }))
+            })
             .collect();
         out.sort_by(|a, b| a.id.cmp(&b.id));
         out
@@ -87,19 +89,29 @@ mod compatible_tests {
     use super::*;
     use shared::FieldType;
 
-    fn reg() -> FilterRegistry { crate::components::table::filters::default_registry() }
+    fn reg() -> FilterRegistry {
+        crate::components::table::filters::default_registry()
+    }
 
     #[test]
     fn money_offers_number_range() {
-        let d = reg().compatible_for(&FieldType::Money { currency_code_field: None });
+        let d = reg().compatible_for(&FieldType::Money {
+            currency_code_field: None,
+        });
         let ids: Vec<&str> = d.iter().map(|f| f.id.as_str()).collect();
-        assert!(ids.contains(&"number-range"), "expected number-range, got {ids:?}");
+        assert!(
+            ids.contains(&"number-range"),
+            "expected number-range, got {ids:?}"
+        );
     }
 
     #[test]
     fn text_offers_text_contains() {
         let d = reg().compatible_for(&FieldType::Text);
         let ids: Vec<&str> = d.iter().map(|f| f.id.as_str()).collect();
-        assert!(ids.contains(&"text-contains"), "expected text-contains, got {ids:?}");
+        assert!(
+            ids.contains(&"text-contains"),
+            "expected text-contains, got {ids:?}"
+        );
     }
 }

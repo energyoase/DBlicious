@@ -93,15 +93,18 @@ fn PositionedTable(table: DbTable) -> impl IntoView {
     let table_id = table.id.clone();
     let pos_style = move || {
         let id = table_id.clone();
-        model
-            .tables
-            .with(|tables| {
-                tables
-                    .iter()
-                    .find(|t| t.id == id)
-                    .map(|t| format!("position: absolute; left: {}px; top: {}px;", t.position.x, t.position.y))
-                    .unwrap_or_default()
-            })
+        model.tables.with(|tables| {
+            tables
+                .iter()
+                .find(|t| t.id == id)
+                .map(|t| {
+                    format!(
+                        "position: absolute; left: {}px; top: {}px;",
+                        t.position.x, t.position.y
+                    )
+                })
+                .unwrap_or_default()
+        })
     };
     view! {
         <div style=pos_style>
@@ -155,7 +158,6 @@ fn RelationsLayer() -> impl IntoView {
                     let (s, t) = anchors_for(src, &pair.source_column_id, tgt, &pair.target_column_id)?;
                     let d = bezier_path(s, t);
                     let rel_id = rel.id.clone();
-                    let model = model;
                     let on_click = move |ev: web_sys::MouseEvent| {
                         ev.stop_propagation();
                         model.remove_relation(&rel_id);

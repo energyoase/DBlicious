@@ -3,8 +3,8 @@
 use leptos::prelude::*;
 use shared::{ColumnMeta, FilterPredicate};
 
-use super::helpers::{current_predicate, upsert_predicate};
 use super::super::shell::use_shell;
+use super::helpers::{current_predicate, upsert_predicate};
 use crate::styling::use_design;
 
 pub const ID: &str = "bool-equals";
@@ -19,7 +19,11 @@ pub fn BoolEqualsFilter(column: ColumnMeta) -> impl IntoView {
     let key = column.key.clone();
     let initial = match current_predicate(state, &key) {
         Some(FilterPredicate::BoolEquals { value }) => {
-            if value { "true" } else { "false" }
+            if value {
+                "true"
+            } else {
+                "false"
+            }
         }
         _ => "",
     };
@@ -37,7 +41,7 @@ pub fn BoolEqualsFilter(column: ColumnMeta) -> impl IntoView {
 
     view! {
         <select style=style on:change=on_change>
-            <option value="" selected=initial == "">""</option>
+            <option value="" selected=initial.is_empty()>""</option>
             <option value="true" selected=initial == "true">"true"</option>
             <option value="false" selected=initial == "false">"false"</option>
         </select>

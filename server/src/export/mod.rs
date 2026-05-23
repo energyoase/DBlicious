@@ -33,9 +33,9 @@ pub enum ExportError {
 /// uebergibt die `Entity`-Liste an `entities_to_csv`. Diese Funktion
 /// hier ist die "direkte" Variante ohne Filter (default = alle Rows).
 pub async fn export_csv(
-    conn:        &DatabaseConnection,
+    conn: &DatabaseConnection,
     entity_type: &str,
-    columns:     &[&str],
+    columns: &[&str],
 ) -> Result<String, ExportError> {
     let rows = entities::Entity::find()
         .filter(entities::Column::EntityType.eq(entity_type))
@@ -63,14 +63,18 @@ pub fn entries_to_csv(
     let mut out = String::new();
     // Header
     for (i, c) in columns.iter().enumerate() {
-        if i > 0 { out.push(','); }
+        if i > 0 {
+            out.push(',');
+        }
         push_csv_field(&mut out, c);
     }
     out.push_str("\r\n");
     // Rows
     for entry in entries {
         for (i, c) in columns.iter().enumerate() {
-            if i > 0 { out.push(','); }
+            if i > 0 {
+                out.push(',');
+            }
             let cell = match entry.get(*c) {
                 Some(serde_json::Value::String(s)) => s.clone(),
                 Some(serde_json::Value::Null) | None => String::new(),
@@ -112,9 +116,9 @@ fn push_csv_field(out: &mut String, value: &str) {
 /// kann das direkt an einen `Content-Type: application/vnd.openxml...`-
 /// Response anhaengen.
 pub async fn export_xlsx(
-    conn:        &DatabaseConnection,
+    conn: &DatabaseConnection,
     entity_type: &str,
-    columns:     &[&str],
+    columns: &[&str],
 ) -> Result<Vec<u8>, ExportError> {
     let rows = entities::Entity::find()
         .filter(entities::Column::EntityType.eq(entity_type))
@@ -184,8 +188,9 @@ pub fn entries_to_xlsx(
                     } else {
                         // f64 ist die einzige Schnittstelle; bei
                         // out-of-range serialisieren wir als Text.
-                        ws.write_string(row_idx, col, &n.to_string())
-                            .map_err(|e| ExportError::Xlsx(format!("write_number_as_string: {e}")))?;
+                        ws.write_string(row_idx, col, n.to_string()).map_err(|e| {
+                            ExportError::Xlsx(format!("write_number_as_string: {e}"))
+                        })?;
                     }
                 }
                 other => {
@@ -207,7 +212,10 @@ mod tests {
     use super::*;
 
     fn entry(pairs: &[(&str, serde_json::Value)]) -> serde_json::Map<String, serde_json::Value> {
-        pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect()
     }
 
     #[test]
@@ -320,7 +328,11 @@ mod tests {
         let data = &rows[1];
         assert_eq!(data[0], calamine::Data::Float(1.0));
         if let Some(second) = data.get(1) {
-            assert!(matches!(second, calamine::Data::Empty), "leere Zelle erwartet, war {:?}", second);
+            assert!(
+                matches!(second, calamine::Data::Empty),
+                "leere Zelle erwartet, war {:?}",
+                second
+            );
         }
     }
 

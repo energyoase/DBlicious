@@ -77,7 +77,10 @@ pub enum Resource {
     /// Ein gesamter Entity-Typ ("product", "order", ...).
     EntityType { name: String },
     /// Eine einzelne Property eines Entity-Typs ("product.price").
-    EntityProperty { entity_type: String, property: String },
+    EntityProperty {
+        entity_type: String,
+        property: String,
+    },
     /// Eine konkrete Zeile (Row-Level). Phase 0.7 enforced das nicht — der
     /// Resolver liefert `not_implemented`, solange die Server-Config das
     /// nicht freischaltet.
@@ -302,7 +305,10 @@ impl Resource {
     pub fn storage_id(&self) -> String {
         match self {
             Resource::EntityType { name } => name.clone(),
-            Resource::EntityProperty { entity_type, property } => {
+            Resource::EntityProperty {
+                entity_type,
+                property,
+            } => {
                 format!("{entity_type}.{property}")
             }
             Resource::EntityInstance { entity_type, id } => format!("{entity_type}:{id}"),
@@ -317,7 +323,9 @@ impl Resource {
     /// (z.B. fehlender Punkt bei `entityProperty`).
     pub fn from_storage(kind: &str, id: &str) -> Option<Resource> {
         match kind {
-            "entityType" => Some(Resource::EntityType { name: id.to_string() }),
+            "entityType" => Some(Resource::EntityType {
+                name: id.to_string(),
+            }),
             "entityProperty" => {
                 let (e, p) = id.split_once('.')?;
                 Some(Resource::EntityProperty {
@@ -332,7 +340,9 @@ impl Resource {
                     id: i.to_string(),
                 })
             }
-            "action" => Some(Resource::Action { name: id.to_string() }),
+            "action" => Some(Resource::Action {
+                name: id.to_string(),
+            }),
             "implementationId" => {
                 let (registry, i) = id.split_once(':')?;
                 Some(Resource::ImplementationId {
@@ -381,6 +391,8 @@ impl Op {
         }
     }
 
+    // Liefert `Option` statt `Result` — std `FromStr` passt nicht.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Op> {
         Some(match s {
             "create" => Op::Create,
@@ -406,6 +418,8 @@ impl Effect {
         }
     }
 
+    // Liefert `Option` statt `Result` — std `FromStr` passt nicht.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Effect> {
         match s {
             "allow" => Some(Effect::Allow),

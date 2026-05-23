@@ -75,7 +75,7 @@ impl S3Storage {
         let mut builder: S3ConfigBuilder = aws_sdk_s3::Config::builder()
             .behavior_version(aws_sdk_s3::config::BehaviorVersion::latest())
             .region(Region::new(cfg.region))
-            .credentials_provider(SdkCredentials::from(creds))
+            .credentials_provider(creds)
             .force_path_style(cfg.force_path_style);
         if let Some(ep) = cfg.endpoint {
             builder = builder.endpoint_url(ep);

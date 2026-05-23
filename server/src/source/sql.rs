@@ -15,7 +15,7 @@ pub fn quote_ident(s: &str) -> String {
 
 pub fn json_to_sea_value(v: &serde_json::Value) -> Value {
     match v {
-        serde_json::Value::Null   => Value::String(None),
+        serde_json::Value::Null => Value::String(None),
         serde_json::Value::Bool(b) => Value::Bool(Some(*b)),
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
@@ -57,7 +57,7 @@ pub fn encode_pk_from_row(
 /// Baut die WHERE-Klausel + Parameter aus einem `FilterCriteria`.
 /// Mapping logische → DB-Spalten kommt aus `binding.column_map`.
 pub fn build_filter_sql(
-    filter:  &shared::FilterCriteria,
+    filter: &shared::FilterCriteria,
     binding: &EntityBinding,
 ) -> (String, Vec<Value>) {
     let resolve = |logical: &str| {
@@ -69,11 +69,14 @@ pub fn build_filter_sql(
     };
 
     let mut clauses: Vec<String> = Vec::new();
-    let mut values:  Vec<Value>  = Vec::new();
+    let mut values: Vec<Value> = Vec::new();
     for cf in &filter.predicates {
         let db_col = resolve(&cf.key);
         match &cf.predicate {
-            shared::FilterPredicate::TextContains { value, case_insensitive } => {
+            shared::FilterPredicate::TextContains {
+                value,
+                case_insensitive,
+            } => {
                 if *case_insensitive {
                     clauses.push(format!("LOWER({}) LIKE LOWER(?)", quote_ident(&db_col)));
                 } else {
@@ -81,7 +84,10 @@ pub fn build_filter_sql(
                 }
                 values.push(Value::from(format!("%{value}%")));
             }
-            shared::FilterPredicate::TextEquals { value, case_insensitive } => {
+            shared::FilterPredicate::TextEquals {
+                value,
+                case_insensitive,
+            } => {
                 if *case_insensitive {
                     clauses.push(format!("LOWER({}) = LOWER(?)", quote_ident(&db_col)));
                 } else {
@@ -137,7 +143,7 @@ pub fn build_filter_sql(
     if let Some(search) = filter.global_search.as_deref() {
         if !search.is_empty() {
             let mut search_clauses: Vec<String> = Vec::new();
-            for (_, db_col) in &binding.column_map {
+            for db_col in binding.column_map.values() {
                 search_clauses.push(format!("LOWER({}) LIKE LOWER(?)", quote_ident(db_col)));
                 values.push(Value::from(format!("%{search}%")));
             }
@@ -213,19 +219,17 @@ fn rows_to_entities(binding: &EntityBinding, rows_json: Vec<serde_json::Value>) 
 }
 
 pub async fn relational_list_page(
-    conn:    &sea_orm::DatabaseConnection,
+    conn: &sea_orm::DatabaseConnection,
     backend: DbBackend,
     binding: &EntityBinding,
-    table:   &str,
-    query:   &PageQuery,
+    table: &str,
+    query: &PageQuery,
     extra_select_cols: Option<&[String]>,
 ) -> Result<EntityPage, SourceError> {
     // Wenn der Aufrufer Spalten aus Introspect mitbringt (foreign-sqlite),
     // benutzen wir die wenn `column_map` leer ist; sonst aus binding.
     let select_cols: Vec<String> = if binding.column_map.is_empty() {
-        extra_select_cols
-            .map(|v| v.to_vec())
-            .unwrap_or_default()
+        extra_select_cols.map(|v| v.to_vec()).unwrap_or_default()
     } else {
         select_columns_sql_from_binding(binding)
     };
@@ -234,18 +238,22 @@ pub async fn relational_list_page(
             "Table-Locator braucht column_map oder Introspect".into(),
         ));
     }
-    let cols_sql  = select_cols.iter().map(|c| quote_ident(c)).collect::<Vec<_>>().join(", ");
+    let cols_sql = select_cols
+        .iter()
+        .map(|c| quote_ident(c))
+        .collect::<Vec<_>>()
+        .join(", ");
     let table_sql = quote_ident(table);
 
-    let page      = query.page.max(1);
+    let page = query.page.max(1);
     let page_size = query.page_size.max(1);
-    let offset    = (page - 1) as i64 * page_size as i64;
+    let offset = (page - 1) as i64 * page_size as i64;
 
     let order_sql = match &query.sort {
         Some(s) => {
             let db_col = resolve_col(binding, &s.field);
             let dir = match s.direction {
-                shared::SortDirection::Asc  => "ASC",
+                shared::SortDirection::Asc => "ASC",
                 shared::SortDirection::Desc => "DESC",
             };
             format!(" ORDER BY {} {}", quote_ident(&db_col), dir)
@@ -265,7 +273,9 @@ pub async fn relational_list_page(
         JsonValue::find_by_statement(stmt_list).all(conn).await?;
 
     #[derive(FromQueryResult)]
-    struct CountRow { c: i64 }
+    struct CountRow {
+        c: i64,
+    }
     let stmt_count = make_statement(backend, sql_count, where_values);
     let count_row: CountRow = CountRow::find_by_statement(stmt_count)
         .one(conn)
@@ -277,17 +287,17 @@ pub async fn relational_list_page(
     Ok(EntityPage {
         items,
         total_count: count_row.c as u64,
-        page:        page as u32,
-        page_size:   page_size as u32,
+        page: page as u32,
+        page_size: page_size as u32,
     })
 }
 
 pub async fn relational_get(
-    conn:    &sea_orm::DatabaseConnection,
+    conn: &sea_orm::DatabaseConnection,
     backend: DbBackend,
     binding: &EntityBinding,
-    table:   &str,
-    id:      &EntityId,
+    table: &str,
+    id: &EntityId,
     extra_select_cols: Option<&[String]>,
 ) -> Result<Option<Entity>, SourceError> {
     let pk_logical = &binding.primary_key;
@@ -295,7 +305,8 @@ pub async fn relational_get(
         EntityId::Single(s) => {
             if pk_logical.len() != 1 {
                 return Err(SourceError::Other(format!(
-                    "single-PK id but binding has {} PK columns", pk_logical.len()
+                    "single-PK id but binding has {} PK columns",
+                    pk_logical.len()
                 )));
             }
             vec![s.clone()]
@@ -304,7 +315,8 @@ pub async fn relational_get(
             if parts.len() != pk_logical.len() {
                 return Err(SourceError::Other(format!(
                     "composite-PK id has {} parts, binding has {} columns",
-                    parts.len(), pk_logical.len()
+                    parts.len(),
+                    pk_logical.len()
                 )));
             }
             parts.clone()
@@ -322,7 +334,11 @@ pub async fn relational_get(
     } else {
         select_columns_sql_from_binding(binding)
     };
-    let cols_sql = select_cols.iter().map(|c| quote_ident(c)).collect::<Vec<_>>().join(", ");
+    let cols_sql = select_cols
+        .iter()
+        .map(|c| quote_ident(c))
+        .collect::<Vec<_>>()
+        .join(", ");
     let sql = format!(
         "SELECT {cols_sql} FROM {} {} LIMIT 1",
         quote_ident(table),
@@ -332,8 +348,7 @@ pub async fn relational_get(
     let values: Vec<Value> = pk_values.into_iter().map(Value::from).collect();
     let stmt = make_statement(backend, sql, values);
 
-    let row_opt: Option<serde_json::Value> =
-        JsonValue::find_by_statement(stmt).one(conn).await?;
+    let row_opt: Option<serde_json::Value> = JsonValue::find_by_statement(stmt).one(conn).await?;
     Ok(row_opt.map(|row| {
         rows_to_entities(binding, vec![row])
             .into_iter()
@@ -343,11 +358,11 @@ pub async fn relational_get(
 }
 
 pub async fn relational_create(
-    conn:    &sea_orm::DatabaseConnection,
+    conn: &sea_orm::DatabaseConnection,
     backend: DbBackend,
     binding: &EntityBinding,
-    table:   &str,
-    fields:  serde_json::Map<String, serde_json::Value>,
+    table: &str,
+    fields: serde_json::Map<String, serde_json::Value>,
 ) -> Result<Entity, SourceError> {
     let mut cols: Vec<String> = Vec::new();
     let mut placeholders: Vec<String> = Vec::new();
@@ -371,21 +386,24 @@ pub async fn relational_create(
 }
 
 pub async fn relational_update(
-    conn:    &sea_orm::DatabaseConnection,
+    conn: &sea_orm::DatabaseConnection,
     backend: DbBackend,
     binding: &EntityBinding,
-    table:   &str,
-    id:      &EntityId,
-    patch:   serde_json::Map<String, serde_json::Value>,
+    table: &str,
+    id: &EntityId,
+    patch: serde_json::Map<String, serde_json::Value>,
     extra_select_cols: Option<&[String]>,
 ) -> Result<Option<Entity>, SourceError> {
     if patch.is_empty() {
         return relational_get(conn, backend, binding, table, id, extra_select_cols).await;
     }
     let mut set_parts: Vec<String> = Vec::new();
-    let mut values:    Vec<Value>  = Vec::new();
+    let mut values: Vec<Value> = Vec::new();
     for (logical, val) in &patch {
-        set_parts.push(format!("{} = ?", quote_ident(&resolve_col(binding, logical))));
+        set_parts.push(format!(
+            "{} = ?",
+            quote_ident(&resolve_col(binding, logical))
+        ));
         values.push(json_to_sea_value(val));
     }
     let pk_logical = &binding.primary_key;
@@ -412,11 +430,11 @@ pub async fn relational_update(
 }
 
 pub async fn relational_delete(
-    conn:    &sea_orm::DatabaseConnection,
+    conn: &sea_orm::DatabaseConnection,
     backend: DbBackend,
     binding: &EntityBinding,
-    table:   &str,
-    id:      &EntityId,
+    table: &str,
+    id: &EntityId,
 ) -> Result<bool, SourceError> {
     let pk_logical = &binding.primary_key;
     let pk_values: Vec<String> = match id {

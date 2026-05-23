@@ -79,8 +79,8 @@ pub fn EntityTable(
 
     let columns_for_header = columns.clone();
     let columns_for_body = columns.clone();
-    let state_for_header = state.clone();
-    let trigger_reload = state.clone();
+    let state_for_header = state;
+    let trigger_reload = state;
     let entity_type_for_toolbar: String = entity_type.clone();
     let entity_type_for_actions: String = entity_type.clone();
     let has_actions = can_update || can_delete;
@@ -89,7 +89,7 @@ pub fn EntityTable(
         <div>
             // ---------- Toolbar mit Filter-/Such-Stubs ----------
             <Toolbar
-                state=state.clone()
+                state=state
                 entity_type=entity_type_for_toolbar
                 can_create=can_create
             />
@@ -100,7 +100,7 @@ pub fn EntityTable(
                     <thead>
                         <tr style=header_row_style>
                             {columns_for_header.into_iter().map(|c| {
-                                view! { <HeaderCell column=c state=state_for_header.clone() /> }
+                                view! { <HeaderCell column=c state=state_for_header /> }
                             }).collect_view()}
                             {has_actions.then(|| view! {
                                 <th style=header_cell_actions.clone()></th>
@@ -122,7 +122,7 @@ pub fn EntityTable(
                                     } else {
                                         let cols = columns_for_body.clone();
                                         let entity_type = entity_type_for_actions.clone();
-                                        let trigger = trigger_reload.clone();
+                                        let trigger = trigger_reload;
                                         let cell_style_actions = cell_style_for_actions.clone();
                                         view! {
                                             <For
@@ -131,7 +131,7 @@ pub fn EntityTable(
                                                 children={move |(idx, entity): (usize, Entity)| {
                                                     let cols_inner = cols.clone();
                                                     let entity_type = entity_type.clone();
-                                                    let trigger = trigger.clone();
+                                                    let trigger = trigger;
                                                     let cell_style_actions = cell_style_actions.clone();
                                                     view! {
                                                         <BodyRow
@@ -165,7 +165,7 @@ pub fn EntityTable(
             </div>
 
             // ---------- Pagination ----------
-            <Pagination state=state.clone() data=data />
+            <Pagination state=state data=data />
         </div>
     }
 }
@@ -286,7 +286,7 @@ fn BodyRow(
         }
         let id = entity_id_for_delete.clone();
         let entity_type = entity_type_for_delete.clone();
-        let trigger = trigger.clone();
+        let trigger = trigger;
         let expected =
             header_for_delete.with(|hr| hr.get(&entity_type, &id).map(|h| h.original_hash));
         spawn_local(async move {
@@ -359,7 +359,7 @@ fn Pagination(
     };
     let total_pages = move || {
         let ps = state.page_size.get().max(1) as u64;
-        ((total_count() + ps - 1) / ps) as u32
+        total_count().div_ceil(ps) as u32
     };
 
     let summary = move || {
@@ -368,14 +368,8 @@ fn Pagination(
         crate::t!("table.pagination.summary", "page" => p as i64, "total" => tp as i64)
     };
 
-    let on_prev = {
-        let state = state.clone();
-        move |_| state.prev_page()
-    };
-    let on_next = {
-        let state = state.clone();
-        move |_| state.next_page(total_pages())
-    };
+    let on_prev = move |_| state.prev_page();
+    let on_next = move |_| state.next_page(total_pages());
 
     view! {
         <div style=bar>

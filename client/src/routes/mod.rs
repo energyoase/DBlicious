@@ -462,10 +462,11 @@ fn apply_settings_to_columns(
     settings: &shared::EntitySettings,
 ) {
     // Hidden filtern + sortieren nach `order`.
-    columns.retain(|c| match settings.property(&c.key).map(|p| p.visibility) {
-        Some(shared::Visibility::Hidden) => false,
-        Some(shared::Visibility::DetailOnly) => false,
-        _ => true,
+    columns.retain(|c| {
+        !matches!(
+            settings.property(&c.key).map(|p| p.visibility),
+            Some(shared::Visibility::Hidden) | Some(shared::Visibility::DetailOnly)
+        )
     });
     columns.sort_by_key(|c| {
         settings
@@ -709,7 +710,7 @@ pub fn BuilderPage() -> impl IntoView {
                             // aendert. Rc<dyn DataSource> ist !Send, daher direkt in der Render-
                             // Closure konstruieren (kein Leptos-Memo).
                             {move || {
-                                let cols = tree_sig.tree.with(|t| crate::builder::project_columns(t));
+                                let cols = tree_sig.tree.with(crate::builder::project_columns);
                                 let src: Rc<dyn crate::components::table::DataSource> = Rc::new(
                                     BuilderPreviewSource::from_columns(&cols, DEFAULT_PREVIEW_ROWS),
                                 );

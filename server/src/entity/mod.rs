@@ -6,18 +6,16 @@
 //!
 //! Konzeptionelle Anmerkungen:
 //!
-//!   - `entities`         haelt *alle* fachlichen Datensaetze (Product,
-//!                        Customer, Order, …) generisch — `fields` ist eine
-//!                        JSON-Spalte, der `entity_type`-Discriminator
-//!                        bestimmt das logische Schema. Das spiegelt das
-//!                        Schema der GraphQL-API (`shared::Entity`).
-//!   - `users`/`groups`/`user_groups`  modellieren die Auth-Schicht.
-//!   - `sessions`         ersetzt den frueheren In-Memory-Mutex-Store.
-//!   - `translatable_*`   die DB-backed Pendants zu den Fluent-Bundles.
-//!   - `metadata_*`       Editor-/Settings-Persistenz, heute optional.
-//!   - `db_schemas`       der vom Designer gespeicherte `DbSchema`-Snapshot
-//!                        (mehr als einer pro Schema-Name moeglich, der
-//!                        neueste gewinnt).
+//! - `entities` haelt *alle* fachlichen Datensaetze (Product, Customer,
+//!   Order, …) generisch — `fields` ist eine JSON-Spalte, der
+//!   `entity_type`-Discriminator bestimmt das logische Schema. Das spiegelt
+//!   das Schema der GraphQL-API (`shared::Entity`).
+//! - `users`/`groups`/`user_groups` modellieren die Auth-Schicht.
+//! - `sessions` ersetzt den frueheren In-Memory-Mutex-Store.
+//! - `translatable_*` die DB-backed Pendants zu den Fluent-Bundles.
+//! - `metadata_*` Editor-/Settings-Persistenz, heute optional.
+//! - `db_schemas` der vom Designer gespeicherte `DbSchema`-Snapshot (mehr
+//!   als einer pro Schema-Name moeglich, der neueste gewinnt).
 
 pub mod approvals;
 pub mod attachments;
@@ -27,9 +25,9 @@ pub mod entities;
 pub mod entity_designs;
 pub mod entity_views;
 pub mod fx_rates;
+pub mod groups;
 pub mod job_runs;
 pub mod jobs;
-pub mod groups;
 pub mod metadata_editor;
 pub mod metadata_settings;
 pub mod number_sequences;

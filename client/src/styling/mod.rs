@@ -188,7 +188,7 @@ impl std::ops::Deref for DesignHandle {
 /// genuegt es, hier eine andere Implementierung zu setzen, um die gesamte
 /// App umzustylen.
 pub fn provide_design_system() {
-    provide_context(DesignHandle::new(InlineDesign::default()));
+    provide_context(DesignHandle::new(InlineDesign));
 }
 
 pub fn use_design() -> DesignHandle {

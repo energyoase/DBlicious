@@ -14,10 +14,10 @@ pub fn ColumnEditorPopover(
     column: ColumnMeta,
     current_override: Signal<Option<ViewPropertyOverride>>,
     #[prop(into)] on_change: Callback<ViewPropertyOverride>,
-    #[prop(into)] on_reset:  Callback<()>,
-    #[prop(into)] on_close:  Callback<()>,
+    #[prop(into)] on_reset: Callback<()>,
+    #[prop(into)] on_close: Callback<()>,
     /// Absolute Position relativ zum Viewport (px).
-    top:  f64,
+    top: f64,
     left: f64,
 ) -> impl IntoView {
     let design = use_design();
@@ -35,23 +35,29 @@ pub fn ColumnEditorPopover(
     let col_sortable_default = column.sortable;
 
     // Accessor-Helper: liefert den aktuellen Override (oder Default mit dem key)
-    let ov = move || current_override.get().unwrap_or_else(|| ViewPropertyOverride {
-        key: col_key.get_value(),
-        ..Default::default()
-    });
+    let ov = move || {
+        current_override
+            .get()
+            .unwrap_or_else(|| ViewPropertyOverride {
+                key: col_key.get_value(),
+                ..Default::default()
+            })
+    };
 
-    let visible    = move || ov().visibility.unwrap_or(Visibility::Visible) == Visibility::Visible;
-    let order_val  = move || ov().order.unwrap_or(0);
-    let width_val  = move || ov().min_width.unwrap_or(0);
-    let label_val  = move || ov().label_override_key.unwrap_or_default();
+    let visible = move || ov().visibility.unwrap_or(Visibility::Visible) == Visibility::Visible;
+    let order_val = move || ov().order.unwrap_or(0);
+    let width_val = move || ov().min_width.unwrap_or(0);
+    let label_val = move || ov().label_override_key.unwrap_or_default();
     let sortable_v = move || ov().sortable.unwrap_or(col_sortable_default);
     let filter_id_v = move || ov().filter_id_override.unwrap_or_default();
     let format_id_v = move || ov().formatter_id_override.unwrap_or_default();
 
-    let filters    = StoredValue::new(default_registry().compatible_for(&col_field_type));
+    let filters = StoredValue::new(default_registry().compatible_for(&col_field_type));
     let formatters = StoredValue::new(compatible_formatters_for(&col_field_type));
 
-    let style = format!("{card} position: absolute; top: {top}px; left: {left}px; width: 280px; z-index: 1000;");
+    let style = format!(
+        "{card} position: absolute; top: {top}px; left: {left}px; width: 280px; z-index: 1000;"
+    );
 
     view! {
         <div style=style tabindex="-1" on:keydown=move |ev| {
@@ -76,7 +82,7 @@ pub fn ColumnEditorPopover(
             <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
                 <input
                     type="checkbox"
-                    prop:checked=move || visible()
+                    prop:checked=visible
                     on:change=move |ev| {
                         let checked = event_target_checked(&ev);
                         let next_vis = if checked { Visibility::Visible } else { Visibility::Hidden };
@@ -96,7 +102,7 @@ pub fn ColumnEditorPopover(
                 <input
                     type="number"
                     style=input_style.clone()
-                    prop:value=move || order_val()
+                    prop:value=order_val
                     on:input=move |ev| {
                         let Ok(o) = event_target_value(&ev).parse::<i32>() else { return; };
                         let mut next = current_override.get_untracked().unwrap_or_else(|| ViewPropertyOverride {
@@ -114,7 +120,7 @@ pub fn ColumnEditorPopover(
                 <input
                     type="number"
                     style=input_style.clone()
-                    prop:value=move || width_val()
+                    prop:value=width_val
                     on:input=move |ev| {
                         let Ok(w) = event_target_value(&ev).parse::<u32>() else { return; };
                         let mut next = current_override.get_untracked().unwrap_or_else(|| ViewPropertyOverride {
@@ -133,7 +139,7 @@ pub fn ColumnEditorPopover(
                 <input
                     type="text"
                     style=input_style.clone()
-                    prop:value=move || label_val()
+                    prop:value=label_val
                     on:input=move |ev| {
                         let s = event_target_value(&ev);
                         let mut next = current_override.get_untracked().unwrap_or_else(|| ViewPropertyOverride {
@@ -149,7 +155,7 @@ pub fn ColumnEditorPopover(
             <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
                 <input
                     type="checkbox"
-                    prop:checked=move || sortable_v()
+                    prop:checked=sortable_v
                     on:change=move |ev| {
                         let c = event_target_checked(&ev);
                         let mut next = current_override.get_untracked().unwrap_or_else(|| ViewPropertyOverride {

@@ -24,7 +24,9 @@ pub fn TableBox(table: DbTable) -> impl IntoView {
 
     let selected = move || {
         let id = table_id.clone();
-        model.selected_table.with(|s| s.as_deref() == Some(id.as_str()))
+        model
+            .selected_table
+            .with(|s| s.as_deref() == Some(id.as_str()))
     };
     let table_style_for = {
         let design = design.clone();
@@ -67,7 +69,14 @@ pub fn TableBox(table: DbTable) -> impl IntoView {
     let table_id_for_add_col = table.id.clone();
     let on_add_column = move |_| {
         let name = format!("spalte_{}", model.next_id.get_untracked());
-        model.add_column(&table_id_for_add_col, &name, DbColumnType::Text, false, true, false);
+        model.add_column(
+            &table_id_for_add_col,
+            &name,
+            DbColumnType::Text,
+            false,
+            true,
+            false,
+        );
     };
 
     let table_id_for_remove = table.id.clone();
@@ -79,18 +88,26 @@ pub fn TableBox(table: DbTable) -> impl IntoView {
     let table_id_for_columns = table.id.clone();
     let columns_signal = move || {
         let id = table_id_for_columns.clone();
-        model
-            .tables
-            .with(|tables| tables.iter().find(|t| t.id == id).map(|t| t.columns.clone()).unwrap_or_default())
+        model.tables.with(|tables| {
+            tables
+                .iter()
+                .find(|t| t.id == id)
+                .map(|t| t.columns.clone())
+                .unwrap_or_default()
+        })
     };
 
     let name_value = {
         let id = table.id.clone();
         move || {
             let id = id.clone();
-            model
-                .tables
-                .with(|tables| tables.iter().find(|t| t.id == id).map(|t| t.name.clone()).unwrap_or_default())
+            model.tables.with(|tables| {
+                tables
+                    .iter()
+                    .find(|t| t.id == id)
+                    .map(|t| t.name.clone())
+                    .unwrap_or_default()
+            })
         }
     };
 
@@ -98,7 +115,7 @@ pub fn TableBox(table: DbTable) -> impl IntoView {
 
     view! {
         <div
-            style=move || table_style_for()
+            style=table_style_for
             on:pointerdown=on_card_click
         >
             <div style=header_style.clone() on:pointerdown=on_header_pointer_down>
@@ -247,7 +264,7 @@ fn ColumnRow(table_id: String, column: DbColumn) -> impl IntoView {
 
     view! {
         <div
-            style=move || row_style()
+            style=row_style
             on:pointerdown=move |ev: web_sys::PointerEvent| ev.stop_propagation()
         >
             <span
@@ -326,7 +343,10 @@ fn parse_column_type(s: &str) -> DbColumnType {
         "text" => DbColumnType::Text,
         "integer" => DbColumnType::Integer,
         "bigInt" => DbColumnType::BigInt,
-        "decimal" => DbColumnType::Decimal { precision: 12, scale: 2 },
+        "decimal" => DbColumnType::Decimal {
+            precision: 12,
+            scale: 2,
+        },
         "boolean" => DbColumnType::Boolean,
         "date" => DbColumnType::Date,
         "dateTime" => DbColumnType::DateTime,

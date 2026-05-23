@@ -103,16 +103,18 @@ pub async fn install_plugin(
             am.installed_at = ActiveValue::Set(now);
             am.update(&db).await?
         }
-        None => entity::plugins::ActiveModel {
-            id: ActiveValue::Set(manifest.id.clone()),
-            version: ActiveValue::Set(manifest.version.clone()),
-            manifest_json: ActiveValue::Set(manifest_json),
-            wasm_blob: ActiveValue::Set(wasm),
-            enabled: ActiveValue::Set(true),
-            installed_at: ActiveValue::Set(now),
+        None => {
+            entity::plugins::ActiveModel {
+                id: ActiveValue::Set(manifest.id.clone()),
+                version: ActiveValue::Set(manifest.version.clone()),
+                manifest_json: ActiveValue::Set(manifest_json),
+                wasm_blob: ActiveValue::Set(wasm),
+                enabled: ActiveValue::Set(true),
+                installed_at: ActiveValue::Set(now),
+            }
+            .insert(&db)
+            .await?
         }
-        .insert(&db)
-        .await?,
     };
     Ok(model)
 }
@@ -128,7 +130,9 @@ pub async fn get_plugin(id: &str) -> Result<Option<entity::plugins::Model>, Plug
 }
 
 pub async fn set_enabled(id: &str, enabled: bool) -> Result<bool, PluginError> {
-    let Some(model) = get_plugin(id).await? else { return Err(PluginError::NotFound) };
+    let Some(model) = get_plugin(id).await? else {
+        return Err(PluginError::NotFound);
+    };
     let mut am: entity::plugins::ActiveModel = model.into();
     am.enabled = ActiveValue::Set(enabled);
     am.update(&conn()).await?;
@@ -151,7 +155,9 @@ pub async fn call_function(
     function_name: &str,
     input: &Value,
 ) -> Result<Value, PluginError> {
-    let Some(model) = get_plugin(plugin_id).await? else { return Err(PluginError::NotFound) };
+    let Some(model) = get_plugin(plugin_id).await? else {
+        return Err(PluginError::NotFound);
+    };
     if !model.enabled {
         return Err(PluginError::Disabled);
     }
@@ -170,6 +176,8 @@ pub async fn call_function(
 
 /// Schreibt einen Eintrag ins plugin_invocations-Audit-Log. Best-effort —
 /// Fehler werden als tracing::warn geloggt und nicht propagiert.
+// Audit-Zeile mit fixem Spalten-Satz — Gruppieren in ein Struct brächte nichts.
+#[allow(clippy::too_many_arguments)]
 pub async fn record_invocation(
     plugin_id: &str,
     function_name: &str,
@@ -266,13 +274,17 @@ pub async fn find_functions_for_trigger(
     trigger: shared::plugin::TriggerKind,
     entity_type: &str,
 ) -> Vec<(String, String)> {
-    let Ok(plugins) = list_plugins().await else { return Vec::new() };
+    let Ok(plugins) = list_plugins().await else {
+        return Vec::new();
+    };
     let mut out = Vec::new();
     for p in plugins {
         if !p.enabled {
             continue;
         }
-        let Ok(manifest) = parse_manifest(&p) else { continue };
+        let Ok(manifest) = parse_manifest(&p) else {
+            continue;
+        };
         if !manifest.capabilities.triggers.contains(&trigger) {
             continue;
         }

@@ -181,7 +181,11 @@ pub async fn fetch_entities(
 ) -> Result<EntityPageResult, GqlError> {
     let data: EntitiesData = execute(
         ENTITIES_QUERY,
-        EntitiesVars { entity_type, page, page_size },
+        EntitiesVars {
+            entity_type,
+            page,
+            page_size,
+        },
     )
     .await?;
     let items = data
@@ -556,10 +560,12 @@ struct ServerSaveResult {
 /// ueber `shared::DbSchema` typisiert, damit zukuenftige Iterationen
 /// ohne API-Aenderung scharfgeschaltet werden koennen.
 pub async fn save_db_schema(schema: &DbSchema) -> Result<DbSchemaSaveResult, GqlError> {
-    let payload = serde_json::to_value(schema)
-        .map_err(|e| GqlError::Decode(e.to_string()))?;
-    let data: SaveDbSchemaData =
-        execute(SAVE_DB_SCHEMA_MUTATION, SaveDbSchemaVars { schema: payload }).await?;
+    let payload = serde_json::to_value(schema).map_err(|e| GqlError::Decode(e.to_string()))?;
+    let data: SaveDbSchemaData = execute(
+        SAVE_DB_SCHEMA_MUTATION,
+        SaveDbSchemaVars { schema: payload },
+    )
+    .await?;
     Ok(DbSchemaSaveResult {
         ok: data.save_db_schema.ok,
         message: data.save_db_schema.message,
@@ -746,8 +752,12 @@ pub async fn fetch_settings(entity_type: &str) -> Result<Option<EntitySettings>,
         entity_type: raw.entity_type,
         access: parse_access(&raw.access),
         default_page_size: raw.default_page_size.map(|p| p.max(0) as u32),
-        default_sort: raw.default_sort.and_then(|v| serde_json::from_value(v).ok()),
-        default_filter: raw.default_filter.and_then(|v| serde_json::from_value(v).ok()),
+        default_sort: raw
+            .default_sort
+            .and_then(|v| serde_json::from_value(v).ok()),
+        default_filter: raw
+            .default_filter
+            .and_then(|v| serde_json::from_value(v).ok()),
         properties: raw
             .properties
             .into_iter()
@@ -758,7 +768,9 @@ pub async fn fetch_settings(entity_type: &str) -> Result<Option<EntitySettings>,
                 load_method: parse_load_method(&p.load_method),
                 order: p.order,
                 label_override_key: p.label_override_key,
-                min_width: p.min_width.and_then(|w| if w < 0 { None } else { Some(w as u32) }),
+                min_width: p
+                    .min_width
+                    .and_then(|w| if w < 0 { None } else { Some(w as u32) }),
             })
             .collect(),
         // Phase 1.5: field_type_defaults werden ueber das GraphQL-Schema
@@ -897,7 +909,11 @@ fn map_change_result(raw: RawChangeResult) -> EntityChangeResult {
         Entity { id: e.id, fields }
     });
     let validation = serde_json::from_value(raw.validation).unwrap_or_default();
-    EntityChangeResult { ok: raw.ok, entity, validation }
+    EntityChangeResult {
+        ok: raw.ok,
+        entity,
+        validation,
+    }
 }
 
 pub async fn create_entity(
@@ -1008,10 +1024,17 @@ pub async fn create_entities(
         items.into_iter().map(serde_json::Value::Object).collect();
     let data: CreateEntitiesData = execute(
         CREATE_ENTITIES_MUTATION,
-        CreateEntitiesVars { entity_type, items: payload },
+        CreateEntitiesVars {
+            entity_type,
+            items: payload,
+        },
     )
     .await?;
-    Ok(data.create_entities.into_iter().map(map_change_result).collect())
+    Ok(data
+        .create_entities
+        .into_iter()
+        .map(map_change_result)
+        .collect())
 }
 
 pub async fn delete_entities(
@@ -1023,7 +1046,11 @@ pub async fn delete_entities(
         DeleteEntitiesVars { entity_type, ids },
     )
     .await?;
-    Ok(data.delete_entities.into_iter().map(map_change_result).collect())
+    Ok(data
+        .delete_entities
+        .into_iter()
+        .map(map_change_result)
+        .collect())
 }
 
 // =============================================================================
@@ -1125,6 +1152,8 @@ struct CurrentUserData {
     current_permissions: Vec<RawPermission>,
 }
 
+// Kurzlebiger Return-Wert; Boxen wuerde nur Consumer-Ergonomie kosten.
+#[allow(clippy::large_enum_variant)]
 pub enum LoginOutcome {
     Success(AuthSession),
     Failed(String),
@@ -1185,8 +1214,7 @@ pub async fn logout() -> Result<bool, GqlError> {
     Ok(data.logout)
 }
 
-pub async fn fetch_current_user(
-) -> Result<(Option<SecurityUser>, Vec<Permission>), GqlError> {
+pub async fn fetch_current_user() -> Result<(Option<SecurityUser>, Vec<Permission>), GqlError> {
     let data: CurrentUserData = execute(CURRENT_USER_QUERY, EmptyVars {}).await?;
     Ok((
         data.current_user,
@@ -1220,10 +1248,7 @@ struct EntityByIdData {
     entity_by_id: Option<ServerEntity>,
 }
 
-pub async fn fetch_entity_by_id(
-    entity_type: &str,
-    id: &str,
-) -> Result<Option<Entity>, GqlError> {
+pub async fn fetch_entity_by_id(entity_type: &str, id: &str) -> Result<Option<Entity>, GqlError> {
     let data: EntityByIdData =
         execute(ENTITY_BY_ID_QUERY, EntityByIdVars { entity_type, id }).await?;
     Ok(data.entity_by_id.map(|e| {
@@ -1274,7 +1299,7 @@ const REVERT_ENTITY_VIEW_MUTATION: &str = r#"
 #[serde(rename_all = "camelCase")]
 struct EntityViewVars<'a> {
     entity_type: &'a str,
-    view_name:   &'a str,
+    view_name: &'a str,
 }
 
 #[derive(Serialize)]
@@ -1298,8 +1323,8 @@ struct EntityViewsResp {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RawEntityViewSummary {
-    pub view_name:  String,
-    pub layers:     Vec<shared::view::ViewLayer>,
+    pub view_name: String,
+    pub layers: Vec<shared::view::ViewLayer>,
     pub updated_at: String,
 }
 
@@ -1308,14 +1333,14 @@ pub struct RawEntityViewSummary {
 struct RawEntityView {
     id: String,
     entity_type: String,
-    view_name:   String,
-    layer:    shared::view::ViewLayer,
-    owner_id:    Option<String>,
-    properties:        serde_json::Value,
-    default_filter:    Option<serde_json::Value>,
-    default_sort:      Option<serde_json::Value>,
+    view_name: String,
+    layer: shared::view::ViewLayer,
+    owner_id: Option<String>,
+    properties: serde_json::Value,
+    default_filter: Option<serde_json::Value>,
+    default_sort: Option<serde_json::Value>,
     default_page_size: Option<u32>,
-    version:    i32,
+    version: i32,
     updated_at: String,
     updated_by: Option<String>,
 }
@@ -1329,8 +1354,10 @@ impl From<RawEntityView> for shared::view::EntityView {
             layer: r.layer,
             owner_id: r.owner_id,
             properties: serde_json::from_value(r.properties).unwrap_or_default(),
-            default_filter: r.default_filter.and_then(|v| serde_json::from_value(v).ok()),
-            default_sort:   r.default_sort.and_then(|v| serde_json::from_value(v).ok()),
+            default_filter: r
+                .default_filter
+                .and_then(|v| serde_json::from_value(v).ok()),
+            default_sort: r.default_sort.and_then(|v| serde_json::from_value(v).ok()),
             default_page_size: r.default_page_size,
             version: r.version,
             updated_at: r.updated_at,
@@ -1343,27 +1370,30 @@ pub async fn fetch_entity_view(
     entity_type: &str,
     view_name: &str,
 ) -> Result<Option<shared::view::EntityView>, GqlError> {
-    let d: EntityViewResp =
-        execute(ENTITY_VIEW_QUERY, EntityViewVars { entity_type, view_name }).await?;
+    let d: EntityViewResp = execute(
+        ENTITY_VIEW_QUERY,
+        EntityViewVars {
+            entity_type,
+            view_name,
+        },
+    )
+    .await?;
     Ok(d.entity_view.map(Into::into))
 }
 
-pub async fn fetch_entity_views(
-    entity_type: &str,
-) -> Result<Vec<RawEntityViewSummary>, GqlError> {
-    let d: EntityViewsResp =
-        execute(ENTITY_VIEWS_QUERY, EntityViewsVars { entity_type }).await?;
+pub async fn fetch_entity_views(entity_type: &str) -> Result<Vec<RawEntityViewSummary>, GqlError> {
+    let d: EntityViewsResp = execute(ENTITY_VIEWS_QUERY, EntityViewsVars { entity_type }).await?;
     Ok(d.entity_views)
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveEntityViewInputClient<'a> {
-    pub entity_type:      &'a str,
-    pub view_name:        &'a str,
-    pub layer:            shared::view::ViewLayer,
-    pub owner_id:         Option<&'a str>,
-    pub payload:          serde_json::Value,
+    pub entity_type: &'a str,
+    pub view_name: &'a str,
+    pub layer: shared::view::ViewLayer,
+    pub owner_id: Option<&'a str>,
+    pub payload: serde_json::Value,
     pub expected_version: Option<i32>,
 }
 
@@ -1375,10 +1405,10 @@ struct SaveVars<'a> {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SaveEntityViewOutcomeRaw {
-    kind:    String,
+    kind: String,
     message: Option<String>,
     #[serde(default)]
-    view:    Option<RawEntityView>,
+    view: Option<RawEntityView>,
 }
 
 #[derive(Deserialize)]
@@ -1388,9 +1418,9 @@ struct SaveResp {
 }
 
 pub struct SaveEntityViewOutcomeClient {
-    pub kind:    String,
+    pub kind: String,
     pub message: Option<String>,
-    pub view:    Option<shared::view::EntityView>,
+    pub view: Option<shared::view::EntityView>,
 }
 
 pub async fn save_entity_view(
@@ -1398,9 +1428,9 @@ pub async fn save_entity_view(
 ) -> Result<SaveEntityViewOutcomeClient, GqlError> {
     let r: SaveResp = execute(SAVE_ENTITY_VIEW_MUTATION, SaveVars { input }).await?;
     Ok(SaveEntityViewOutcomeClient {
-        kind:    r.save_entity_view.kind,
+        kind: r.save_entity_view.kind,
         message: r.save_entity_view.message,
-        view:    r.save_entity_view.view.map(Into::into),
+        view: r.save_entity_view.view.map(Into::into),
     })
 }
 
@@ -1408,9 +1438,9 @@ pub async fn save_entity_view(
 #[serde(rename_all = "camelCase")]
 struct RevertVars<'a> {
     entity_type: &'a str,
-    view_name:   &'a str,
+    view_name: &'a str,
     layer: shared::view::ViewLayer,
-    owner_id:    Option<&'a str>,
+    owner_id: Option<&'a str>,
 }
 
 #[derive(Deserialize)]
@@ -1434,7 +1464,12 @@ pub async fn revert_entity_view(
 ) -> Result<RevertEntityViewOutcomeClient, GqlError> {
     let r: RevertResp = execute(
         REVERT_ENTITY_VIEW_MUTATION,
-        RevertVars { entity_type, view_name, layer, owner_id },
+        RevertVars {
+            entity_type,
+            view_name,
+            layer,
+            owner_id,
+        },
     )
     .await?;
     Ok(r.revert_entity_view)
@@ -1513,21 +1548,17 @@ impl RawScript {
     /// Pfad auf einen Default zurueck — vgl. `fetch_columns`-Pattern fuer
     /// `FieldType`. Der State wird aus der GraphQL-Enum-Wire-Form rueckgemappt.
     pub fn into_typed(self) -> Script {
-        let manifest: ScriptManifest =
-            serde_json::from_value(self.manifest).unwrap_or_default();
-        let kind: ScriptKind = serde_json::from_value(self.kind).unwrap_or(
-            ScriptKind::Component {
-                entry: "render".into(),
-            },
-        );
+        let manifest: ScriptManifest = serde_json::from_value(self.manifest).unwrap_or_default();
+        let kind: ScriptKind = serde_json::from_value(self.kind).unwrap_or(ScriptKind::Component {
+            entry: "render".into(),
+        });
         let state = match self.state.as_str() {
             "ACTIVE" => ScriptState::Active,
             "LOCKED" => ScriptState::Locked,
             _ => ScriptState::Draft,
         };
-        let last_error: Option<ScriptError> = self
-            .last_error
-            .and_then(|v| serde_json::from_value(v).ok());
+        let last_error: Option<ScriptError> =
+            self.last_error.and_then(|v| serde_json::from_value(v).ok());
         Script {
             id: ScriptId(self.id),
             kind,

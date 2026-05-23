@@ -120,15 +120,11 @@ impl BoundField {
 /// laesst die alte Wire-Form unveraendert.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "camelCase")]
+#[derive(Default)]
 pub enum NodeKind {
+    #[default]
     Generic,
     Script(shared::script::ScriptNodeRef),
-}
-
-impl Default for NodeKind {
-    fn default() -> Self {
-        NodeKind::Generic
-    }
 }
 
 impl NodeKind {
@@ -260,7 +256,10 @@ mod tests {
         let v = serde_json::to_value(&node).unwrap();
         // ID transparent als Zahl, eventTrigger camelCase, children weggelassen.
         assert_eq!(v["id"], json!(42));
-        assert_eq!(v["transform"], json!({"x": 0.0, "y": 0.0, "w": 200.0, "h": 32.0}));
+        assert_eq!(
+            v["transform"],
+            json!({"x": 0.0, "y": 0.0, "w": 200.0, "h": 32.0})
+        );
         assert_eq!(v["style"], json!({"tokenRef": "table_cell"}));
         assert_eq!(v["boundField"], json!({"key": "price"}));
         assert_eq!(v["eventTrigger"]["event"], json!({"kind": "click"}));
@@ -268,7 +267,10 @@ mod tests {
         assert!(v.get("children").is_none(), "leere children weglassen: {v}");
         // Default NodeKind::Generic muss weggelassen werden, damit der
         // alte Wire-Vertrag (`{"id": 42, ...}` ohne `kind`) gilt.
-        assert!(v.get("kind").is_none(), "default kind muss weggelassen werden: {v}");
+        assert!(
+            v.get("kind").is_none(),
+            "default kind muss weggelassen werden: {v}"
+        );
     }
 
     #[test]

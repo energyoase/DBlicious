@@ -4,7 +4,7 @@
 //! - [`request`]: legt einen pending approval an
 //! - [`decide`]: setzt approve|reject; bei approve triggert die
 //!   gebundene State-Machine-Transition auf der Entity
-//! - [`list_pending_for_entity`]: lookup
+//! - [`list_pending_for_entity`] — lookup
 //!
 //! Multi-Stage + Delegation: Folge-Item. Schema hat `current_stage_idx`
 //! als Vorbereitung.

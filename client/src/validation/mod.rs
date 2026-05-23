@@ -22,9 +22,11 @@ use serde_json::Value;
 use shared::{EditorMeta, ValidationMessage, ValidationResult};
 
 /// Ergebnis-Typ eines einzelnen Validators.
-pub type TaskFn = Arc<dyn Fn(&str, &Value, &serde_json::Map<String, Value>) -> Option<ValidationMessage>
-    + Send
-    + Sync>;
+pub type TaskFn = Arc<
+    dyn Fn(&str, &Value, &serde_json::Map<String, Value>) -> Option<ValidationMessage>
+        + Send
+        + Sync,
+>;
 
 /// Ein Validator, gebunden an eine konkrete Property eines Entity-Typs.
 #[derive(Clone)]
@@ -50,7 +52,10 @@ impl ValidationSystem {
 
     /// Bequeme Variante zur Registrierung mehrerer Tasks.
     pub fn extend(&mut self, entity_type: &str, tasks: impl IntoIterator<Item = ValidationTask>) {
-        self.tasks.entry(entity_type.into()).or_default().extend(tasks);
+        self.tasks
+            .entry(entity_type.into())
+            .or_default()
+            .extend(tasks);
     }
 
     /// Wertet alle Tasks fuer `entity_type` gegen die uebergebenen `fields` aus.
@@ -85,12 +90,10 @@ impl ValidationSystem {
                         target: prop.key.clone(),
                         task: Arc::new(move |_target, value, _fields| {
                             if is_empty_value(value) {
-                                Some(
-                                    ValidationMessage::error(
-                                        key.clone(),
-                                        format!("validation.{}", shared::validation::tasks::REQUIRED),
-                                    ),
-                                )
+                                Some(ValidationMessage::error(
+                                    key.clone(),
+                                    format!("validation.{}", shared::validation::tasks::REQUIRED),
+                                ))
                             } else {
                                 None
                             }
@@ -165,9 +168,9 @@ pub mod builtin {
         ValidationTask {
             target: target.into(),
             task: Arc::new(move |_t, value, _fields| {
-                let Some(n) = value.as_f64() else { return None };
-                let below = min.map_or(false, |lo| n < lo);
-                let above = max.map_or(false, |hi| n > hi);
+                let n = value.as_f64()?;
+                let below = min.is_some_and(|lo| n < lo);
+                let above = max.is_some_and(|hi| n > hi);
                 if below || above {
                     let mut m = ValidationMessage::error(
                         target_owned.clone(),

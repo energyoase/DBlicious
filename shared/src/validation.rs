@@ -127,16 +127,14 @@ impl ValidationResult {
 /// `shared`-Crate ueber GraphQL-Grenzen). Hier wird nur dokumentiert, wie das
 /// Ergebnis aussieht.
 ///
-/// Im C#-Original entspricht das `ValidationSystem` + `ValidationSystemMethod`
-/// + `ValidationTask`. In Rust trennen wir Schema (hier) und Ausfuehrung
-/// (`client/src/validation/`).
+/// Im C#-Original entspricht das `ValidationSystem` plus
+/// `ValidationSystemMethod` plus `ValidationTask`. In Rust trennen wir Schema
+/// (hier) und Ausfuehrung (`client/src/validation/`).
+///
+/// Marker fuer eingebaute Standard-Validierungen: anders als in C#
+/// (Reflection-getrieben) werden diese im Client exhaustiv in einer Registry
+/// zugeordnet — siehe `client/src/validation/mod.rs::ValidationSystem`.
 pub mod tasks {
-    //! Marker fuer eingebaute Standard-Validierungen.
-    //!
-    //! Anders als in C# (Reflection-getrieben) werden diese im Client
-    //! exhaustiv in einer Registry zugeordnet — siehe
-    //! `client/src/validation/mod.rs::ValidationSystem`.
-
     /// "Wert darf nicht leer sein."
     pub const REQUIRED: &str = "required";
     /// "Wert liegt unter dem Minimum."

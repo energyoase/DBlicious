@@ -21,8 +21,8 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 use shared::{
-    EditorMeta, EntitySettings, SecurityGroup, SecurityUser, TranslatableBundle,
-    TranslatableEntry, TranslatableLanguage, TranslatableValue,
+    EditorMeta, EntitySettings, SecurityGroup, SecurityUser, TranslatableBundle, TranslatableEntry,
+    TranslatableLanguage, TranslatableValue,
 };
 
 use crate::db::conn;
@@ -100,7 +100,10 @@ fn next_id_prefix(entity_type: &str) -> String {
 fn fields_from_model(model: entity::entities::Model) -> Entity {
     let parsed: serde_json::Value =
         serde_json::from_str(&model.fields_json).unwrap_or(serde_json::Value::Null);
-    Entity { id: model.id, fields: Json(parsed) }
+    Entity {
+        id: model.id,
+        fields: Json(parsed),
+    }
 }
 
 fn fields_obj_from_value(v: &serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
@@ -111,7 +114,10 @@ fn fields_obj_from_value(v: &serde_json::Value) -> serde_json::Map<String, serde
 }
 
 fn hash_for_entity(id: &str, fields: &serde_json::Map<String, serde_json::Value>) -> String {
-    let s = shared::Entity { id: id.to_string(), fields: fields.clone() };
+    let s = shared::Entity {
+        id: id.to_string(),
+        fields: fields.clone(),
+    };
     shared::compute_hash(&s).to_string()
 }
 
@@ -136,7 +142,9 @@ fn passes_filter(
     columns: &std::collections::HashMap<String, &shared::ColumnMeta>,
 ) -> bool {
     for cf in &filter.predicates {
-        let Some(col) = columns.get(&cf.key) else { return false };
+        let Some(col) = columns.get(&cf.key) else {
+            return false;
+        };
         let value = entity
             .fields
             .get(&cf.key)
@@ -178,7 +186,9 @@ fn sort_entities(
     columns: &std::collections::HashMap<String, &shared::ColumnMeta>,
 ) {
     use std::cmp::Ordering;
-    let Some(col) = columns.get(&sort.field) else { return };
+    let Some(col) = columns.get(&sort.field) else {
+        return;
+    };
     let ops = shared::ops_for_named(
         &col.field_type,
         col.comparator_id.as_deref(),
@@ -187,8 +197,16 @@ fn sort_entities(
     let direction = sort.direction;
     let key = sort.field.clone();
     items.sort_by(|a, b| {
-        let va = a.fields.get(&key).cloned().unwrap_or(serde_json::Value::Null);
-        let vb = b.fields.get(&key).cloned().unwrap_or(serde_json::Value::Null);
+        let va = a
+            .fields
+            .get(&key)
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
+        let vb = b
+            .fields
+            .get(&key)
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
         let ord = ops.compare(&va, &vb);
         match direction {
             shared::SortDirection::Asc => ord,
@@ -208,7 +226,10 @@ fn shared_entity_from_model(model: entity::entities::Model) -> shared::Entity {
         serde_json::Value::Object(o) => o,
         _ => serde_json::Map::new(),
     };
-    shared::Entity { id: model.id, fields }
+    shared::Entity {
+        id: model.id,
+        fields,
+    }
 }
 
 /// Interne Variante, die das `shared::EntityPage` liefert.
@@ -265,7 +286,11 @@ pub async fn entities_page_raw(
 pub(crate) async fn entity_by_id_raw(entity_type: &str, id: &str) -> Option<shared::Entity> {
     let db = &conn();
     entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
-        .one(db).await.ok().flatten().map(shared_entity_from_model)
+        .one(db)
+        .await
+        .ok()
+        .flatten()
+        .map(shared_entity_from_model)
 }
 
 pub(crate) async fn create_entity_raw(
@@ -288,7 +313,12 @@ pub(crate) async fn create_entity_raw(
         .unwrap_or_else(|| next_id_prefix(entity_type));
     let mut fields_map = fields;
     fields_map.insert("id".into(), serde_json::Value::String(id.clone()));
-    apply_audit_columns(entity_type, &mut fields_map, actor_user_id, AuditPhase::Create);
+    apply_audit_columns(
+        entity_type,
+        &mut fields_map,
+        actor_user_id,
+        AuditPhase::Create,
+    );
     let value = serde_json::Value::Object(fields_map.clone());
     let hash = hash_for_entity(&id, &fields_map);
 
@@ -299,7 +329,10 @@ pub(crate) async fn create_entity_raw(
         hash: ActiveValue::Set(hash),
     };
     let _ = model.insert(db).await;
-    shared::Entity { id, fields: fields_map }
+    shared::Entity {
+        id,
+        fields: fields_map,
+    }
 }
 
 pub(crate) async fn update_entity_raw(
@@ -310,7 +343,10 @@ pub(crate) async fn update_entity_raw(
 ) -> Option<shared::Entity> {
     let db = &conn();
     let existing = entity::entities::Entity::find_by_id((entity_type.to_string(), id.to_string()))
-        .one(db).await.ok().flatten()?;
+        .one(db)
+        .await
+        .ok()
+        .flatten()?;
     let mut current: serde_json::Map<String, serde_json::Value> =
         serde_json::from_str(&existing.fields_json).unwrap_or_default();
     for (k, v) in field_patch {
@@ -326,7 +362,10 @@ pub(crate) async fn update_entity_raw(
         hash: ActiveValue::Set(hash),
     };
     let _ = am.update(db).await;
-    Some(shared::Entity { id: id.to_string(), fields: current })
+    Some(shared::Entity {
+        id: id.to_string(),
+        fields: current,
+    })
 }
 
 pub(crate) async fn delete_entity_raw(entity_type: &str, id: &str) -> bool {
@@ -369,13 +408,22 @@ pub async fn entities_page(
             }
         }
     };
-    let q = crate::source::PageQuery { page, page_size, sort, filter };
+    let q = crate::source::PageQuery {
+        page,
+        page_size,
+        sort,
+        filter,
+    };
     match source.list_page(&binding, &q).await {
         Ok(p) => EntityPage {
-            items: p.items.into_iter().map(|e| Entity {
-                id: e.id,
-                fields: Json(serde_json::Value::Object(e.fields)),
-            }).collect(),
+            items: p
+                .items
+                .into_iter()
+                .map(|e| Entity {
+                    id: e.id,
+                    fields: Json(serde_json::Value::Object(e.fields)),
+                })
+                .collect(),
             total_count: p.total_count as i64,
             page: p.page as i32,
             page_size: p.page_size as i32,
@@ -449,18 +497,27 @@ pub async fn create_entity(
             Ok(s) => s,
             Err(e) => {
                 tracing::error!(target: "server::data", "route error: {e}");
-                return Entity { id: id.unwrap_or_default(), fields: Json(serde_json::Value::Null) };
+                return Entity {
+                    id: id.unwrap_or_default(),
+                    fields: Json(serde_json::Value::Null),
+                };
             }
         }
     };
-    match source.create(&binding, id.clone(), fields_map, actor_user_id).await {
+    match source
+        .create(&binding, id.clone(), fields_map, actor_user_id)
+        .await
+    {
         Ok(e) => Entity {
             id: e.id,
             fields: Json(serde_json::Value::Object(e.fields)),
         },
         Err(e) => {
             tracing::error!(target: "server::data", "create error: {e}");
-            Entity { id: id.unwrap_or_default(), fields: Json(serde_json::Value::Null) }
+            Entity {
+                id: id.unwrap_or_default(),
+                fields: Json(serde_json::Value::Null),
+            }
         }
     }
 }
@@ -485,7 +542,10 @@ pub async fn update_entity(
         serde_json::Value::Object(m) => m,
         _ => return None,
     };
-    match source.update(&binding, &entity_id, patch, actor_user_id).await {
+    match source
+        .update(&binding, &entity_id, patch, actor_user_id)
+        .await
+    {
         Ok(Some(e)) => Some(Entity {
             id: e.id,
             fields: Json(serde_json::Value::Object(e.fields)),
@@ -499,7 +559,7 @@ pub async fn delete_entity(entity_type: &str, id: &str) -> bool {
         return false;
     }
     let binding = binding_for(entity_type);
-    let source = match { crate::source::registry().route(&binding) } {
+    let source = match crate::source::registry().route(&binding) {
         Ok(s) => s,
         Err(_) => return false,
     };
@@ -521,7 +581,9 @@ pub async fn is_append_only(entity_type: &str) -> bool {
 /// liefern muessen statt None/false zurueckzugeben.
 pub async fn check_gobd_protected(entity_type: &str) -> Result<(), GobdProtectedError> {
     if is_append_only(entity_type).await {
-        Err(GobdProtectedError { entity_type: entity_type.to_string() })
+        Err(GobdProtectedError {
+            entity_type: entity_type.to_string(),
+        })
     } else {
         Ok(())
     }
@@ -549,8 +611,12 @@ fn apply_audit_columns(
     actor_user_id: Option<&str>,
     phase: AuditPhase,
 ) {
-    let Some(schema) = current_db_schema() else { return };
-    let Some(table) = schema.tables.iter().find(|t| t.name == entity_type) else { return };
+    let Some(schema) = current_db_schema() else {
+        return;
+    };
+    let Some(table) = schema.tables.iter().find(|t| t.name == entity_type) else {
+        return;
+    };
     let now = Utc::now().to_rfc3339();
     for col in &table.columns {
         let role = col.audit_role;
@@ -1022,7 +1088,11 @@ pub async fn translatable_bundle() -> TranslatableBundle {
             updated_at: v.updated_at,
         })
         .collect();
-    TranslatableBundle { languages: langs, entries, values }
+    TranslatableBundle {
+        languages: langs,
+        entries,
+        values,
+    }
 }
 
 // =============================================================================
@@ -1031,10 +1101,9 @@ pub async fn translatable_bundle() -> TranslatableBundle {
 
 pub async fn editor_for_async(entity_type: &str) -> Option<EditorMeta> {
     let db = &conn();
-    if let Ok(Some(row)) =
-        entity::metadata_editor::Entity::find_by_id(entity_type.to_string())
-            .one(db)
-            .await
+    if let Ok(Some(row)) = entity::metadata_editor::Entity::find_by_id(entity_type.to_string())
+        .one(db)
+        .await
     {
         if let Ok(meta) = serde_json::from_str::<EditorMeta>(&row.meta_json) {
             return Some(meta);
@@ -1045,10 +1114,9 @@ pub async fn editor_for_async(entity_type: &str) -> Option<EditorMeta> {
 
 pub async fn settings_for_async(entity_type: &str) -> Option<EntitySettings> {
     let db = &conn();
-    if let Ok(Some(row)) =
-        entity::metadata_settings::Entity::find_by_id(entity_type.to_string())
-            .one(db)
-            .await
+    if let Ok(Some(row)) = entity::metadata_settings::Entity::find_by_id(entity_type.to_string())
+        .one(db)
+        .await
     {
         if let Ok(settings) = serde_json::from_str::<EntitySettings>(&row.settings_json) {
             return Some(settings);
@@ -1080,7 +1148,9 @@ pub fn validate_against_editor(
     use shared::ValidationMessage;
 
     let mut result = shared::ValidationResult::default();
-    let Some(meta) = editor_for(entity_type) else { return result };
+    let Some(meta) = editor_for(entity_type) else {
+        return result;
+    };
     for prop in &meta.properties {
         let value = fields.get(&prop.key);
 
@@ -1188,7 +1258,9 @@ pub async fn filter_properties_for_user(
     user: &shared::SecurityUser,
     groups: &[shared::SecurityGroup],
 ) {
-    let Some(meta) = editor_for_async(entity_type).await else { return };
+    let Some(meta) = editor_for_async(entity_type).await else {
+        return;
+    };
     let drop_keys: Vec<String> = meta
         .properties
         .iter()
@@ -1270,8 +1342,8 @@ pub async fn seed_groups(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> 
 /// Anzahl der Eintraege in der `permissions`-Tabelle. Wird vom
 /// Enforcement-Pfad in `schema.rs::require_permission` als Schalter benutzt:
 /// > 0 ⇒ neuer Resolver authoritative; = 0 ⇒ alte Logik (Groups +
-/// can_*-Flags) bleibt aktiv. So bleiben Bestands-Examples ohne explizite
-/// Phase-0.7-Konfiguration weiterhin nutzbar.
+/// > can_*-Flags) bleibt aktiv. So bleiben Bestands-Examples ohne explizite
+/// > Phase-0.7-Konfiguration weiterhin nutzbar.
 pub async fn permissions_count() -> u64 {
     use sea_orm::PaginatorTrait;
     entity::permissions::Entity::find()
@@ -1305,16 +1377,15 @@ pub async fn resolve_implementation(
 ) -> Option<String> {
     // 1) Per-User-Choice
     if let Some(uid) = user_id {
-        if let Some(choice) = user_implementation_choice(uid, entity_type, property, registry).await {
+        if let Some(choice) = user_implementation_choice(uid, entity_type, property, registry).await
+        {
             return Some(choice);
         }
     }
 
     // 2) ColumnMeta-Override + 3) field_type_defaults
     let columns = shared_columns_for(entity_type);
-    let Some(col) = columns.iter().find(|c| c.key == property) else {
-        return None;
-    };
+    let col = columns.iter().find(|c| c.key == property)?;
     let column_override = match registry {
         "filter" => col.filter_id.clone(),
         "editor" => col.editor_id.clone(),
@@ -1326,9 +1397,7 @@ pub async fn resolve_implementation(
     }
 
     // 3) FieldType-Defaults aus den Settings
-    let Some(settings) = settings_for_async(entity_type).await else {
-        return None;
-    };
+    let settings = settings_for_async(entity_type).await?;
     let kind = col.field_type.kind_str();
     let defaults = settings.field_type_defaults.get(kind)?;
     match registry {
@@ -1361,8 +1430,14 @@ pub async fn allowed_implementations(
         return Vec::new();
     };
     let (default, allowed) = match registry {
-        "filter" => (defaults.filter_id.clone(), defaults.allowed_filter_ids.clone()),
-        "editor" => (defaults.editor_id.clone(), defaults.allowed_editor_ids.clone()),
+        "filter" => (
+            defaults.filter_id.clone(),
+            defaults.allowed_filter_ids.clone(),
+        ),
+        "editor" => (
+            defaults.editor_id.clone(),
+            defaults.allowed_editor_ids.clone(),
+        ),
         "formatter" => (
             defaults.formatter_id.clone(),
             defaults.allowed_formatter_ids.clone(),
@@ -1519,9 +1594,7 @@ pub async fn entity_design_latest_version(entity_type: &str) -> Option<i32> {
 }
 
 /// Liefert die aktive Version (`MAX(version)`) als komplettes Model.
-pub async fn entity_design_active(
-    entity_type: &str,
-) -> Option<entity::entity_designs::Model> {
+pub async fn entity_design_active(entity_type: &str) -> Option<entity::entity_designs::Model> {
     use sea_orm::QueryOrder;
     entity::entity_designs::Entity::find()
         .filter(entity::entity_designs::Column::EntityType.eq(entity_type))
@@ -1572,7 +1645,9 @@ pub async fn save_entity_design(
 ) -> Result<entity::entity_designs::Model, SaveDesignError> {
     let current = entity_design_latest_version(entity_type).await;
     if current != expected_version {
-        return Err(SaveDesignError::Conflict { current_version: current });
+        return Err(SaveDesignError::Conflict {
+            current_version: current,
+        });
     }
     // Locked-Check: wenn die aktive Version locked ist, keine neue erlaubt.
     if let Some(active) = entity_design_active(entity_type).await {
@@ -1600,9 +1675,7 @@ pub async fn save_entity_design(
 /// Loescht alle `entity_designs`-Eintraege fuer einen `entity_type`.
 /// Idempotent — Rueckgabe ist die Anzahl geloeschter Zeilen (0 wenn keine
 /// existierten). Wird von `dblicious design reset` benutzt.
-pub async fn delete_all_entity_designs(
-    entity_type: &str,
-) -> Result<u64, sea_orm::DbErr> {
+pub async fn delete_all_entity_designs(entity_type: &str) -> Result<u64, sea_orm::DbErr> {
     let res = entity::entity_designs::Entity::delete_many()
         .filter(entity::entity_designs::Column::EntityType.eq(entity_type))
         .exec(&conn())
@@ -1613,9 +1686,7 @@ pub async fn delete_all_entity_designs(
 /// Zaehlt vorhandene `entity_designs`-Eintraege fuer einen `entity_type`.
 /// Dient dry-run-Anzeigen (CLI), um zu zeigen, wie viele Zeilen ein Reset
 /// loeschen *wuerde*.
-pub async fn count_entity_designs(
-    entity_type: &str,
-) -> Result<u64, sea_orm::DbErr> {
+pub async fn count_entity_designs(entity_type: &str) -> Result<u64, sea_orm::DbErr> {
     use sea_orm::PaginatorTrait;
     entity::entity_designs::Entity::find()
         .filter(entity::entity_designs::Column::EntityType.eq(entity_type))
@@ -1785,9 +1856,7 @@ pub async fn seed_translatables(db: &DatabaseConnection) -> Result<(), sea_orm::
 
 /// Spiegelt alle Entity-Seeds aus dem Beispiel in die `entities`-Tabelle.
 /// Ersetzt das fruehere hartkodierte `mock_*`-Set.
-pub async fn seed_entities_from_example(
-    db: &DatabaseConnection,
-) -> Result<(), sea_orm::DbErr> {
+pub async fn seed_entities_from_example(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     let Some(set) = crate::example::current() else {
         return Ok(());
     };
@@ -1954,13 +2023,15 @@ pub async fn find_entity_views(entity_type: &str) -> Result<Vec<EntityViewSummar
         .map_err(|e| e.to_string())?;
     let mut by_name: BTreeMap<String, EntityViewSummary> = BTreeMap::new();
     for r in rows {
-        let layer = layer_from_str(&r.layer)
-            .ok_or_else(|| format!("Unbekannter Layer: '{}'", r.layer))?;
-        let entry = by_name.entry(r.view_name.clone()).or_insert_with(|| EntityViewSummary {
-            view_name: r.view_name.clone(),
-            layers: Vec::new(),
-            updated_at: r.updated_at.clone(),
-        });
+        let layer =
+            layer_from_str(&r.layer).ok_or_else(|| format!("Unbekannter Layer: '{}'", r.layer))?;
+        let entry = by_name
+            .entry(r.view_name.clone())
+            .or_insert_with(|| EntityViewSummary {
+                view_name: r.view_name.clone(),
+                layers: Vec::new(),
+                updated_at: r.updated_at.clone(),
+            });
         if !entry.layers.contains(&layer) {
             entry.layers.push(layer);
         }
@@ -2000,10 +2071,16 @@ pub async fn delete_entity_view(
 /// Achtung: Diese Funktion wird aus `db::seed_if_empty` aufgerufen, bevor
 /// der Pool-Slot gesetzt ist. Sie darf deshalb `conn()` NICHT aufrufen,
 /// sondern muss ausschliesslich das uebergebene `db` verwenden.
-pub async fn seed_entity_views_from_example(db: &sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
-    let Some(set) = crate::example::current() else { return Ok(()); };
+pub async fn seed_entity_views_from_example(
+    db: &sea_orm::DatabaseConnection,
+) -> Result<(), sea_orm::DbErr> {
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
     for (entity_type, ty_set) in &set.entities {
-        let Some(settings) = ty_set.settings.as_ref() else { continue; };
+        let Some(settings) = ty_set.settings.as_ref() else {
+            continue;
+        };
 
         // Existiert schon? -> skip (direkt ueber db, nicht ueber conn())
         let existing = entity::entity_views::Entity::find()
@@ -2013,11 +2090,15 @@ pub async fn seed_entity_views_from_example(db: &sea_orm::DatabaseConnection) ->
             .filter(entity::entity_views::Column::OwnerId.is_null())
             .one(db)
             .await?;
-        if existing.is_some() { continue; }
+        if existing.is_some() {
+            continue;
+        }
 
         // Aus EntitySettings → ViewPropertyOverride mappen.
-        let properties: Vec<shared::view::ViewPropertyOverride> = settings.properties.iter().map(|p| {
-            shared::view::ViewPropertyOverride {
+        let properties: Vec<shared::view::ViewPropertyOverride> = settings
+            .properties
+            .iter()
+            .map(|p| shared::view::ViewPropertyOverride {
                 key: p.key.clone(),
                 visibility: Some(p.visibility),
                 order: Some(p.order),
@@ -2026,8 +2107,8 @@ pub async fn seed_entity_views_from_example(db: &sea_orm::DatabaseConnection) ->
                 sortable: None,
                 filter_id_override: None,
                 formatter_id_override: None,
-            }
-        }).collect();
+            })
+            .collect();
 
         let payload = ViewPayload {
             properties,
@@ -2035,8 +2116,8 @@ pub async fn seed_entity_views_from_example(db: &sea_orm::DatabaseConnection) ->
             default_sort: settings.default_sort.clone(),
             default_page_size: settings.default_page_size,
         };
-        let payload_json = serde_json::to_string(&payload)
-            .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+        let payload_json =
+            serde_json::to_string(&payload).map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
 
         entity::entity_views::ActiveModel {
             id: ActiveValue::Set(format!("v-system-{entity_type}-default-global")),
@@ -2093,7 +2174,9 @@ fn row_to_view(r: entity::entity_views::Model) -> EntityView {
 pub async fn seed_scripts_from_example(
     db: &sea_orm::DatabaseConnection,
 ) -> Result<(), sea_orm::DbErr> {
-    let Some(set) = crate::example::current() else { return Ok(()); };
+    let Some(set) = crate::example::current() else {
+        return Ok(());
+    };
     for (id, seed) in &set.scripts {
         let existing = entity::script::Entity::find_by_id(id.clone())
             .one(db)
@@ -2122,15 +2205,12 @@ pub async fn seed_scripts_from_example(
         };
 
         let manifest_json = manifest_for_json
-            .map(|m| {
-                serde_json::to_string(&m)
-                    .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))
-            })
+            .map(|m| serde_json::to_string(&m).map_err(|e| sea_orm::DbErr::Custom(e.to_string())))
             .transpose()?
             .unwrap_or_else(|| "{}".into());
 
-        let kind_value = serde_json::to_value(&seed.kind)
-            .map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
+        let kind_value =
+            serde_json::to_value(&seed.kind).map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
         let kind_tag = kind_value
             .get("kind")
             .and_then(|v| v.as_str())

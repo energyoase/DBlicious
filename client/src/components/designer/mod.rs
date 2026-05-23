@@ -4,15 +4,15 @@
 //! und Beziehungen. Aufbau:
 //!
 //! - `model`     – reaktiver Zustand (Tabellen, Spalten, Beziehungen, Auswahl,
-//!                 ID-Generator, Drag- und Verknuepfungs-Zustand). Alle Mutationen
-//!                 laufen ueber Methoden auf `DesignerModel`.
+//!   ID-Generator, Drag- und Verknuepfungs-Zustand). Alle Mutationen
+//!   laufen ueber Methoden auf `DesignerModel`.
 //! - `canvas`    – die eigentliche Leinwand mit einer SVG-Ebene fuer
-//!                 Verbindungslinien und absolut positionierten Tabellenkarten.
+//!   Verbindungslinien und absolut positionierten Tabellenkarten.
 //! - `table_box` – Karte einer einzelnen Tabelle: Drag-Handle, Spaltenliste,
-//!                 Inline-Editoren, Lol-Ports zum Verknuepfen.
+//!   Inline-Editoren, Lol-Ports zum Verknuepfen.
 //! - `connector` – reine Berechnung von Bezier-Pfaden zwischen zwei Ports.
 //! - `toolbar`   – Aktionsleiste: Tabelle hinzufuegen, Verknuepfungsmodus,
-//!                 Speichern + Status.
+//!   Speichern + Status.
 //!
 //! Der Designer ist bewusst von der GraphQL-Schicht entkoppelt: die einzige
 //! Server-Beruehrung ist die `save_db_schema`-Mutation, die in

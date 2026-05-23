@@ -25,13 +25,16 @@ type Table = BTreeMap<String, Entity>;
 type Store = BTreeMap<String, Table>;
 
 pub struct MemorySource {
-    name:  String,
+    name: String,
     store: Arc<RwLock<Store>>,
 }
 
 impl MemorySource {
     pub fn new(name: String) -> Self {
-        Self { name, store: Arc::new(RwLock::new(Store::new())) }
+        Self {
+            name,
+            store: Arc::new(RwLock::new(Store::new())),
+        }
     }
 
     /// Seed-Helper fuer Tests: setzt eine Tabelle initial.
@@ -53,21 +56,27 @@ impl MemorySource {
 
 #[async_trait]
 impl Source for MemorySource {
-    fn name(&self) -> &str { &self.name }
-    fn kind(&self) -> &'static str { "memory" }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn kind(&self) -> &'static str {
+        "memory"
+    }
 
     fn capabilities(&self) -> Capabilities {
         Capabilities {
-            supports_write:        true,
+            supports_write: true,
             supports_transactions: false,
             supports_sql_pushdown: false,
             supports_introspection: false,
             supports_composite_pk: true,
-            supports_ddl:          false,
+            supports_ddl: false,
         }
     }
 
-    async fn init(&mut self) -> Result<(), SourceError> { Ok(()) }
+    async fn init(&mut self) -> Result<(), SourceError> {
+        Ok(())
+    }
 
     async fn list_page(
         &self,
@@ -81,15 +90,15 @@ impl Source for MemorySource {
             .map(|t| t.values().cloned().collect::<Vec<_>>())
             .unwrap_or_default();
         let total = rows.len() as u64;
-        let page      = query.page.max(1) as usize;
+        let page = query.page.max(1) as usize;
         let page_size = query.page_size.max(1) as usize;
-        let offset    = (page - 1) * page_size;
+        let offset = (page - 1) * page_size;
         let items: Vec<Entity> = rows.into_iter().skip(offset).take(page_size).collect();
         Ok(EntityPage {
             items,
             total_count: total,
-            page:        page as u32,
-            page_size:   page_size as u32,
+            page: page as u32,
+            page_size: page_size as u32,
         })
     }
 
@@ -100,7 +109,11 @@ impl Source for MemorySource {
     ) -> Result<Option<Entity>, SourceError> {
         let table = Self::ensure_table_locator(&binding.locator)?;
         let key = id.encode();
-        Ok(self.store.read().get(&table).and_then(|t| t.get(&key).cloned()))
+        Ok(self
+            .store
+            .read()
+            .get(&table)
+            .and_then(|t| t.get(&key).cloned()))
     }
 
     async fn create(
@@ -123,9 +136,9 @@ impl Source for MemorySource {
                     .map(|k| {
                         fields
                             .get(k)
-                            .and_then(|v| match v {
-                                serde_json::Value::String(s) => Some(s.clone()),
-                                other => Some(other.to_string()),
+                            .map(|v| match v {
+                                serde_json::Value::String(s) => s.clone(),
+                                other => other.to_string(),
                             })
                             .unwrap_or_default()
                     })
@@ -139,7 +152,10 @@ impl Source for MemorySource {
                 }
             })
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-        let entity = Entity { id: id_str.clone(), fields };
+        let entity = Entity {
+            id: id_str.clone(),
+            fields,
+        };
         self.store
             .write()
             .entry(table)
@@ -162,18 +178,16 @@ impl Source for MemorySource {
         let key = id.encode();
         let mut store = self.store.write();
         let table_map = store.entry(table).or_default();
-        let Some(existing) = table_map.get_mut(&key) else { return Ok(None) };
+        let Some(existing) = table_map.get_mut(&key) else {
+            return Ok(None);
+        };
         for (k, v) in patch {
             existing.fields.insert(k, v);
         }
         Ok(Some(existing.clone()))
     }
 
-    async fn delete(
-        &self,
-        binding: &EntityBinding,
-        id: &EntityId,
-    ) -> Result<bool, SourceError> {
+    async fn delete(&self, binding: &EntityBinding, id: &EntityId) -> Result<bool, SourceError> {
         if binding.read_only {
             return Err(SourceError::ReadOnly);
         }

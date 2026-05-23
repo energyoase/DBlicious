@@ -39,7 +39,10 @@ pub fn EditAction() -> impl IntoView {
     let ghost = design.button(ButtonVariant::Ghost).inline.clone();
 
     if !shell.caps.can_update {
-        return view! { <></> }.into_any();
+        return {
+            let _: () = view! { <></> };
+            ().into_any()
+        };
     }
 
     let href = format!("/entities/{}/{}", shell.entity_type(), row.entity.id);
@@ -59,7 +62,10 @@ pub fn DeleteAction() -> impl IntoView {
     let ghost = design.button(ButtonVariant::Ghost).inline.clone();
 
     if !shell.caps.can_delete {
-        return view! { <></> }.into_any();
+        return {
+            let _: () = view! { <></> };
+            ().into_any()
+        };
     }
 
     // HeaderRegistry mit dem Datensatz vorpopulieren, damit ein Concurrency-
@@ -85,8 +91,7 @@ pub fn DeleteAction() -> impl IntoView {
         let id = entity_id.clone();
         let et = entity_type.clone();
         let source = source.clone();
-        let expected = header_for_delete
-            .with(|hr| hr.get(&et, &id).map(|h| h.original_hash));
+        let expected = header_for_delete.with(|hr| hr.get(&et, &id).map(|h| h.original_hash));
         spawn_local(async move {
             if let Some(deletable) = source.deletable() {
                 if let Ok(res) = deletable.delete(id, expected).await {

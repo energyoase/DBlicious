@@ -546,7 +546,9 @@ async fn require_permission(
     op: shared::PermissionOp,
 ) -> async_graphql::Result<shared::SecurityUser> {
     let auth_ctx = ctx.data::<AuthContext>()?.clone();
-    let user = auth_ctx.user.ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+    let user = auth_ctx
+        .user
+        .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
 
     // Helfer: Deny ins Audit-Log schreiben, dann Error-Token bauen.
     async fn forbid(user_id: &str, entity_type: &str, op_str: &str) -> async_graphql::Error {
@@ -612,8 +614,12 @@ fn map_settings(s: shared::EntitySettings) -> EntitySettings {
         entity_type: s.entity_type,
         access: access_str(s.access).into(),
         default_page_size: s.default_page_size.map(|p| p as i32),
-        default_sort: s.default_sort.map(|v| Json(serde_json::to_value(v).unwrap_or_default())),
-        default_filter: s.default_filter.map(|v| Json(serde_json::to_value(v).unwrap_or_default())),
+        default_sort: s
+            .default_sort
+            .map(|v| Json(serde_json::to_value(v).unwrap_or_default())),
+        default_filter: s
+            .default_filter
+            .map(|v| Json(serde_json::to_value(v).unwrap_or_default())),
         properties: s
             .properties
             .into_iter()
@@ -646,8 +652,12 @@ impl QueryRoot {
     }
 
     async fn current_permissions(&self, ctx: &Context<'_>) -> Vec<Permission> {
-        let Some(auth) = ctx.data::<AuthContext>().ok() else { return vec![] };
-        let Some(user) = &auth.user else { return vec![] };
+        let Some(auth) = ctx.data::<AuthContext>().ok() else {
+            return vec![];
+        };
+        let Some(user) = &auth.user else {
+            return vec![];
+        };
         let groups = data::groups().await;
         shared::effective_permissions(user, &groups)
             .into_iter()
@@ -737,8 +747,12 @@ impl QueryRoot {
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<Option<Vec<EffectivePermissionView>>> {
-        let Some(auth_ctx) = ctx.data::<AuthContext>().ok() else { return Ok(None) };
-        let Some(user) = &auth_ctx.user else { return Ok(None) };
+        let Some(auth_ctx) = ctx.data::<AuthContext>().ok() else {
+            return Ok(None);
+        };
+        let Some(user) = &auth_ctx.user else {
+            return Ok(None);
+        };
         match crate::auth::resolver::project_effective(&user.id).await {
             Ok(Some(list)) => Ok(Some(list.into_iter().map(map_effective).collect())),
             Ok(None) => Ok(None),
@@ -748,12 +762,15 @@ impl QueryRoot {
 
     /// Anonyme Anfragen liefern eine leere Liste.
     async fn my_permissions(&self, ctx: &Context<'_>) -> Vec<MyPermissionView> {
-        let Some(auth_ctx) = ctx.data::<AuthContext>().ok() else { return vec![] };
-        let Some(user) = &auth_ctx.user else { return vec![] };
+        let Some(auth_ctx) = ctx.data::<AuthContext>().ok() else {
+            return vec![];
+        };
+        let Some(user) = &auth_ctx.user else {
+            return vec![];
+        };
 
         let db = crate::db::conn();
-        let Ok(subjects) = crate::auth::resolver::subjects_for_user(&db, &user.id).await
-        else {
+        let Ok(subjects) = crate::auth::resolver::subjects_for_user(&db, &user.id).await else {
             return vec![];
         };
         let Ok(perms) = <crate::entity::permissions::Entity as sea_orm::EntityTrait>::find()
@@ -808,6 +825,8 @@ impl QueryRoot {
         Ok(data::columns_for(&entity_type))
     }
 
+    // GraphQL-Feld-Argumente — Gruppieren würde die API-Form ändern.
+    #[allow(clippy::too_many_arguments)]
     async fn entities(
         &self,
         ctx: &Context<'_>,
@@ -912,8 +931,15 @@ impl QueryRoot {
         let mut resolved = crate::views::resolve_view(&entity_type, "default", user_ref).await;
         // I1: Unbekannte Override-Keys (Spec E1) vor der Auslieferung entfernen.
         let known_keys: Vec<String> = crate::data::columns_for(&entity_type)
-            .into_iter().map(|c| c.key).collect();
-        crate::views::strip_unknown_keys(&mut resolved.properties, &known_keys, &entity_type, "default");
+            .into_iter()
+            .map(|c| c.key)
+            .collect();
+        crate::views::strip_unknown_keys(
+            &mut resolved.properties,
+            &known_keys,
+            &entity_type,
+            "default",
+        );
         // Wenn keine Layer vorliegen, ist provenance leer — gib None zurueck,
         // damit der Client auf Default-Verhalten faellt.
         // F1 (loader bootstrap) wird entity_views beim Start befuellen, sodass
@@ -922,16 +948,16 @@ impl QueryRoot {
             return Ok(None);
         }
         let settings = shared::EntitySettings {
-            entity_type:         resolved.entity_type,
-            access:              shared::settings::Access::default(),
-            default_page_size:   resolved.default_page_size,
-            default_sort:        resolved.default_sort,
-            default_filter:      resolved.default_filter,
-            properties:          resolved.properties,
+            entity_type: resolved.entity_type,
+            access: shared::settings::Access::default(),
+            default_page_size: resolved.default_page_size,
+            default_sort: resolved.default_sort,
+            default_filter: resolved.default_filter,
+            properties: resolved.properties,
             field_type_defaults: Default::default(),
-            binding:             None,
-            append_only:         false,
-            state_machine:       None,
+            binding: None,
+            append_only: false,
+            state_machine: None,
         };
         Ok(Some(map_settings(settings)))
     }
@@ -1034,8 +1060,7 @@ impl QueryRoot {
         &self,
         ctx: &Context<'_>,
         entity_type: String,
-        #[graphql(default = "default")]
-        view_name: String,
+        #[graphql(default = "default")] view_name: String,
     ) -> async_graphql::Result<EntityViewGql> {
         // I4: Read-Gate — wie entity_settings, entity_editor usw.
         require_permission(ctx, &entity_type, shared::PermissionOp::Read).await?;
@@ -1045,24 +1070,39 @@ impl QueryRoot {
         let mut resolved = crate::views::resolve_view(&entity_type, &view_name, user_ref).await;
         // I1: Unbekannte Override-Keys (Spec E1) vor der Auslieferung entfernen.
         let known_keys: Vec<String> = crate::data::columns_for(&entity_type)
-            .into_iter().map(|c| c.key).collect();
-        crate::views::strip_unknown_keys(&mut resolved.properties, &known_keys, &entity_type, &view_name);
+            .into_iter()
+            .map(|c| c.key)
+            .collect();
+        crate::views::strip_unknown_keys(
+            &mut resolved.properties,
+            &known_keys,
+            &entity_type,
+            &view_name,
+        );
         Ok(EntityViewGql {
-            id:                format!("resolved:{entity_type}:{view_name}"),
-            entity_type:       resolved.entity_type,
-            view_name:         resolved.view_name,
-            layer:             GqlViewLayer::Global,
-            owner_id:          None,
-            properties:        async_graphql::Json(serde_json::to_value(resolved.properties).unwrap_or(serde_json::Value::Null)),
-            default_filter:    resolved.default_filter.map(|f| async_graphql::Json(serde_json::to_value(f).unwrap_or(serde_json::Value::Null))),
-            default_sort:      resolved.default_sort.map(|s| async_graphql::Json(serde_json::to_value(s).unwrap_or(serde_json::Value::Null))),
+            id: format!("resolved:{entity_type}:{view_name}"),
+            entity_type: resolved.entity_type,
+            view_name: resolved.view_name,
+            layer: GqlViewLayer::Global,
+            owner_id: None,
+            properties: async_graphql::Json(
+                serde_json::to_value(resolved.properties).unwrap_or(serde_json::Value::Null),
+            ),
+            default_filter: resolved.default_filter.map(|f| {
+                async_graphql::Json(serde_json::to_value(f).unwrap_or(serde_json::Value::Null))
+            }),
+            default_sort: resolved.default_sort.map(|s| {
+                async_graphql::Json(serde_json::to_value(s).unwrap_or(serde_json::Value::Null))
+            }),
             default_page_size: resolved.default_page_size,
-            version:           resolved.provenance.iter()
+            version: resolved
+                .provenance
+                .iter()
                 .find(|p| p.layer == shared::view::ViewLayer::Global)
                 .map(|p| p.version)
                 .unwrap_or(0),
-            updated_at:        String::new(),
-            updated_by:        None,
+            updated_at: String::new(),
+            updated_by: None,
         })
     }
 
@@ -1078,8 +1118,8 @@ impl QueryRoot {
             .unwrap_or_default()
             .into_iter()
             .map(|s| EntityViewSummaryGql {
-                view_name:  s.view_name,
-                layers:     s.layers.into_iter().map(GqlViewLayer::from).collect(),
+                view_name: s.view_name,
+                layers: s.layers.into_iter().map(GqlViewLayer::from).collect(),
                 updated_at: s.updated_at,
             })
             .collect())
@@ -1494,7 +1534,9 @@ impl MutationRoot {
 
     /// Schliesst die aktuelle Session (nur den vorgelegten Token).
     async fn logout(&self, ctx: &Context<'_>) -> bool {
-        let Some(auth) = ctx.data::<AuthContext>().ok() else { return false };
+        let Some(auth) = ctx.data::<AuthContext>().ok() else {
+            return false;
+        };
         match &auth.token {
             Some(token) => auth::close_session(token).await,
             None => false,
@@ -1619,11 +1661,7 @@ impl MutationRoot {
             .map_err(|e| async_graphql::Error::new(format!("{e}")))
     }
 
-    async fn delete_plugin(
-        &self,
-        ctx: &Context<'_>,
-        id: String,
-    ) -> async_graphql::Result<bool> {
+    async fn delete_plugin(&self, ctx: &Context<'_>, id: String) -> async_graphql::Result<bool> {
         require_permission(ctx, "*", shared::PermissionOp::Delete).await?;
         crate::plugins::delete_plugin(&id)
             .await
@@ -1678,8 +1716,7 @@ impl MutationRoot {
 
         // Validierung: chosen_id muss in der `allowed_implementations`-Liste
         // sein. Sonst koennte ein Aufrufer eine willkuerliche ID persistieren.
-        let allowed =
-            data::allowed_implementations(&entity_type, &property, &registry).await;
+        let allowed = data::allowed_implementations(&entity_type, &property, &registry).await;
         if !allowed.iter().any(|id| id == &chosen_id) {
             return Err(async_graphql::Error::new("not_allowed_for_property"));
         }
@@ -1819,13 +1856,20 @@ impl MutationRoot {
         let auth = ctx.data_opt::<AuthContext>();
         let Some(user) = auth.and_then(|a| a.user.as_ref()) else {
             return SaveEntityViewResult {
-                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                kind: SaveEntityViewResultKind::Forbidden,
+                view: None,
                 message: Some("nicht authentifiziert".into()),
             };
         };
-        if !shared::is_allowed(user, &crate::data::groups().await, &input.entity_type, shared::PermissionOp::Update) {
+        if !shared::is_allowed(
+            user,
+            &crate::data::groups().await,
+            &input.entity_type,
+            shared::PermissionOp::Update,
+        ) {
             return SaveEntityViewResult {
-                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                kind: SaveEntityViewResultKind::Forbidden,
+                view: None,
                 message: Some(format!("kein Update-Recht auf '{}'", input.entity_type)),
             };
         }
@@ -1836,7 +1880,8 @@ impl MutationRoot {
             || (layer != shared::view::ViewLayer::Global && owner_id.is_some());
         if !invariant_ok {
             return SaveEntityViewResult {
-                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                kind: SaveEntityViewResultKind::Forbidden,
+                view: None,
                 message: Some("layer=global requires owner_id=null and vice versa".into()),
             };
         }
@@ -1846,22 +1891,36 @@ impl MutationRoot {
             shared::view::ViewLayer::User => {
                 let target = owner_id.as_deref();
                 if target != Some(user.id.as_str())
-                    && !shared::is_allowed(user, &crate::data::groups().await, "*", shared::PermissionOp::Update)
+                    && !shared::is_allowed(
+                        user,
+                        &crate::data::groups().await,
+                        "*",
+                        shared::PermissionOp::Update,
+                    )
                 {
                     return SaveEntityViewResult {
-                        kind: SaveEntityViewResultKind::Forbidden, view: None,
+                        kind: SaveEntityViewResultKind::Forbidden,
+                        view: None,
                         message: Some("layer ownership mismatch".into()),
                     };
                 }
             }
             shared::view::ViewLayer::Group => {
                 let target = owner_id.as_deref();
-                let is_member = target.map(|g| user.group_ids.iter().any(|x| x == g)).unwrap_or(false);
+                let is_member = target
+                    .map(|g| user.group_ids.iter().any(|x| x == g))
+                    .unwrap_or(false);
                 if !is_member
-                    && !shared::is_allowed(user, &crate::data::groups().await, "*", shared::PermissionOp::Update)
+                    && !shared::is_allowed(
+                        user,
+                        &crate::data::groups().await,
+                        "*",
+                        shared::PermissionOp::Update,
+                    )
                 {
                     return SaveEntityViewResult {
-                        kind: SaveEntityViewResultKind::Forbidden, view: None,
+                        kind: SaveEntityViewResultKind::Forbidden,
+                        view: None,
                         message: Some("layer ownership mismatch".into()),
                     };
                 }
@@ -1870,14 +1929,22 @@ impl MutationRoot {
         }
 
         let existing = crate::data::find_entity_view(
-            &input.entity_type, &input.view_name, layer, owner_id.as_deref()
-        ).await.unwrap_or(None);
+            &input.entity_type,
+            &input.view_name,
+            layer,
+            owner_id.as_deref(),
+        )
+        .await
+        .unwrap_or(None);
         if let (Some(curr), Some(expected)) = (existing.as_ref(), input.expected_version) {
             if curr.version != expected {
                 return SaveEntityViewResult {
                     kind: SaveEntityViewResultKind::Conflict,
                     view: Some(curr.clone().into()),
-                    message: Some(format!("expected_version={expected}, current={}", curr.version)),
+                    message: Some(format!(
+                        "expected_version={expected}, current={}",
+                        curr.version
+                    )),
                 };
             }
         }
@@ -1886,30 +1953,38 @@ impl MutationRoot {
         #[serde(rename_all = "camelCase")]
         struct PayloadIn {
             properties: Vec<shared::view::ViewPropertyOverride>,
-            #[serde(default)] default_filter:    Option<shared::FilterCriteria>,
-            #[serde(default)] default_sort:      Option<shared::Sort>,
-            #[serde(default)] default_page_size: Option<u32>,
+            #[serde(default)]
+            default_filter: Option<shared::FilterCriteria>,
+            #[serde(default)]
+            default_sort: Option<shared::Sort>,
+            #[serde(default)]
+            default_page_size: Option<u32>,
         }
         let p: PayloadIn = match serde_json::from_value(input.payload.0) {
-            Ok(p)  => p,
-            Err(e) => return SaveEntityViewResult {
-                kind: SaveEntityViewResultKind::Forbidden, view: None,
-                message: Some(format!("payload-parse: {e}")),
-            },
+            Ok(p) => p,
+            Err(e) => {
+                return SaveEntityViewResult {
+                    kind: SaveEntityViewResultKind::Forbidden,
+                    view: None,
+                    message: Some(format!("payload-parse: {e}")),
+                }
+            }
         };
 
         let new_version = existing.as_ref().map(|v| v.version + 1).unwrap_or(1);
-        let id = existing.as_ref().map(|v| v.id.clone())
+        let id = existing
+            .as_ref()
+            .map(|v| v.id.clone())
             .unwrap_or_else(|| format!("v-{}", uuid::Uuid::new_v4()));
         let v = shared::view::EntityView {
             id,
             entity_type: input.entity_type.clone(),
-            view_name:   input.view_name.clone(),
+            view_name: input.view_name.clone(),
             layer,
             owner_id,
-            properties:        p.properties,
-            default_filter:    p.default_filter,
-            default_sort:      p.default_sort,
+            properties: p.properties,
+            default_filter: p.default_filter,
+            default_sort: p.default_sort,
             default_page_size: p.default_page_size,
             version: new_version,
             updated_at: chrono::Utc::now().to_rfc3339(),
@@ -1917,7 +1992,8 @@ impl MutationRoot {
         };
         if let Err(e) = crate::data::upsert_entity_view(&v).await {
             return SaveEntityViewResult {
-                kind: SaveEntityViewResultKind::Forbidden, view: None,
+                kind: SaveEntityViewResultKind::Forbidden,
+                view: None,
                 message: Some(format!("save: {e}")),
             };
         }
@@ -1932,17 +2008,28 @@ impl MutationRoot {
         &self,
         ctx: &Context<'_>,
         entity_type: String,
-        view_name:   String,
-        layer:       GqlViewLayer,
-        owner_id:    Option<String>,
+        view_name: String,
+        layer: GqlViewLayer,
+        owner_id: Option<String>,
     ) -> RevertEntityViewResult {
         use crate::AuthContext;
         let auth = ctx.data_opt::<AuthContext>();
         let Some(user) = auth.and_then(|a| a.user.as_ref()) else {
-            return RevertEntityViewResult { ok: false, message: Some("unauthenticated".into()) };
+            return RevertEntityViewResult {
+                ok: false,
+                message: Some("unauthenticated".into()),
+            };
         };
-        if !shared::is_allowed(user, &crate::data::groups().await, &entity_type, shared::PermissionOp::Update) {
-            return RevertEntityViewResult { ok: false, message: Some("forbidden".into()) };
+        if !shared::is_allowed(
+            user,
+            &crate::data::groups().await,
+            &entity_type,
+            shared::PermissionOp::Update,
+        ) {
+            return RevertEntityViewResult {
+                ok: false,
+                message: Some("forbidden".into()),
+            };
         }
 
         // C3: Besitzer-Pruefung — verhindert fremde Layer-Schreibzugriffe.
@@ -1951,26 +2038,57 @@ impl MutationRoot {
             shared::view::ViewLayer::User => {
                 let target = owner_id.as_deref();
                 if target != Some(user.id.as_str())
-                    && !shared::is_allowed(user, &crate::data::groups().await, "*", shared::PermissionOp::Update)
+                    && !shared::is_allowed(
+                        user,
+                        &crate::data::groups().await,
+                        "*",
+                        shared::PermissionOp::Update,
+                    )
                 {
-                    return RevertEntityViewResult { ok: false, message: Some("layer ownership mismatch".into()) };
+                    return RevertEntityViewResult {
+                        ok: false,
+                        message: Some("layer ownership mismatch".into()),
+                    };
                 }
             }
             shared::view::ViewLayer::Group => {
                 let target = owner_id.as_deref();
-                let is_member = target.map(|g| user.group_ids.iter().any(|x| x == g)).unwrap_or(false);
+                let is_member = target
+                    .map(|g| user.group_ids.iter().any(|x| x == g))
+                    .unwrap_or(false);
                 if !is_member
-                    && !shared::is_allowed(user, &crate::data::groups().await, "*", shared::PermissionOp::Update)
+                    && !shared::is_allowed(
+                        user,
+                        &crate::data::groups().await,
+                        "*",
+                        shared::PermissionOp::Update,
+                    )
                 {
-                    return RevertEntityViewResult { ok: false, message: Some("layer ownership mismatch".into()) };
+                    return RevertEntityViewResult {
+                        ok: false,
+                        message: Some("layer ownership mismatch".into()),
+                    };
                 }
             }
             shared::view::ViewLayer::Global => {} // bereits durch entity Update-Recht abgedeckt
         }
 
-        match crate::data::delete_entity_view(&entity_type, &view_name, layer_typed, owner_id.as_deref()).await {
-            Ok(_)  => RevertEntityViewResult { ok: true, message: None },
-            Err(e) => RevertEntityViewResult { ok: false, message: Some(e) },
+        match crate::data::delete_entity_view(
+            &entity_type,
+            &view_name,
+            layer_typed,
+            owner_id.as_deref(),
+        )
+        .await
+        {
+            Ok(_) => RevertEntityViewResult {
+                ok: true,
+                message: None,
+            },
+            Err(e) => RevertEntityViewResult {
+                ok: false,
+                message: Some(e),
+            },
         }
     }
 
@@ -2020,14 +2138,8 @@ impl MutationRoot {
         )
         .await;
         // afterSave fire-and-forget (Audit-Log haelt die Spur).
-        crate::plugins::run_after_save(
-            &entity_type,
-            &entity.id,
-            &fields_map,
-            "create",
-            &actor.id,
-        )
-        .await;
+        crate::plugins::run_after_save(&entity_type, &entity.id, &fields_map, "create", &actor.id)
+            .await;
         Ok(EntityChangeResult {
             ok: true,
             entity: Some(entity),
@@ -2279,40 +2391,52 @@ impl MutationRoot {
     /// Permission: `Resource::Action{name:"period_lock.set"}`+Execute.
     async fn set_period_lock(
         &self,
-        ctx:          &Context<'_>,
-        scope:        String,
+        ctx: &Context<'_>,
+        scope: String,
         through_date: String,
-        reason:       Option<String>,
+        reason: Option<String>,
     ) -> async_graphql::Result<bool> {
         let auth = ctx.data::<AuthContext>().ok();
-        let user = auth.and_then(|a| a.user.as_ref()).ok_or_else(|| {
-            async_graphql::Error::new("unauthenticated")
-        })?;
-        let resource = shared::auth::Resource::Action { name: "period_lock.set".into() };
-        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await {
+        let user = auth
+            .and_then(|a| a.user.as_ref())
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+        let resource = shared::auth::Resource::Action {
+            name: "period_lock.set".into(),
+        };
+        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await
+        {
             Ok(shared::auth::Effect::Allow) => {}
             _ => return Err(async_graphql::Error::new("forbidden")),
         }
         let conn = crate::db::conn();
-        crate::period_locks::set_lock(&conn, &scope, &through_date, Some(&user.id), reason.as_deref())
-            .await
-            .map(|_| true)
-            .map_err(|e| async_graphql::Error::new(format!("{e}")))
+        crate::period_locks::set_lock(
+            &conn,
+            &scope,
+            &through_date,
+            Some(&user.id),
+            reason.as_deref(),
+        )
+        .await
+        .map(|_| true)
+        .map_err(|e| async_graphql::Error::new(format!("{e}")))
     }
 
     /// Loest einen Period-Lock vollstaendig auf. Idempotent (false wenn
     /// kein Lock existierte). Permission: `Resource::Action{name:"period_lock.clear"}`+Execute.
     async fn clear_period_lock(
         &self,
-        ctx:   &Context<'_>,
+        ctx: &Context<'_>,
         scope: String,
     ) -> async_graphql::Result<bool> {
         let auth = ctx.data::<AuthContext>().ok();
-        let user = auth.and_then(|a| a.user.as_ref()).ok_or_else(|| {
-            async_graphql::Error::new("unauthenticated")
-        })?;
-        let resource = shared::auth::Resource::Action { name: "period_lock.clear".into() };
-        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await {
+        let user = auth
+            .and_then(|a| a.user.as_ref())
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+        let resource = shared::auth::Resource::Action {
+            name: "period_lock.clear".into(),
+        };
+        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await
+        {
             Ok(shared::auth::Effect::Allow) => {}
             _ => return Err(async_graphql::Error::new("forbidden")),
         }
@@ -2328,19 +2452,22 @@ impl MutationRoot {
     /// `Resource::Action{name:"fx.upsert"}` mit `Op::Execute`.
     async fn upsert_fx_rate(
         &self,
-        ctx:    &Context<'_>,
-        date:   String,
-        from:   String,
-        to:     String,
-        rate:   f64,
+        ctx: &Context<'_>,
+        date: String,
+        from: String,
+        to: String,
+        rate: f64,
         source: String,
     ) -> async_graphql::Result<bool> {
         let auth = ctx.data::<AuthContext>().ok();
-        let user = auth.and_then(|a| a.user.as_ref()).ok_or_else(|| {
-            async_graphql::Error::new("unauthenticated")
-        })?;
-        let resource = shared::auth::Resource::Action { name: "fx.upsert".into() };
-        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await {
+        let user = auth
+            .and_then(|a| a.user.as_ref())
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
+        let resource = shared::auth::Resource::Action {
+            name: "fx.upsert".into(),
+        };
+        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await
+        {
             Ok(shared::auth::Effect::Allow) => {}
             _ => return Err(async_graphql::Error::new("forbidden")),
         }
@@ -2358,18 +2485,19 @@ impl MutationRoot {
     /// `Resource::Action { name: "sequence.<scope>" }` mit `Op::Execute`.
     async fn next_number(
         &self,
-        ctx:  &Context<'_>,
+        ctx: &Context<'_>,
         scope: String,
-        year:  Option<i32>,
+        year: Option<i32>,
     ) -> async_graphql::Result<String> {
         let auth = ctx.data::<AuthContext>().ok();
-        let user = auth.and_then(|a| a.user.as_ref()).ok_or_else(|| {
-            async_graphql::Error::new("unauthenticated")
-        })?;
+        let user = auth
+            .and_then(|a| a.user.as_ref())
+            .ok_or_else(|| async_graphql::Error::new("unauthenticated"))?;
         let resource = shared::auth::Resource::Action {
             name: format!("sequence.{scope}"),
         };
-        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await {
+        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await
+        {
             Ok(shared::auth::Effect::Allow) => {}
             Ok(_) | Err(_) => return Err(async_graphql::Error::new("forbidden")),
         }
@@ -2399,9 +2527,8 @@ impl MutationRoot {
 
         // Manifest + Kind aus JSON deserialisieren — Parse-Fehler an dieser
         // Stelle sind Caller-Fehler (kein Script-Fehler).
-        let manifest: shared::script::ScriptManifest =
-            serde_json::from_value(input.manifest.0)
-                .map_err(|e| async_graphql::Error::new(format!("invalid_manifest: {e}")))?;
+        let manifest: shared::script::ScriptManifest = serde_json::from_value(input.manifest.0)
+            .map_err(|e| async_graphql::Error::new(format!("invalid_manifest: {e}")))?;
         let kind: shared::script::ScriptKind = serde_json::from_value(input.kind.0)
             .map_err(|e| async_graphql::Error::new(format!("invalid_kind: {e}")))?;
 
@@ -2485,14 +2612,14 @@ impl MutationRoot {
             .map_err(|e| async_graphql::Error::new(format!("{e}")))?
             .ok_or_else(|| async_graphql::Error::new("script_not_found"))?;
 
-        let manifest: shared::script::ScriptManifest =
-            serde_json::from_str(&row.manifest_json)
-                .map_err(|e| async_graphql::Error::new(format!("manifest_parse: {e}")))?;
-        let kind: shared::script::ScriptKind =
-            serde_json::from_value(serde_json::json!({ "kind": row.kind.clone() }))
-                .unwrap_or(shared::script::ScriptKind::Component {
-                    entry: "render".into(),
-                });
+        let manifest: shared::script::ScriptManifest = serde_json::from_str(&row.manifest_json)
+            .map_err(|e| async_graphql::Error::new(format!("manifest_parse: {e}")))?;
+        let kind: shared::script::ScriptKind = serde_json::from_value(
+            serde_json::json!({ "kind": row.kind.clone() }),
+        )
+        .unwrap_or(shared::script::ScriptKind::Component {
+            entry: "render".into(),
+        });
         let state = match row.state.as_str() {
             "active" => shared::script::ScriptState::Active,
             "locked" => shared::script::ScriptState::Locked,
@@ -2545,12 +2672,10 @@ impl MutationRoot {
             locale: auth.locale.clone().unwrap_or_else(|| "en".into()),
         };
 
-        let rec = crate::script::run::run_preview(
-            &script,
-            ctx_script,
-            &host,
-            |engine, ast, _sb, ctx| engine.run(ast, &host, ctx.clone()),
-        );
+        let rec =
+            crate::script::run::run_preview(&script, ctx_script, &host, |engine, ast, _sb, ctx| {
+                engine.run(ast, &host, ctx.clone())
+            });
 
         let error_json = rec
             .error
@@ -2575,14 +2700,18 @@ impl MutationRoot {
 
 #[derive(async_graphql::Enum, Copy, Clone, PartialEq, Eq, Debug)]
 #[graphql(name = "ViewLayer")]
-pub enum GqlViewLayer { Global, Group, User }
+pub enum GqlViewLayer {
+    Global,
+    Group,
+    User,
+}
 
 impl From<GqlViewLayer> for shared::view::ViewLayer {
     fn from(v: GqlViewLayer) -> Self {
         match v {
             GqlViewLayer::Global => shared::view::ViewLayer::Global,
-            GqlViewLayer::Group  => shared::view::ViewLayer::Group,
-            GqlViewLayer::User   => shared::view::ViewLayer::User,
+            GqlViewLayer::Group => shared::view::ViewLayer::Group,
+            GqlViewLayer::User => shared::view::ViewLayer::User,
         }
     }
 }
@@ -2590,79 +2719,89 @@ impl From<shared::view::ViewLayer> for GqlViewLayer {
     fn from(v: shared::view::ViewLayer) -> Self {
         match v {
             shared::view::ViewLayer::Global => GqlViewLayer::Global,
-            shared::view::ViewLayer::Group  => GqlViewLayer::Group,
-            shared::view::ViewLayer::User   => GqlViewLayer::User,
+            shared::view::ViewLayer::Group => GqlViewLayer::Group,
+            shared::view::ViewLayer::User => GqlViewLayer::User,
         }
     }
 }
 
 #[derive(async_graphql::SimpleObject, Clone)]
 pub struct EntityViewGql {
-    pub id:                String,
-    pub entity_type:       String,
-    pub view_name:         String,
-    pub layer:             GqlViewLayer,
-    pub owner_id:          Option<String>,
+    pub id: String,
+    pub entity_type: String,
+    pub view_name: String,
+    pub layer: GqlViewLayer,
+    pub owner_id: Option<String>,
     /// Sparse Property-Overrides als JSON-Blob — analog zu ColumnMeta.fieldType.
-    pub properties:        async_graphql::Json<serde_json::Value>,
-    pub default_filter:    Option<async_graphql::Json<serde_json::Value>>,
-    pub default_sort:      Option<async_graphql::Json<serde_json::Value>>,
+    pub properties: async_graphql::Json<serde_json::Value>,
+    pub default_filter: Option<async_graphql::Json<serde_json::Value>>,
+    pub default_sort: Option<async_graphql::Json<serde_json::Value>>,
     pub default_page_size: Option<u32>,
-    pub version:           i32,
-    pub updated_at:        String,
-    pub updated_by:        Option<String>,
+    pub version: i32,
+    pub updated_at: String,
+    pub updated_by: Option<String>,
 }
 
 impl From<shared::view::EntityView> for EntityViewGql {
     fn from(v: shared::view::EntityView) -> Self {
         EntityViewGql {
-            id:                v.id,
-            entity_type:       v.entity_type,
-            view_name:         v.view_name,
-            layer:             v.layer.into(),
-            owner_id:          v.owner_id,
-            properties:        async_graphql::Json(serde_json::to_value(v.properties).unwrap_or(serde_json::Value::Null)),
-            default_filter:    v.default_filter.map(|f| async_graphql::Json(serde_json::to_value(f).unwrap_or(serde_json::Value::Null))),
-            default_sort:      v.default_sort.map(|s| async_graphql::Json(serde_json::to_value(s).unwrap_or(serde_json::Value::Null))),
+            id: v.id,
+            entity_type: v.entity_type,
+            view_name: v.view_name,
+            layer: v.layer.into(),
+            owner_id: v.owner_id,
+            properties: async_graphql::Json(
+                serde_json::to_value(v.properties).unwrap_or(serde_json::Value::Null),
+            ),
+            default_filter: v.default_filter.map(|f| {
+                async_graphql::Json(serde_json::to_value(f).unwrap_or(serde_json::Value::Null))
+            }),
+            default_sort: v.default_sort.map(|s| {
+                async_graphql::Json(serde_json::to_value(s).unwrap_or(serde_json::Value::Null))
+            }),
             default_page_size: v.default_page_size,
-            version:           v.version,
-            updated_at:        v.updated_at,
-            updated_by:        v.updated_by,
+            version: v.version,
+            updated_at: v.updated_at,
+            updated_by: v.updated_by,
         }
     }
 }
 
 #[derive(async_graphql::SimpleObject)]
 pub struct EntityViewSummaryGql {
-    pub view_name:  String,
-    pub layers:     Vec<GqlViewLayer>,
+    pub view_name: String,
+    pub layers: Vec<GqlViewLayer>,
     pub updated_at: String,
 }
 
 #[derive(async_graphql::InputObject)]
 pub struct SaveEntityViewInput {
-    pub entity_type:      String,
-    pub view_name:        String,
-    pub layer:            GqlViewLayer,
-    pub owner_id:         Option<String>,
+    pub entity_type: String,
+    pub view_name: String,
+    pub layer: GqlViewLayer,
+    pub owner_id: Option<String>,
     /// JSON-Blob `{ properties, defaultFilter, defaultSort, defaultPageSize }`
-    pub payload:          async_graphql::Json<serde_json::Value>,
+    pub payload: async_graphql::Json<serde_json::Value>,
     pub expected_version: Option<i32>,
 }
 
 #[derive(async_graphql::Enum, Copy, Clone, PartialEq, Eq, Debug)]
-pub enum SaveEntityViewResultKind { Ok, Conflict, Forbidden }
+pub enum SaveEntityViewResultKind {
+    Ok,
+    Conflict,
+    Forbidden,
+}
 
 #[derive(async_graphql::SimpleObject)]
 pub struct SaveEntityViewResult {
-    pub kind:    SaveEntityViewResultKind,
-    pub view:    Option<EntityViewGql>,
+    pub kind: SaveEntityViewResultKind,
+    pub view: Option<EntityViewGql>,
     pub message: Option<String>,
 }
 
 #[derive(async_graphql::SimpleObject)]
 pub struct RevertEntityViewResult {
-    pub ok:      bool,
+    pub ok: bool,
     pub message: Option<String>,
 }
 
