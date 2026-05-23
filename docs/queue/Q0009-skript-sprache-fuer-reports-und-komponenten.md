@@ -1,11 +1,11 @@
 ---
 id: Q0009
 created: 2026-05-23T00:00:00Z
-status: brainstormed
+status: planned
 priority: medium
 title: "Skript-Sprache für Reports, Custom-Komponenten und Capability-Provider (Rhai-Engine, später WASM)"
 spec: docs/superpowers/specs/2026-05-23-q0009-skript-sprache-design.md
-plan: null
+plan: docs/superpowers/plans/Q0009-skript-sprache-fuer-reports-und-komponenten.md
 pending_question_id: null
 resume_step: null
 parent: null
@@ -100,3 +100,8 @@ Architektur-Eckpunkte (Details im Spec):
 - Komplementär: [[u3-report-view-design]] — Report-View nutzt Skripte als optionale Datenquelle
 - Forward-Refs (eigene Specs, hier nur Hooks): WASM-Plugin-Engine (Phase 2), Codegen-Profile (Phase 4)
 - Security-Review erforderlich: Skripte sind ein Code-Execution-Pfad. Sandbox-Garantien, Capability-Durchsetzung und Symbol-Disable-Liste müssen vor Merge geprüft werden.
+
+## Log
+
+- 2026-05-23T00:00:00Z — manual: created (status=brainstormed, spec=docs/superpowers/specs/2026-05-23-q0009-skript-sprache-design.md)
+- 2026-05-23T00:00:00Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0009-skript-sprache-fuer-reports-und-komponenten.md (sub-agent commit=7d5e2973)
