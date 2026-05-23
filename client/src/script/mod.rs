@@ -9,8 +9,9 @@
 //!     wechselt zwischen `Instant` (native) und `web_sys::Performance::now()`
 //!     (WASM).
 //!
-//! Weitere Submodule (`host`, `audit_queue`, `data_source`,
+//! Weitere Submodule (`audit_queue`, `data_source`,
 //! `ClientHostApiRegistry`) folgen in den naechsten Phase-4-Teilcommits.
 
 pub mod engine;
+pub mod host;
 pub mod sandbox;
