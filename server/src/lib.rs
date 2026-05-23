@@ -13,6 +13,7 @@ pub mod ddl;
 pub mod email;
 pub mod entity;
 pub mod events;
+pub mod export;
 pub mod example;
 pub mod fx;
 pub mod jobs;
