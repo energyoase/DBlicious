@@ -57,3 +57,70 @@ fn rhai_engine_rejects_wasm_kind_with_dedicated_error() {
         shared::script::ScriptError::WasmEngineNotAvailable
     ));
 }
+
+// ----------------------------------------------------------------------------
+// Phase 2.3 — Sandbox gate() + Token-Audit-Buffer
+// ----------------------------------------------------------------------------
+
+#[test]
+fn sandbox_denies_call_when_token_not_in_manifest() {
+    use server::script::sandbox::Sandbox;
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ReadOwnEntities],
+        ..Default::default()
+    };
+    let mut sb = Sandbox::new(&manifest);
+    let res = sb.gate(
+        &CapabilityToken::WriteEntity { validated: true },
+        || Ok::<_, shared::script::ScriptError>(42),
+    );
+    assert!(matches!(
+        res,
+        Err(shared::script::ScriptError::CapabilityDenied { .. })
+    ));
+    assert_eq!(
+        sb.token_uses().len(),
+        1,
+        "Audit-Buffer haelt auch denials fest"
+    );
+}
+
+#[test]
+fn sandbox_records_successful_token_use() {
+    use server::script::sandbox::Sandbox;
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ReadOwnEntities],
+        ..Default::default()
+    };
+    let mut sb = Sandbox::new(&manifest);
+    let v = sb
+        .gate(&CapabilityToken::ReadOwnEntities, || {
+            Ok::<_, shared::script::ScriptError>(7)
+        })
+        .unwrap();
+    assert_eq!(v, 7);
+    assert_eq!(sb.token_uses().len(), 1);
+}
+
+#[test]
+fn sandbox_catches_panic_in_host_body() {
+    use server::script::sandbox::Sandbox;
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let mut sb = Sandbox::new(&manifest);
+    let res: Result<i32, _> = sb.gate(&CapabilityToken::ComputeOnly, || {
+        panic!("absichtlicher panic");
+    });
+    assert!(matches!(
+        res,
+        Err(shared::script::ScriptError::InternalPanic { .. })
+    ));
+}
