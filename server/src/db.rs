@@ -106,6 +106,8 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         // Phase 1.7.7: Background-Jobs.
         schema.create_table_from_entity(entity::jobs::Entity),
         schema.create_table_from_entity(entity::job_runs::Entity),
+        // Phase 1.7.8: Attachments-Index (Blob-Inhalt liegt im Storage).
+        schema.create_table_from_entity(entity::attachments::Entity),
         // Phase 1.6: Builder-Design-Persistenz.
         schema.create_table_from_entity(entity::entity_designs::Entity),
         // Phase 1.5.3: Per-User-Wahl der Implementations-IDs.

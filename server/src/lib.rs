@@ -16,6 +16,7 @@ pub mod example;
 pub mod fx;
 pub mod jobs;
 pub mod period_locks;
+pub mod storage;
 pub mod plugins;
 pub mod schema;
 pub mod script;
