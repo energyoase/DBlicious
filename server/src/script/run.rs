@@ -77,6 +77,30 @@ pub struct RunRecord {
     pub error: Option<ScriptError>,
 }
 
+/// Result eines server-seitigen Preview-Runs (Q0009 Phase 6, Spec §9).
+///
+/// Identische Outcome-Berechnung wie [`run_and_persist`], aber **ohne**
+/// `script_audit_log`-Insert. Wird vom `previewScriptRun`-Mutator benutzt,
+/// damit Builder/Inspector ein Skript probefahren koennen, ohne dass
+/// jeder Klick einen Audit-Eintrag erzeugt.
+///
+/// Zusatz: `WriteEntity`-Capability ist im Preview hart verboten. Der
+/// Aufrufer muss vor `run_preview` selbst pruefen — der Run-Pfad gated
+/// gegen das Manifest, was hier nicht reicht (ein boeses Skript koennte
+/// `WriteEntity` deklarieren). Der GraphQL-Mutator [`schema::MutationRoot::preview_script_run`]
+/// rejected daher Skripte mit `WriteEntity` schon vor dem Compile.
+#[derive(Debug, Clone)]
+pub struct PreviewRecord {
+    pub run_id: String,
+    pub outcome: String,
+    pub value: Option<ScriptValue>,
+    pub error: Option<ScriptError>,
+    /// Tokens-Used als JSON-Array (gleiches Format wie `script_audit_log.tokens_used`).
+    pub tokens_used: serde_json::Value,
+    /// Dauer in Millisekunden zwischen `started_at` und `finished_at`.
+    pub duration_ms: i64,
+}
+
 /// Wickelt einen Script-Run end-to-end. Die `body`-Closure bekommt die
 /// Engine, den AST und die Sandbox — die ist der "richtige" Ort, an dem
 /// das aufrufende Modul seine gate()-Aufrufe macht (Phase 3.4-Provisorium,
@@ -153,6 +177,81 @@ where
         value,
         error,
     })
+}
+
+/// Server-seitiger Preview-Run (Q0009 Phase 6).
+///
+/// Wickelt dasselbe Compile/Sandbox/Body-Triple wie [`run_and_persist`], aber
+/// schreibt KEINE Audit-Zeile. Der Aufrufer (`preview_script_run`-Mutator)
+/// bekommt das volle Outcome inklusive Tokens-Used als JSON zurueck — fuer
+/// die UI-Anzeige reicht das, fuer eine richtige Run-Spur nimmt der Aufrufer
+/// `run_and_persist`.
+pub fn run_preview<F>(
+    script: &Script,
+    ctx: ScriptCtx,
+    _host: &dyn HostApi,
+    body: F,
+) -> PreviewRecord
+where
+    F: for<'s, 'm> FnOnce(
+        &RhaiEngine,
+        &<RhaiEngine as ScriptEngine>::Ast,
+        &mut Sandbox<'m>,
+        &ScriptCtx,
+    ) -> Result<ScriptValue, ScriptError>,
+{
+    let engine = RhaiEngine::new();
+    let started_at = chrono::Utc::now();
+    let run_id = Ulid::new().to_string();
+
+    let ast_result = engine.compile(&script.source, &script.manifest);
+
+    let (outcome_str, value, error, token_uses) = match ast_result {
+        Err(e) => (
+            outcome_tag(&Some(e.clone())).to_string(),
+            None,
+            Some(e),
+            Vec::new(),
+        ),
+        Ok(ast) => {
+            let mut sb = Sandbox::new(&script.manifest);
+            match body(&engine, &ast, &mut sb, &ctx) {
+                Ok(v) => (
+                    "ok".to_string(),
+                    Some(v),
+                    None,
+                    sb.token_uses().to_vec(),
+                ),
+                Err(e) => (
+                    outcome_tag(&Some(e.clone())).to_string(),
+                    None,
+                    Some(e),
+                    sb.token_uses().to_vec(),
+                ),
+            }
+        }
+    };
+
+    let finished_at = chrono::Utc::now();
+    let duration_ms = (finished_at - started_at).num_milliseconds();
+
+    // Token-Use-Liste in dasselbe JSON-Format wie `script_audit_log.tokens_used`
+    // serialisieren — wir parsen es danach gleich wieder zu serde_json::Value
+    // zurueck, damit GraphQL Json<Value> ohne Doppelserialisierung serialisieren
+    // kann.
+    let tokens_json_str = tokens_used_to_json(&token_uses)
+        .unwrap_or_else(|_| "[]".to_string());
+    let tokens_used: serde_json::Value =
+        serde_json::from_str(&tokens_json_str).unwrap_or(serde_json::Value::Array(Vec::new()));
+
+    PreviewRecord {
+        run_id,
+        outcome: outcome_str,
+        value,
+        error,
+        tokens_used,
+        duration_ms,
+    }
 }
 
 // Manueller Clone fuer TokenUse, weil das Tupel `(token, outcome)`
