@@ -24,7 +24,8 @@ use leptos::prelude::*;
 use shared::FieldType;
 
 use super::history::{mutate_with_history, redo, undo};
-use super::node::{BoundField, NodeId, Style as NodeStyle, Transform, UiNode};
+use super::node::{BoundField, NodeId, NodeKind, Style as NodeStyle, Transform, UiNode};
+use super::script_node::{is_unbound, new_script_node};
 use super::{use_history, use_ui_tree};
 use crate::i18n::t;
 use crate::styling::{use_design, ButtonVariant, SurfaceLevel, TextVariant};
@@ -122,6 +123,22 @@ pub fn BuilderCanvas() -> impl IntoView {
         selected.set(None);
     };
 
+    // Phase 5.3: einen Skript-Knoten als Platzhalter platzieren. Der
+    // Inspector unterhalb des Canvas zeigt die ScriptId + Manifest/State,
+    // sobald das Skript ueber den GraphQL-Loader (Phase 6) gebunden wurde.
+    let on_add_script = move |_| {
+        mutate_with_history(tree_sig, history, |t| {
+            let id = t.allocate_id();
+            let n = t.nodes.len() as f64;
+            t.push_root(new_script_node(
+                id,
+                (16.0 + n * STAGGER_OFFSET, 16.0 + n * STAGGER_OFFSET),
+                None,
+            ));
+            selected.set(Some(id));
+        });
+    };
+
     let on_undo = move |_| {
         undo(tree_sig, history);
         selected.set(None);
@@ -139,6 +156,7 @@ pub fn BuilderCanvas() -> impl IntoView {
     let btn_secondary_for_delete = btn_secondary.clone();
     let btn_ghost_for_undo = btn_ghost.clone();
     let btn_ghost_for_redo = btn_ghost.clone();
+    let btn_secondary_for_script = btn_secondary.clone();
 
     view! {
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -183,6 +201,13 @@ pub fn BuilderCanvas() -> impl IntoView {
                 >
                     {move || t("builder.action.redo")}
                 </button>
+                // Phase 5.3: Skript-Knoten platzieren.
+                <button
+                    style=btn_secondary_for_script
+                    on:click=on_add_script
+                >
+                    {move || t("builder.action.add_script")}
+                </button>
                 <span style=muted>
                     {move || {
                         let count = tree_sig.tree.with(|t| t.nodes.len());
@@ -211,7 +236,64 @@ pub fn BuilderCanvas() -> impl IntoView {
                     })
                 }}
             </div>
+
+            // ----- Inspector fuer den ausgewaehlten Knoten -----
+            <ScriptInspector tree_sig selected/>
         </div>
+    }
+}
+
+/// Phase 5.3: Inspector-Panel, das den ausgewaehlten Skript-Knoten anzeigt.
+/// Read-Only-Surface — voller Editor ist out-of-scope (Spec §14).
+#[component]
+fn ScriptInspector(
+    tree_sig: super::tree::UiTreeSignal,
+    selected: RwSignal<Option<NodeId>>,
+) -> impl IntoView {
+    let design = use_design();
+    let surface = design.surface(SurfaceLevel::Card).inline.clone();
+    let caption = design.text(TextVariant::Caption).inline.clone();
+
+    view! {
+        {move || {
+            let Some(sel_id) = selected.get() else {
+                return view! { <div></div> }.into_any();
+            };
+            let node_opt = tree_sig.tree.with(|tr| tr.find(sel_id).cloned());
+            let Some(node) = node_opt else {
+                return view! { <div></div> }.into_any();
+            };
+            // Nur fuer Script-Knoten den Inspector zeigen — generische
+            // Knoten haben ihren eigenen Panel (Phase 1.5).
+            let r = match &node.kind {
+                NodeKind::Script(r) => r.clone(),
+                _ => return view! { <div></div> }.into_any(),
+            };
+            let surface = surface.clone();
+            let caption = caption.clone();
+            let script_id = r.script_id.0.clone();
+            let unbound = is_unbound(&r);
+            let version = r
+                .version_pin
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "latest".into());
+            view! {
+                <div style=format!("{surface} padding: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem;")>
+                    <strong>{t("builder.script_inspector.title")}</strong>
+                    <div style=caption.clone()>{format!("scriptId: {script_id}")}</div>
+                    <div style=caption.clone()>{format!("version: {version}")}</div>
+                    {if unbound {
+                        Some(view! {
+                            <div style="color: rgb(180, 83, 9);">
+                                {t("builder.script_inspector.unbound")}
+                            </div>
+                        }.into_any())
+                    } else {
+                        None
+                    }}
+                </div>
+            }.into_any()
+        }}
     }
 }
 

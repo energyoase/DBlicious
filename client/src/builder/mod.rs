@@ -24,6 +24,7 @@ pub mod history;
 pub mod node;
 pub mod persist;
 pub mod project;
+pub mod script_node;
 pub mod tree;
 
 pub use canvas::BuilderCanvas;
