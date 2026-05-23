@@ -10,6 +10,7 @@ pub mod data;
 pub mod db;
 pub mod ddl;
 pub mod entity;
+pub mod events;
 pub mod example;
 pub mod plugins;
 pub mod schema;
@@ -18,9 +19,9 @@ pub mod source;
 pub mod views;
 
 use async_graphql::Schema;
-pub use schema::{MutationRoot, QueryRoot};
+pub use schema::{MutationRoot, QueryRoot, SubscriptionRoot};
 
-pub type AppSchema = Schema<QueryRoot, MutationRoot, async_graphql::EmptySubscription>;
+pub type AppSchema = Schema<QueryRoot, MutationRoot, SubscriptionRoot>;
 
 /// Auth-Kontext, identisch zur Binary-Definition. Wird per
 /// `Request::data()` an jeden Resolver gereicht.
@@ -34,7 +35,7 @@ pub struct AuthContext {
 /// schon gelaufen ist — `data::*`/`auth::*` greifen unbedingt auf den
 /// SeaORM-Pool zu.
 pub fn build_schema() -> AppSchema {
-    Schema::build(QueryRoot, MutationRoot, async_graphql::EmptySubscription).finish()
+    Schema::build(QueryRoot, MutationRoot, SubscriptionRoot).finish()
 }
 
 /// Installiert das im Repo mitgelieferte `examples/shop/`-Beispiel, falls
