@@ -1,8 +1,12 @@
-//! Phase 1.7.7: Background-Job-Scheduler (MVP).
+//! Phase 1.7.7: Background-Job-Scheduler.
 //!
 //! Akzeptanz aus Roadmap: Retry bei Fehler; Audit zeigt Erfolg/Fail/
-//! Duration. Cron-Scheduling ist out-of-scope (separates Folge-Item).
+//! Duration. Cron-Loop als Folge-Item: `is_due` plus
+//! `run_scheduler_tick`. Der echte Tokio-Loop (`start_scheduler_loop`)
+//! wird nicht in Tests gestartet — wir rufen einen Tick deterministisch
+//! mit fixierter `now` auf.
 
+use chrono::{TimeZone, Utc};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
 use serial_test::serial;
 use std::sync::Arc;
@@ -141,4 +145,181 @@ async fn retry_succeeds_on_second_attempt() {
     assert_eq!(runs.len(), 2);
     assert_eq!(runs[0].status, "failed");
     assert_eq!(runs[1].status, "success");
+}
+
+// =============================================================================
+// Cron-Loop (Folge-Item zu 1.7.7)
+// =============================================================================
+
+#[test]
+fn is_due_first_tick_after_boot_for_never_run_job() {
+    // Cron "alle 5 Minuten". Job noch nie gelaufen. Boot war 10:00,
+    // now ist 10:05 — der erste Cron-Fire nach Boot ist 10:05, der Tick
+    // bei 10:05 muss feuern.
+    let boot = Utc.with_ymd_and_hms(2026, 1, 1, 10, 0, 0).unwrap();
+    let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 5, 0).unwrap();
+    assert!(jobs::is_due("*/5 * * * *", None, boot, now));
+}
+
+#[test]
+fn is_due_does_not_fire_when_no_cron_slot_passed_since_last_run() {
+    // Cron "alle 5 Minuten". Letzter Lauf 10:05. Now 10:06 — naechster
+    // Slot waere 10:10.
+    let boot = Utc.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).unwrap();
+    let last = "2026-01-01T10:05:00+00:00";
+    let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 6, 0).unwrap();
+    assert!(!jobs::is_due("*/5 * * * *", Some(last), boot, now));
+}
+
+#[test]
+fn is_due_fires_when_next_slot_reached() {
+    // Letzter Lauf 10:05, now 10:10 — Slot ist erreicht.
+    let boot = Utc.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).unwrap();
+    let last = "2026-01-01T10:05:00+00:00";
+    let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 10, 0).unwrap();
+    assert!(jobs::is_due("*/5 * * * *", Some(last), boot, now));
+}
+
+#[test]
+fn is_due_accepts_six_field_cron_with_seconds() {
+    // 6-Felder-Form (Sekunden vorne) muss unveraendert akzeptiert werden,
+    // damit Power-User die Sekunden explizit setzen koennen.
+    let boot = Utc.with_ymd_and_hms(2026, 1, 1, 10, 0, 0).unwrap();
+    let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 0, 30).unwrap();
+    assert!(jobs::is_due("*/30 * * * * *", None, boot, now));
+}
+
+#[test]
+fn is_due_returns_false_for_invalid_expression() {
+    let boot = Utc.with_ymd_and_hms(2026, 1, 1, 10, 0, 0).unwrap();
+    let now = Utc.with_ymd_and_hms(2026, 1, 1, 11, 0, 0).unwrap();
+    assert!(!jobs::is_due("not a cron", None, boot, now));
+}
+
+#[tokio::test]
+#[serial]
+async fn scheduler_tick_fires_due_job_and_updates_last_run_at() {
+    server::fresh_test_setup().await;
+    jobs::reset_boot_anchor();
+    let conn = server::db::conn();
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    let c = Arc::clone(&counter);
+    jobs::register_handler(
+        "cron_ok",
+        Arc::new(move || {
+            let c = Arc::clone(&c);
+            Box::pin(async move {
+                c.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })
+        }),
+    );
+    jobs::upsert_job(&conn, "j-cron", "Cron OK", "cron_ok", Some("* * * * *"), true, 0)
+        .await
+        .unwrap();
+
+    let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 1, 0).unwrap();
+    let fired = jobs::run_scheduler_tick(&conn, now).await.unwrap();
+    assert_eq!(fired, vec!["j-cron".to_string()]);
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+
+    // Zweiter Tick zur selben Sekunde feuert nicht erneut, weil das
+    // letzte last_run_at vor `now` liegt und der naechste Cron-Slot
+    // (10:02:00) noch nicht erreicht ist.
+    let fired2 = jobs::run_scheduler_tick(&conn, now).await.unwrap();
+    assert!(fired2.is_empty());
+    assert_eq!(counter.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+#[serial]
+async fn scheduler_tick_skips_jobs_without_cron() {
+    server::fresh_test_setup().await;
+    jobs::reset_boot_anchor();
+    let conn = server::db::conn();
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    let c = Arc::clone(&counter);
+    jobs::register_handler(
+        "no_cron",
+        Arc::new(move || {
+            let c = Arc::clone(&c);
+            Box::pin(async move {
+                c.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })
+        }),
+    );
+    jobs::upsert_job(&conn, "j-no-cron", "No Cron", "no_cron", None, true, 0)
+        .await
+        .unwrap();
+
+    let now = Utc::now();
+    let fired = jobs::run_scheduler_tick(&conn, now).await.unwrap();
+    assert!(fired.is_empty());
+    assert_eq!(counter.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+#[serial]
+async fn scheduler_tick_skips_disabled_jobs() {
+    server::fresh_test_setup().await;
+    jobs::reset_boot_anchor();
+    let conn = server::db::conn();
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    let c = Arc::clone(&counter);
+    jobs::register_handler(
+        "disabled_cron",
+        Arc::new(move || {
+            let c = Arc::clone(&c);
+            Box::pin(async move {
+                c.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })
+        }),
+    );
+    jobs::upsert_job(
+        &conn,
+        "j-disabled",
+        "Disabled Cron",
+        "disabled_cron",
+        Some("* * * * *"),
+        false, // disabled
+        0,
+    )
+    .await
+    .unwrap();
+
+    let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 1, 0).unwrap();
+    let fired = jobs::run_scheduler_tick(&conn, now).await.unwrap();
+    assert!(fired.is_empty());
+    assert_eq!(counter.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+#[serial]
+async fn scheduler_tick_survives_handler_missing() {
+    server::fresh_test_setup().await;
+    jobs::reset_boot_anchor();
+    let conn = server::db::conn();
+
+    // Bewusst keinen Handler registriert.
+    jobs::upsert_job(
+        &conn,
+        "j-orphan",
+        "Orphan",
+        "no_such_handler",
+        Some("* * * * *"),
+        true,
+        0,
+    )
+    .await
+    .unwrap();
+
+    let now = Utc.with_ymd_and_hms(2026, 1, 1, 10, 1, 0).unwrap();
+    // Tick darf nicht panic'en oder den ganzen Loop killen.
+    let fired = jobs::run_scheduler_tick(&conn, now).await.unwrap();
+    assert!(fired.is_empty(), "orphan job darf nicht als gefeuert zaehlen");
 }

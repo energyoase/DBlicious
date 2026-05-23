@@ -1,4 +1,4 @@
-//! Background-Job-Scheduler (Phase 1.7.7, MVP).
+//! Background-Job-Scheduler (Phase 1.7.7).
 //!
 //! Was drin ist:
 //!   - Schema (`jobs`, `job_runs`)
@@ -7,21 +7,30 @@
 //!     bis `max_retries`
 //!   - Audit-Tabelle `job_runs` (eigene domain-spezifische Tabelle wegen
 //!     duration_ms + attempt; Roadmap-Hybrid-Audit-Entscheidung)
+//!   - Cron-Eval (`is_due`) + Scheduler-Tick (`run_scheduler_tick`) +
+//!     Hintergrund-Loop (`start_scheduler_loop`). Cron-Expressions im
+//!     5-Felder-UNIX-Format (`min hour day month dow`); intern wird ein
+//!     Sekunden-Feld `"0 "` vorangestellt fuer das 6-Felder-Cron-Crate.
 //!
 //! Was NICHT drin ist (Folge-Items):
-//!   - Cron-Eval + Scheduler-Loop (tokio-task der periodisch fae llige
-//!     Jobs anstoesst)
 //!   - Plugin-Handler (Phase 2) / Script-Handler (Q0009)
 //!   - Distributed-Locking ueber mehrere Server-Instanzen
+//!   - Backfill verpasster Cron-Slots (Loop springt nur den naechsten
+//!     Tick an; bei langer Server-Downtime wird der ueberholte Slot
+//!     uebersprungen)
 
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
+use chrono::{DateTime, Utc};
+use cron::Schedule;
 use parking_lot::RwLock;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue, DatabaseConnection, EntityTrait,
+    ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
 use thiserror::Error;
 
@@ -211,5 +220,146 @@ pub async fn trigger_now(
         attempts,
         success,
         last_error,
+    })
+}
+
+// =============================================================================
+// Cron-Loop (Phase 1.7.7 Folge-Item)
+// =============================================================================
+
+/// Wandelt eine 5-Felder-Cron-Expression in das 6-Felder-Format des
+/// `cron`-Crates um, indem ein Sekunden-Feld `"0"` vorangestellt wird.
+/// Wer bereits 6 Felder schickt (z.B. `"0 0 * * * *"`), bekommt den Wert
+/// unveraendert zurueck.
+fn normalize_cron_expr(expr: &str) -> String {
+    let trimmed = expr.trim();
+    let field_count = trimmed.split_whitespace().count();
+    if field_count == 5 {
+        format!("0 {trimmed}")
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// `true`, wenn der Cron-Expression seit `last_run_at` (exklusiv) bis `now`
+/// (inklusiv) mindestens einen Auslose-Zeitpunkt liefert.
+///
+/// Wenn `last_run_at` `None` ist, wird der Boot-Zeitpunkt `boot_at`
+/// herangezogen: ein Job, der seit Boot noch nie gelaufen ist, feuert
+/// beim ersten Tick mit `now >= boot_at`. Ungueltige Cron-Expressions
+/// werden konservativ als `false` interpretiert (mit `tracing::warn`).
+pub fn is_due(expr: &str, last_run_at: Option<&str>, boot_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+    let normalized = normalize_cron_expr(expr);
+    let schedule = match Schedule::from_str(&normalized) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(target: "jobs", "invalid cron expr {expr:?}: {e}");
+            return false;
+        }
+    };
+    // `Schedule::after(t)` ist exklusiv. Fuer never-run Jobs wollen wir,
+    // dass ein Slot, der exakt auf den Boot-Zeitpunkt faellt, beim ersten
+    // Tick mit `now >= boot` mitzaehlt — sonst geht der erste Slot
+    // verloren, wenn boot und Slot zufaellig zusammenfallen. Loesung:
+    // bei never-run-Jobs schieben wir den Anker eine Sekunde nach hinten.
+    // Bei `last_run_at = Some(...)` bleibt der Anker exklusiv, weil dort
+    // bereits gefeuert wurde.
+    let parsed_last = last_run_at.and_then(|iso| {
+        DateTime::parse_from_rfc3339(iso)
+            .ok()
+            .map(|dt| dt.with_timezone(&Utc))
+    });
+    let anchor = parsed_last.unwrap_or_else(|| boot_at - chrono::Duration::seconds(1));
+    schedule
+        .after(&anchor)
+        .next()
+        .map(|next_fire| next_fire <= now)
+        .unwrap_or(false)
+}
+
+/// Boot-Anker fuer den Scheduler. Wird beim ersten Tick gelesen; ein Job
+/// ohne `last_run_at` benutzt diesen Zeitpunkt als Bezug, damit er nicht
+/// retroaktiv "verpasste" Zeitpunkte aus der fernen Vergangenheit
+/// einfaengt.
+fn boot_anchor() -> &'static RwLock<Option<DateTime<Utc>>> {
+    static BOOT: OnceLock<RwLock<Option<DateTime<Utc>>>> = OnceLock::new();
+    BOOT.get_or_init(|| RwLock::new(None))
+}
+
+fn ensure_boot_anchor(now: DateTime<Utc>) -> DateTime<Utc> {
+    let mut slot = boot_anchor().write();
+    *slot.get_or_insert(now)
+}
+
+/// Tests koennen den Boot-Anker zuruecksetzen, damit aufeinanderfolgende
+/// Test-Faelle nicht den Anker eines frueheren Tests erben.
+pub fn reset_boot_anchor() {
+    *boot_anchor().write() = None;
+}
+
+/// Ein Scheduler-Tick: liest alle aktivierten, mit Cron versehenen Jobs;
+/// triggert die faelligen via `trigger_now`. Jeder Job laeuft seriell —
+/// fuer parallele Verarbeitung wuerde man `tokio::spawn` pro Job machen,
+/// das ist hier bewusst noch nicht drin (Single-Server-Annahme; ein lang
+/// laufender Job verzoegert den naechsten Tick maximal um seine eigene
+/// Dauer).
+///
+/// Liefert die Liste der Job-IDs, die in diesem Tick gefeuert haben (auch
+/// wenn der Handler intern failt — `outcome.success=false` ist trotzdem
+/// "gefeuert"). Tests nutzen das zur Verifikation.
+pub async fn run_scheduler_tick(
+    conn: &DatabaseConnection,
+    now: DateTime<Utc>,
+) -> Result<Vec<String>, JobError> {
+    let boot_at = ensure_boot_anchor(now);
+    let candidates = jobs::Entity::find()
+        .filter(jobs::Column::Enabled.eq(true))
+        .filter(jobs::Column::ScheduleCron.is_not_null())
+        .all(conn)
+        .await?;
+    let mut fired = Vec::new();
+    for job in candidates {
+        let Some(expr) = job.schedule_cron.as_deref() else {
+            continue;
+        };
+        if !is_due(expr, job.last_run_at.as_deref(), boot_at, now) {
+            continue;
+        }
+        // Handler-Fehler fangen wir hier ab — der Loop darf nicht an
+        // einem einzelnen kaputten Job sterben.
+        match trigger_now(conn, &job.id).await {
+            Ok(_) => fired.push(job.id.clone()),
+            Err(JobError::HandlerNotRegistered(_)) => {
+                tracing::warn!(target: "jobs", "scheduler tick: handler missing for job {}", job.id);
+            }
+            Err(JobError::Disabled(_)) => {
+                // Race: zwischen find() und trigger_now() wurde disabled.
+            }
+            Err(e) => {
+                tracing::error!(target: "jobs", "scheduler tick: job {} failed: {e}", job.id);
+            }
+        }
+    }
+    Ok(fired)
+}
+
+/// Spawnt den Scheduler-Loop in einem Tokio-Task. Der Task ruft
+/// `run_scheduler_tick` mit `interval`-Abstand. Der Handle laeuft, bis er
+/// abortiert wird (z.B. via `JoinHandle::abort()`) oder der Prozess endet.
+///
+/// Aufrufer (i.d.R. `main.rs::main`) sollte das Handle behalten, falls
+/// graceful Shutdown gewuenscht ist.
+pub fn start_scheduler_loop(
+    conn: DatabaseConnection,
+    interval: Duration,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            let now = Utc::now();
+            if let Err(e) = run_scheduler_tick(&conn, now).await {
+                tracing::error!(target: "jobs", "scheduler tick error: {e}");
+            }
+            tokio::time::sleep(interval).await;
+        }
     })
 }

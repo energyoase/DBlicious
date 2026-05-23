@@ -44,6 +44,10 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 rhai = { version = "1", default-features = false, features = ["std", "sync", "internals"] }
 ulid = "1"
 sha2 = "0.10"
+# 1.7.7 Cron-Scheduler: 6/7-Feld-Cron-Expressions.
+# Wir akzeptieren 5-Feld-Format (`* * * * *`) und prefixen intern mit "0 "
+# (Sekunden-Feld), damit das gewohnte UNIX-Cron-Format reicht.
+cron = "0.12"
 
 [dev-dependencies]
 serial_test = "3"
