@@ -160,6 +160,23 @@ fn script_state_serializes_lowercase() {
     assert_eq!(serde_json::to_value(ScriptState::Locked).unwrap(), json!("locked"));
 }
 
+#[cfg(feature = "testing")]
+#[test]
+fn mock_host_api_records_db_fetch_and_audit_calls() {
+    use shared::script::testing::MockHostApi;
+    use shared::script::HostApi;
+    let host = MockHostApi::new();
+    host.seed_entities("product", serde_json::json!([{"id": "p-1", "price": 100}]));
+    let res = host
+        .db_fetch(&serde_json::json!({"entity": "product"}))
+        .unwrap();
+    assert_eq!(res, serde_json::json!([{"id": "p-1", "price": 100}]));
+    host.audit_log("custom", &serde_json::json!({"x": 1})).unwrap();
+    let log = host.audit_log_calls();
+    assert_eq!(log.len(), 1);
+    assert_eq!(log[0].0, "custom");
+}
+
 #[test]
 fn host_api_registry_symmetry_check_detects_mismatches() {
     use shared::script::{CapabilityToken, HostApiRegistry, HostFunctionDescriptor};
