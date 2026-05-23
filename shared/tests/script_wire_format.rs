@@ -117,6 +117,59 @@ fn manifest_serializes_camelcase_with_pinned_fields() {
 }
 
 #[test]
+fn script_kind_provider_serializes_with_slot() {
+    use shared::script::{ProviderSlot, ScriptKind};
+    let v = serde_json::to_value(ScriptKind::Provider {
+        slot: ProviderSlot::Formatter,
+    })
+    .unwrap();
+    assert_eq!(v, json!({"kind": "provider", "slot": "formatter"}));
+}
+
+#[test]
+fn script_kind_component_serializes_with_entry() {
+    use shared::script::ScriptKind;
+    let v = serde_json::to_value(ScriptKind::Component {
+        entry: "render".into(),
+    })
+    .unwrap();
+    assert_eq!(v, json!({"kind": "component", "entry": "render"}));
+}
+
+/// `Wasm`-Variante ist Phase-2-reserviert. Wir pinnen die Diskriminante
+/// (Wire-Tag `"wasm"`), damit Phase 2 sie nicht versehentlich aendert.
+#[test]
+fn script_kind_wasm_variant_is_reserved_and_pinned() {
+    use shared::script::ScriptKind;
+    let v = serde_json::to_value(ScriptKind::Wasm {
+        wasm_bytes: vec![1, 2, 3],
+        entry: "main".into(),
+    })
+    .unwrap();
+    assert_eq!(v["kind"], json!("wasm"));
+    assert_eq!(v["entry"], json!("main"));
+    // wasm_bytes als Array von u8 (snake_case wie bei FieldType::Money):
+    assert_eq!(v["wasm_bytes"], json!([1, 2, 3]));
+}
+
+#[test]
+fn script_state_serializes_lowercase() {
+    use shared::script::ScriptState;
+    assert_eq!(serde_json::to_value(ScriptState::Draft).unwrap(), json!("draft"));
+    assert_eq!(serde_json::to_value(ScriptState::Active).unwrap(), json!("active"));
+    assert_eq!(serde_json::to_value(ScriptState::Locked).unwrap(), json!("locked"));
+}
+
+#[test]
+fn script_id_is_transparent_string() {
+    use shared::script::ScriptId;
+    let id = ScriptId("abc123".into());
+    assert_eq!(serde_json::to_value(&id).unwrap(), json!("abc123"));
+    let back: ScriptId = serde_json::from_str("\"xyz\"").unwrap();
+    assert_eq!(back, ScriptId("xyz".into()));
+}
+
+#[test]
 fn manifest_roundtrips_through_json() {
     use shared::script::{ScriptManifest, UiPrimitive};
     let m = ScriptManifest {
