@@ -173,6 +173,36 @@ fn engine_rejects_print_and_debug_symbols() {
     );
 }
 
+// ----------------------------------------------------------------------------
+// Phase 2.5 — Host-Module i18n + ctx (read-only)
+// ----------------------------------------------------------------------------
+
+#[test]
+fn host_i18n_t_uses_host_api_translation() {
+    use server::script::host::i18n::I18nHost;
+    let mock = shared::script::testing::MockHostApi::new();
+    let h = I18nHost::new(&mock);
+    let s = h.t("dashboard.title", &serde_json::json!({})).unwrap();
+    assert_eq!(s, "[t:dashboard.title]"); // MockHostApi-Konvention
+}
+
+#[test]
+fn host_ctx_returns_read_only_fields_from_script_ctx() {
+    use server::script::host::ctx::CtxHost;
+    use shared::script::engine::ScriptCtx;
+    let h = CtxHost::new(ScriptCtx {
+        user_id: Some("u-1".into()),
+        tenant_id: Some("t-1".into()),
+        locale: "de".into(),
+    });
+    assert_eq!(h.user_id(), Some("u-1"));
+    assert_eq!(h.tenant_id(), Some("t-1"));
+    assert_eq!(h.locale(), "de");
+    // now() ist nicht-deterministisch, aber muss RFC-3339-Form haben:
+    let now = h.now();
+    assert!(now.contains('T'), "RFC-3339 expected: {now}");
+}
+
 #[test]
 fn engine_max_operations_kicks_in_on_runaway_loop() {
     let engine = server::script::engine::RhaiEngine::new();
