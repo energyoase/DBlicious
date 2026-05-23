@@ -7,6 +7,7 @@
 pub mod engine;
 pub mod host;
 pub mod sandbox;
+pub mod save;
 
 /// Server-seitige Auflistung aller Host-Funktionen. Pendant ist
 /// `client::script::ClientHostApiRegistry` (Phase 4). Der `symmetry_check`-

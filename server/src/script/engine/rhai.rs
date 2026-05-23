@@ -11,7 +11,7 @@
 
 use std::sync::Arc;
 
-use rhai::{Engine, EvalAltResult, AST};
+use rhai::{ASTNode, Engine, EvalAltResult, Expr, AST};
 
 use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
 use shared::script::error::ScriptError;
@@ -94,6 +94,50 @@ impl ScriptEngine for RhaiEngine {
 /// `ScriptError::WasmEngineNotAvailable` fehl.
 pub fn compile_wasm(_kind: &ScriptKind) -> Result<(), ScriptError> {
     Err(ScriptError::WasmEngineNotAvailable)
+}
+
+/// Lift-Capability-Analyse (Phase 3.3, Spec §4): durchsucht den AST nach
+/// allen Aufrufen von `db.entities(...)` und `db.entity(...)` und liefert
+/// `true` genau dann, wenn jeder solche Call seinen *ersten* Argument-
+/// Knoten als String-Literal hat. Sobald irgendein dynamischer Ausdruck
+/// (Variable, Funktionsaufruf, String-Interpolation, ...) gefunden wird,
+/// kollabiert das Ergebnis zu `false`.
+///
+/// Hintergrund: Lift = "der Server kann die Daten ohne Skript-Run
+/// vorab-streamen". Dafuer muss er statisch wissen, *welche* Entity-Typen
+/// das Skript anfassen wird — daher die Konstanz-Forderung.
+///
+/// Diese Funktion lebt bewusst hier neben dem Engine-Adapter (Spec §11):
+/// die Inspektion benoetigt `rhai::*`-Internals, die in Modulen ausserhalb
+/// `engine::rhai` nicht auftauchen duerfen.
+pub fn analyze_lift_capability(ast: &RhaiAst) -> bool {
+    use std::cell::Cell;
+    let lift_capable = Cell::new(true);
+    let mut visit = |path: &[ASTNode]| -> bool {
+        if let Some(node) = path.last() {
+            if let ASTNode::Expr(Expr::MethodCall(call, _)) = node {
+                // Method-Calls: `obj.method(args)` — name traegt nur den
+                // Method-Anteil, nicht den vollqualifizierten Pfad. Daher
+                // matcht "entities" auch `db.entities()` und (theoretisch)
+                // `something_else.entities()`. Wir akzeptieren das: der
+                // Server registriert `entities`/`entity` nur auf `db`, ein
+                // anderer Receiver wuerde im Compile-Pfad scheitern.
+                let name = call.name.as_str();
+                if name == "entities" || name == "entity" {
+                    if let Some(first) = call.args.first() {
+                        if !matches!(first, Expr::StringConstant(..)) {
+                            lift_capable.set(false);
+                            // Walk terminieren: ein dynamischer Arg reicht.
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        true
+    };
+    ast.0.walk(&mut visit);
+    lift_capable.get()
 }
 
 fn rhai_to_script_value(v: rhai::Dynamic) -> ScriptValue {
