@@ -124,3 +124,73 @@ fn sandbox_catches_panic_in_host_body() {
         Err(shared::script::ScriptError::InternalPanic { .. })
     ));
 }
+
+// ----------------------------------------------------------------------------
+// Phase 2.4 — Negative-Tests pro Sandbox-Constraint
+// ----------------------------------------------------------------------------
+
+#[test]
+fn timeout_constraint_fires_when_deadline_exceeded() {
+    use server::script::sandbox::Sandbox;
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        timeout_ms: Some(0), // sofort abgelaufen
+        ..Default::default()
+    };
+    let mut sb = Sandbox::new(&manifest);
+    std::thread::sleep(std::time::Duration::from_millis(2));
+    let res = sb.gate(&CapabilityToken::ComputeOnly, || {
+        Ok::<_, shared::script::ScriptError>(1)
+    });
+    assert!(matches!(
+        res,
+        Err(shared::script::ScriptError::Timeout { .. })
+    ));
+}
+
+#[test]
+fn engine_rejects_print_and_debug_symbols() {
+    let engine = server::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    assert!(
+        engine.compile("print(\"x\")", &manifest).is_err(),
+        "print darf NICHT kompilieren"
+    );
+    assert!(
+        engine.compile("debug(\"x\")", &manifest).is_err(),
+        "debug darf NICHT kompilieren"
+    );
+    assert!(
+        engine.compile("import \"foo\" as bar;", &manifest).is_err(),
+        "import darf NICHT kompilieren"
+    );
+}
+
+#[test]
+fn engine_max_operations_kicks_in_on_runaway_loop() {
+    let engine = server::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let ast = engine
+        .compile(
+            "let i = 0; while i < 1_000_000_000 { i = i + 1; } i",
+            &manifest,
+        )
+        .expect("compile");
+    let host = shared::script::testing::MockHostApi::new();
+    let res = engine.run(&ast, &host, shared::script::engine::ScriptCtx::default());
+    // Wir akzeptieren JEDE Error-Variante (Operations, Timeout) — wichtig
+    // ist nur, dass die Schleife nicht erfolgreich durchlaeuft.
+    assert!(res.is_err(), "Endlosschleife muss abbrechen");
+}
