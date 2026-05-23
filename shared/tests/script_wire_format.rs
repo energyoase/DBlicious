@@ -170,6 +170,53 @@ fn script_id_is_transparent_string() {
 }
 
 #[test]
+fn script_error_capability_denied_carries_token() {
+    use shared::script::{CapabilityToken, ScriptError};
+    let e = ScriptError::CapabilityDenied {
+        token: CapabilityToken::ReadOwnEntities,
+    };
+    let v = serde_json::to_value(&e).unwrap();
+    assert_eq!(v["kind"], json!("capabilityDenied"));
+    assert_eq!(v["token"], json!({"kind": "readOwnEntities"}));
+}
+
+#[test]
+fn script_error_timeout_carries_limit_ms_snake_case() {
+    use shared::script::ScriptError;
+    let e = ScriptError::Timeout { limit_ms: 500 };
+    let v = serde_json::to_value(&e).unwrap();
+    assert_eq!(v, json!({"kind": "timeout", "limit_ms": 500}));
+}
+
+#[test]
+fn unmaskable_classifies_sandbox_errors_correctly() {
+    use shared::script::{CapabilityToken, ScriptError};
+    assert!(ScriptError::CapabilityDenied {
+        token: CapabilityToken::ReadOwnEntities
+    }
+    .unmaskable());
+    assert!(ScriptError::UiPrimitiveDenied {
+        primitive: "vstack".into()
+    }
+    .unmaskable());
+    assert!(ScriptError::Timeout { limit_ms: 100 }.unmaskable());
+    assert!(ScriptError::MemoryExceeded { limit_kb: 4000 }.unmaskable());
+
+    assert!(!ScriptError::ParseFailed {
+        line: 1,
+        col: 1,
+        msg: "x".into()
+    }
+    .unmaskable());
+    assert!(!ScriptError::ValidationFailed {
+        field: None,
+        msg_key: "k".into(),
+        args: serde_json::json!({})
+    }
+    .unmaskable());
+}
+
+#[test]
 fn manifest_roundtrips_through_json() {
     use shared::script::{ScriptManifest, UiPrimitive};
     let m = ScriptManifest {
