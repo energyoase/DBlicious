@@ -1877,6 +1877,35 @@ impl MutationRoot {
             }),
         })
     }
+
+    // -- Phase 1.7.1: Number-Sequences --
+
+    /// Liefert die naechste Nummer fuer `scope` (+ optionalem Fiskaljahr)
+    /// und increment den Zaehler. Permission-Gate: `scope` als
+    /// `Resource::Action { name: "sequence.<scope>" }` mit `Op::Execute`.
+    async fn next_number(
+        &self,
+        ctx:  &Context<'_>,
+        scope: String,
+        year:  Option<i32>,
+    ) -> async_graphql::Result<String> {
+        let auth = ctx.data::<AuthContext>().ok();
+        let user = auth.and_then(|a| a.user.as_ref()).ok_or_else(|| {
+            async_graphql::Error::new("unauthenticated")
+        })?;
+        let resource = shared::auth::Resource::Action {
+            name: format!("sequence.{scope}"),
+        };
+        match crate::auth::resolver::effective(&user.id, &resource, shared::auth::Op::Execute).await {
+            Ok(shared::auth::Effect::Allow) => {}
+            Ok(_) | Err(_) => return Err(async_graphql::Error::new("forbidden")),
+        }
+        let conn = crate::db::conn();
+        let year_for_db = year.unwrap_or(crate::sequences::NO_FISCAL_YEAR);
+        crate::sequences::next_number(&conn, &scope, year_for_db)
+            .await
+            .map_err(|e| async_graphql::Error::new(format!("{e}")))
+    }
 }
 
 // =============================================================================

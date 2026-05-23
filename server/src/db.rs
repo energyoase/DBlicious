@@ -95,6 +95,8 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         schema.create_table_from_entity(entity::role_assignments::Entity),
         // Phase 0.7.6: Audit-Log.
         schema.create_table_from_entity(entity::audit_log::Entity),
+        // Phase 1.7.1: Number-Sequences.
+        schema.create_table_from_entity(entity::number_sequences::Entity),
         // Phase 1.6: Builder-Design-Persistenz.
         schema.create_table_from_entity(entity::entity_designs::Entity),
         // Phase 1.5.3: Per-User-Wahl der Implementations-IDs.

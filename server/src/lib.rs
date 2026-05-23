@@ -15,6 +15,7 @@ pub mod example;
 pub mod plugins;
 pub mod schema;
 pub mod script;
+pub mod sequences;
 pub mod source;
 pub mod views;
 

@@ -27,6 +27,7 @@ pub mod entity_views;
 pub mod groups;
 pub mod metadata_editor;
 pub mod metadata_settings;
+pub mod number_sequences;
 pub mod permissions;
 pub mod plugin_invocations;
 pub mod plugins;
