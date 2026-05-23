@@ -26,6 +26,10 @@ pub struct Capabilities {
     pub supports_sql_pushdown: bool,
     pub supports_introspection: bool,
     pub supports_composite_pk: bool,
+    /// Source akzeptiert `apply_schema`-Aufrufe vom Designer. Sources, die
+    /// nur fremde Schemata bedienen (foreign-sqlite, rest, …) liefern hier
+    /// `false` und lehnen DDL mit [`SourceError::ReadOnly`] ab.
+    pub supports_ddl: bool,
 }
 
 /// Bündelt die Such-/Sort-/Pagination-Args fuer einen Listen-Aufruf.
@@ -97,6 +101,16 @@ pub trait Source: Send + Sync {
         binding: &EntityBinding,
         id: &EntityId,
     ) -> Result<bool, SourceError>;
+
+    /// Wendet ein vom Designer geliefertes Schema an. Default: Ablehnung
+    /// mit [`SourceError::ReadOnly`] — nur Sources, deren Capabilities
+    /// `supports_ddl = true` sind, ueberschreiben das.
+    async fn apply_schema(
+        &self,
+        _schema: &shared::DbSchema,
+    ) -> Result<usize, SourceError> {
+        Err(SourceError::ReadOnly)
+    }
 }
 
 /// In-Process-Routing: pro Source-Name eine boxed Implementierung.

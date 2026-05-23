@@ -1145,7 +1145,38 @@ impl MutationRoot {
             if let Err(e) = data::persist_db_schema(&schema).await {
                 tracing::warn!(target: "server::designer", "persist failed: {e}");
             }
-            ddl_applied = crate::ddl::try_apply_schema(&schema).await;
+            // Phase 0.6 B5: DDL geht ueber die Source-Capability. Default-
+            // Source `local` (managed-sqlite) akzeptiert DDL; foreign-sqlite
+            // lehnt mit `ReadOnly` ab. Falls keine Source angemeldet ist
+            // (z.B. CLI ohne boot), fallen wir auf den direkten ddl-Pfad
+            // zurueck. Der RwLockReadGuard ist !Send — Arc rauskopieren,
+            // Guard droppen, dann awaiten.
+            let src_arc: Option<std::sync::Arc<dyn crate::source::Source>> = {
+                let reg = crate::source::registry();
+                let binding = shared::source::EntityBinding {
+                    source: "local".into(),
+                    ..shared::source::default_binding_for("__designer__")
+                };
+                reg.route(&binding).ok()
+            };
+            match src_arc {
+                Some(src) if src.capabilities().supports_ddl => {
+                    match src.apply_schema(&schema).await {
+                        Ok(n) => ddl_applied = n,
+                        Err(e) => tracing::warn!(
+                            target: "server::designer",
+                            "Source 'local' lehnt apply_schema ab: {e}"
+                        ),
+                    }
+                }
+                Some(_) => tracing::warn!(
+                    target: "server::designer",
+                    "Source 'local' supports_ddl=false — DDL nicht angewendet"
+                ),
+                None => {
+                    ddl_applied = crate::ddl::try_apply_schema(&schema).await;
+                }
+            }
         }
         tracing::info!(
             target: "server::designer",

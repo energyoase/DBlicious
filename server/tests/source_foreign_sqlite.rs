@@ -14,6 +14,7 @@ fn foreign_sqlite_capabilities() {
             supports_sql_pushdown: true,
             supports_introspection: true,
             supports_composite_pk: true,
+            supports_ddl: false,
         }
     );
 }

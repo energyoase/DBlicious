@@ -17,6 +17,7 @@ fn managed_sqlite_has_expected_capabilities() {
             supports_sql_pushdown: true,
             supports_introspection: false,
             supports_composite_pk: false,
+            supports_ddl: true,
         }
     );
 }

@@ -36,6 +36,7 @@ impl Source for ManagedSqliteSource {
             supports_introspection: false,  // wir kennen unser Schema durch SeaORM-Entities
             supports_composite_pk: false,   // entities-Tabelle hat (entity_type, id) als PK,
                                             // aus User-Sicht ist das aber Single-PK
+            supports_ddl: true,             // Designer-Schemas laufen ueber diese Source.
         }
     }
 
@@ -151,5 +152,15 @@ impl Source for ManagedSqliteSource {
             }
         };
         Ok(crate::data::delete_entity_raw(entity_type, &key).await)
+    }
+
+    async fn apply_schema(
+        &self,
+        schema: &shared::DbSchema,
+    ) -> Result<usize, SourceError> {
+        // Delegiert an den bestehenden ddl-Pfad (CREATE TABLE IF NOT EXISTS).
+        // try_apply_schema toleriert Statement-Level-Fehler intern und liefert
+        // die Anzahl erfolgreich ausgefuehrter Statements.
+        Ok(crate::ddl::try_apply_schema(schema).await)
     }
 }

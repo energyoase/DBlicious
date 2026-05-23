@@ -38,6 +38,7 @@ impl Source for ForeignSqliteSource {
             supports_sql_pushdown: true,
             supports_introspection: true,
             supports_composite_pk: true,
+            supports_ddl: false, // Foreign-DBs verwalten ihr Schema selbst.
         }
     }
 
