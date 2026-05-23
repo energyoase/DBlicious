@@ -771,6 +771,9 @@ pub async fn fetch_settings(entity_type: &str) -> Result<Option<EntitySettings>,
         // Phase 1.7.4: append_only wird ueber GraphQL noch nicht exponiert;
         // Client behandelt es konservativ als false. Der Server enforced ihn.
         append_only: false,
+        // Phase 1.7.5: state_machine ist heute nicht exponiert; Client
+        // braucht es auch nicht (Transitions laufen serverseitig).
+        state_machine: None,
     }))
 }
 

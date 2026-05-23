@@ -149,6 +149,10 @@ pub struct EntitySettings {
     /// Datensatz bleibt) zulaessig.
     #[serde(default, skip_serializing_if = "is_false")]
     pub append_only: bool,
+    /// Phase 1.7.5: optionale State-Machine. Wenn gesetzt, prueft der
+    /// Server bei `transition`-Aufrufen Quell-State + Guard + Permission.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state_machine: Option<crate::state_machine::StateMachine>,
 }
 
 fn is_false(b: &bool) -> bool { !b }

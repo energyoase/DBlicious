@@ -20,6 +20,8 @@ pub enum AuditKind {
     PermissionAdded,
     /// Eine Permission wurde entfernt.
     PermissionRemoved,
+    /// Phase 1.7.5: State-Machine-Transition erfolgt.
+    StateTransition,
 }
 
 impl AuditKind {
@@ -28,6 +30,7 @@ impl AuditKind {
             AuditKind::Deny => "deny",
             AuditKind::PermissionAdded => "permission_added",
             AuditKind::PermissionRemoved => "permission_removed",
+            AuditKind::StateTransition => "state_transition",
         }
     }
 }
@@ -77,6 +80,32 @@ pub async fn record_deny(actor_user_id: &str, entity_type: &str, op: &str) {
         Some(entity_type),
         Some(op),
         None,
+    )
+    .await;
+}
+
+/// Phase 1.7.5: Audit-Eintrag fuer eine State-Machine-Transition.
+/// `actor_user_id = None` ⇒ System-Triggers (z.B. automatischer
+/// Approval-Folge-Schritt).
+pub async fn record_state_transition(
+    actor_user_id: Option<&str>,
+    entity_type:   &str,
+    entity_id:     &str,
+    from_state:    &str,
+    to_state:      &str,
+    event:         &str,
+) {
+    record(
+        AuditKind::StateTransition,
+        actor_user_id,
+        Some("entityInstance"),
+        Some(&format!("{entity_type}/{entity_id}")),
+        Some(event),
+        Some(serde_json::json!({
+            "from":  from_state,
+            "to":    to_state,
+            "event": event,
+        })),
     )
     .await;
 }

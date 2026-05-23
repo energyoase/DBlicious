@@ -19,6 +19,7 @@ pub mod script;
 pub mod security;
 pub mod settings;
 pub mod source;
+pub mod state_machine;
 pub mod tabs;
 pub mod translatable;
 pub mod validation;

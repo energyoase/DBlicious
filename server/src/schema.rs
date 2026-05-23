@@ -931,6 +931,7 @@ impl QueryRoot {
             field_type_defaults: Default::default(),
             binding:             None,
             append_only:         false,
+            state_machine:       None,
         };
         Ok(Some(map_settings(settings)))
     }

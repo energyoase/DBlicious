@@ -19,6 +19,7 @@ pub mod schema;
 pub mod script;
 pub mod sequences;
 pub mod source;
+pub mod state_machine;
 pub mod views;
 
 use async_graphql::Schema;
