@@ -220,7 +220,10 @@ fn register_host_fns(engine: &mut Engine, state: Arc<Mutex<RunState>>) {
     let s = Arc::clone(&state);
     engine.register_fn(
         "entity",
-        move |_b: &mut HostBridge, entity_type: &str, id: &str| -> Result<Dynamic, Box<EvalAltResult>> {
+        move |_b: &mut HostBridge,
+              entity_type: &str,
+              id: &str|
+              -> Result<Dynamic, Box<EvalAltResult>> {
             gated_db_fetch(&s, entity_type, Some(id))
         },
     );
@@ -265,9 +268,9 @@ fn gated_db_fetch(
         query["id"] = serde_json::Value::String(id.to_string());
     }
     let mut st = state.lock().unwrap();
-    let res = st
-        .sandbox
-        .gate(&CapabilityToken::ReadOwnEntities, move || host.db_fetch(&query));
+    let res = st.sandbox.gate(&CapabilityToken::ReadOwnEntities, move || {
+        host.db_fetch(&query)
+    });
     match res {
         Ok(v) => Ok(Dynamic::from(v.to_string())),
         Err(e) => Err(script_err_to_rhai(e)),
@@ -365,7 +368,7 @@ fn map_rhai_err(e: EvalAltResult, timeout_ms: u32, memory_kb: u32) -> ScriptErro
         // (siehe `script_err_to_rhai`). Erst versuchen, den echten
         // ScriptError zu rekonstruieren.
         EvalAltResult::ErrorTerminated(payload, _) | EvalAltResult::ErrorRuntime(payload, _) => {
-            if let Some(s) = payload.into_string().ok() {
+            if let Ok(s) = payload.into_string() {
                 if let Ok(err) = serde_json::from_str::<ScriptError>(&s) {
                     return err;
                 }
@@ -376,7 +379,9 @@ fn map_rhai_err(e: EvalAltResult, timeout_ms: u32, memory_kb: u32) -> ScriptErro
             }
         }
         // S7: echten Timeout-Wert statt 0 durchreichen.
-        EvalAltResult::ErrorTooManyOperations(_) => ScriptError::Timeout { limit_ms: timeout_ms },
+        EvalAltResult::ErrorTooManyOperations(_) => ScriptError::Timeout {
+            limit_ms: timeout_ms,
+        },
         // S5: Size-Limit-Ueberschreitung → MemoryExceeded mit Budget.
         EvalAltResult::ErrorDataTooLarge(_, _) => ScriptError::MemoryExceeded {
             limit_kb: memory_kb,
@@ -425,9 +430,13 @@ mod rhai_invariants {
             },
         );
         let mut scope = Scope::new();
-        scope.push("db", DbProxy { seen: Arc::clone(&seen) });
-        let r: Result<Dynamic, _> =
-            engine.eval_with_scope(&mut scope, r#"db.entities("product")"#);
+        scope.push(
+            "db",
+            DbProxy {
+                seen: Arc::clone(&seen),
+            },
+        );
+        let r: Result<Dynamic, _> = engine.eval_with_scope(&mut scope, r#"db.entities("product")"#);
         assert!(r.is_ok(), "db.entities() muss laufen: {r:?}");
         assert_eq!(seen.lock().unwrap().as_slice(), &["product".to_string()]);
     }
@@ -437,15 +446,12 @@ mod rhai_invariants {
         let mut engine = Engine::new_raw();
         // BasicArray/Logic fuer try/catch + Vergleich werden hier nicht
         // gebraucht; try/catch ist Core-Syntax.
-        engine.register_fn(
-            "boom",
-            || -> Result<(), Box<EvalAltResult>> {
-                Err(Box::new(EvalAltResult::ErrorTerminated(
-                    Dynamic::from("denied".to_string()),
-                    Position::NONE,
-                )))
-            },
-        );
+        engine.register_fn("boom", || -> Result<(), Box<EvalAltResult>> {
+            Err(Box::new(EvalAltResult::ErrorTerminated(
+                Dynamic::from("denied".to_string()),
+                Position::NONE,
+            )))
+        });
         let r: Result<i64, _> =
             engine.eval(r#"let x = 0; try { boom(); x = 1 } catch(e) { x = 42 } x"#);
         // Uncatchbar ⇒ eval bricht mit ErrorTerminated ab (nicht x=42).
@@ -462,15 +468,12 @@ mod rhai_invariants {
     fn error_runtime_is_catchable() {
         // Kontroll-Test: ErrorRuntime (maskable) MUSS fangbar sein.
         let mut engine = Engine::new_raw();
-        engine.register_fn(
-            "softfail",
-            || -> Result<(), Box<EvalAltResult>> {
-                Err(Box::new(EvalAltResult::ErrorRuntime(
-                    Dynamic::from("oops".to_string()),
-                    Position::NONE,
-                )))
-            },
-        );
+        engine.register_fn("softfail", || -> Result<(), Box<EvalAltResult>> {
+            Err(Box::new(EvalAltResult::ErrorRuntime(
+                Dynamic::from("oops".to_string()),
+                Position::NONE,
+            )))
+        });
         // `try/catch` liefert in Rhai `()` (Statement, kein Ausdruck) —
         // wir schreiben das Ergebnis daher in eine Aussen-Variable.
         let r: Result<i64, _> =

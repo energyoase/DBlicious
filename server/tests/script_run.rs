@@ -67,9 +67,7 @@ async fn run_and_persist_records_ok_outcome_with_token_uses() {
         locale: "de".into(),
     };
 
-    let rec = run_and_persist(&db, &script, ctx, mock)
-        .await
-        .expect("run");
+    let rec = run_and_persist(&db, &script, ctx, mock).await.expect("run");
 
     assert_eq!(rec.outcome, "ok");
     assert!(matches!(rec.value, Some(ScriptValue::Number(_))));
@@ -111,9 +109,7 @@ async fn run_and_persist_records_capability_denied_outcome() {
     let mock = Arc::new(shared::script::testing::MockHostApi::new());
     let ctx = ScriptCtx::default();
 
-    let rec = run_and_persist(&db, &script, ctx, mock)
-        .await
-        .expect("run");
+    let rec = run_and_persist(&db, &script, ctx, mock).await.expect("run");
 
     assert_eq!(rec.outcome, "capabilityDenied");
     assert!(matches!(

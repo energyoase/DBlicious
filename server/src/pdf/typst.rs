@@ -7,12 +7,12 @@
 //!                   -> Warned<Result<PagedDocument, TypstAsLibError>>`
 //!     Das `Warned { output, warnings }`-Feld `output` traegt das Result.
 //!   - Inputs:  als `typst::foundations::Dict`; im Template ueber
-//!              `#import sys: inputs` erreichbar.
+//!     `#import sys: inputs` erreichbar.
 //!   - Export:  `typst_pdf::pdf(&doc, &PdfOptions::default())
 //!                   -> SourceResult<Vec<u8>>`
 //!   - Fonts:   typst-kit mit `include_embedded_fonts=true` (default) laedt
-//!              die typst-assets-Default-Fonts; kein eigenes TTF noetig und
-//!              kein manueller Font-Cache.
+//!     die typst-assets-Default-Fonts; kein eigenes TTF noetig und
+//!     kein manueller Font-Cache.
 //!
 //! Vars-Injection: die `PdfVars` werden als **ein** JSON-String unter
 //! `sys.inputs.data` uebergeben — nicht per String-Interpolation ins

@@ -16,11 +16,11 @@
 
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 
+use shared::script::capability::{default_tokens_for_tier, ScriptTier};
 use shared::script::engine::ScriptEngine;
 use shared::script::error::{ManifestError, ScriptError};
 use shared::script::manifest::ScriptManifest;
 use shared::script::model::{Script, ScriptId, ScriptKind, ScriptState};
-use shared::script::capability::{default_tokens_for_tier, ScriptTier};
 
 use crate::entity::{script as script_entity, script_version};
 use crate::script::engine::rhai::{analyze_lift_capability, RhaiEngine};

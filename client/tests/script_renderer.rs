@@ -73,7 +73,12 @@ fn render_draft_returns_placeholder() {
 fn render_unknown_script_returns_missing() {
     let reg = ScriptRegistry::new();
     let host = std::sync::Arc::new(MockHostApi::new());
-    let dec = render_decision(&make_ref("absent"), &reg, host.clone(), ScriptCtx::default());
+    let dec = render_decision(
+        &make_ref("absent"),
+        &reg,
+        host.clone(),
+        ScriptCtx::default(),
+    );
     match dec {
         RenderDecision::Missing { script_id } => assert_eq!(script_id, "absent"),
         other => panic!("expected Missing, got {other:?}"),

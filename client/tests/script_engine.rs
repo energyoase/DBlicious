@@ -48,15 +48,22 @@ fn rhai_engine_actually_evaluates_arithmetic_and_array_ops() {
 
     let ast = engine.compile("40 + 2", &manifest).expect("compile");
     assert_eq!(
-        engine.run(&ast, host.clone(), ScriptCtx::default()).expect("eval"),
+        engine
+            .run(&ast, host.clone(), ScriptCtx::default())
+            .expect("eval"),
         ScriptValue::Number(42.0)
     );
 
     let ast2 = engine
-        .compile("let xs = [1, 2, 3]; if xs.len() == 3 { \"ok\" } else { \"no\" }", &manifest)
+        .compile(
+            "let xs = [1, 2, 3]; if xs.len() == 3 { \"ok\" } else { \"no\" }",
+            &manifest,
+        )
         .expect("compile");
     assert_eq!(
-        engine.run(&ast2, host.clone(), ScriptCtx::default()).expect("eval array"),
+        engine
+            .run(&ast2, host.clone(), ScriptCtx::default())
+            .expect("eval array"),
         ScriptValue::String("ok".into())
     );
 }
@@ -388,6 +395,10 @@ fn engine_max_operations_kicks_in_on_runaway_loop() {
         )
         .expect("compile");
     let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
-    let res = engine.run(&ast, host.clone(), shared::script::engine::ScriptCtx::default());
+    let res = engine.run(
+        &ast,
+        host.clone(),
+        shared::script::engine::ScriptCtx::default(),
+    );
     assert!(res.is_err(), "Endlosschleife muss abbrechen");
 }

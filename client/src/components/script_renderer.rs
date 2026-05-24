@@ -448,7 +448,12 @@ mod tests {
             ScriptState::Active,
         ));
         let host = std::sync::Arc::new(MockHostApi::new());
-        let dec = render_decision(&make_ref("broken"), &reg, host.clone(), ScriptCtx::default());
+        let dec = render_decision(
+            &make_ref("broken"),
+            &reg,
+            host.clone(),
+            ScriptCtx::default(),
+        );
         match dec {
             RenderDecision::Error { error_key, .. } => {
                 assert_eq!(error_key, "script.error.parseFailed");

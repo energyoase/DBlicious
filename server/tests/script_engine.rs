@@ -62,7 +62,10 @@ fn rhai_engine_evaluates_string_and_array_ops() {
     };
     // Array-len + String-Ergebnis: prueft BasicArray (len) + Logic (if).
     let ast = engine
-        .compile("let xs = [1, 2, 3]; if xs.len() == 3 { \"ok\" } else { \"no\" }", &manifest)
+        .compile(
+            "let xs = [1, 2, 3]; if xs.len() == 3 { \"ok\" } else { \"no\" }",
+            &manifest,
+        )
         .expect("compile");
     let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
     let val = engine
@@ -425,7 +428,11 @@ fn engine_max_operations_kicks_in_on_runaway_loop() {
         )
         .expect("compile");
     let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
-    let res = engine.run(&ast, host.clone(), shared::script::engine::ScriptCtx::default());
+    let res = engine.run(
+        &ast,
+        host.clone(),
+        shared::script::engine::ScriptCtx::default(),
+    );
     // Wir akzeptieren JEDE Error-Variante (Operations, Timeout) — wichtig
     // ist nur, dass die Schleife nicht erfolgreich durchlaeuft.
     assert!(res.is_err(), "Endlosschleife muss abbrechen");
