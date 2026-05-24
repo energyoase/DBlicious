@@ -6,7 +6,9 @@ use server::email::template::{EmailTemplate, EmailTemplateRenderer, EmailVars};
 
 /// Baut eine `EmailVars`-Map aus einem JSON-Objekt-Literal.
 fn vars(v: serde_json::Value) -> EmailVars {
-    v.as_object().cloned().expect("vars muss ein JSON-Objekt sein")
+    v.as_object()
+        .cloned()
+        .expect("vars muss ein JSON-Objekt sein")
 }
 
 #[test]
@@ -98,8 +100,16 @@ fn renders_loop_over_line_items() {
             })),
         )
         .expect("render");
-    assert!(out.body_text.contains("- Widget x2"), "war: {}", out.body_text);
-    assert!(out.body_text.contains("- Gadget x5"), "war: {}", out.body_text);
+    assert!(
+        out.body_text.contains("- Widget x2"),
+        "war: {}",
+        out.body_text
+    );
+    assert!(
+        out.body_text.contains("- Gadget x5"),
+        "war: {}",
+        out.body_text
+    );
 }
 
 #[test]
