@@ -101,3 +101,36 @@ fn renders_loop_over_line_items() {
     assert!(out.body_text.contains("- Widget x2"), "war: {}", out.body_text);
     assert!(out.body_text.contains("- Gadget x5"), "war: {}", out.body_text);
 }
+
+#[test]
+fn as_message_feeds_email_message_fields() {
+    let r = EmailTemplateRenderer::new();
+    let tpl = EmailTemplate {
+        subject: "Rechnung {{ n }}".into(),
+        body_text: "Text {{ n }}".into(),
+        body_html: Some("<p>{{ n }}</p>".into()),
+    };
+    let out = r.render(&tpl, &vars(json!({ "n": "7" }))).expect("render");
+
+    let to = ["alice@example.com"];
+    let msg = out.as_message("noreply@example.com", &to, &[], &[], &[]);
+
+    assert_eq!(msg.from, "noreply@example.com");
+    assert_eq!(msg.to, &["alice@example.com"]);
+    assert_eq!(msg.subject, "Rechnung 7");
+    assert_eq!(msg.body_text, "Text 7");
+    assert_eq!(msg.body_html, Some("<p>7</p>"));
+    assert!(msg.attachments.is_empty());
+}
+
+#[test]
+fn template_without_html_renders_none() {
+    let r = EmailTemplateRenderer::new();
+    let tpl = EmailTemplate {
+        subject: "s".into(),
+        body_text: "nur text".into(),
+        body_html: None,
+    };
+    let out = r.render(&tpl, &vars(json!({}))).expect("render");
+    assert_eq!(out.body_html, None);
+}
