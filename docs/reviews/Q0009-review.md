@@ -3,9 +3,26 @@
 Date: 2026-05-23
 Reviewer: claude (feature-dev:code-reviewer Sub-Agent, Sandbox-Sicherheits-Fokus)
 Scope: committeter Q0009-Code @ HEAD `4cba6b2` (alle 6 Phasen), gegen Spec `2026-05-23-q0009-skript-sprache-design.md`.
-Verdict: **NEEDS-WORK**
+Verdict: **NEEDS-WORK** → **REMEDIATED** (2026-05-24)
 
 Dieser Review deckt zugleich den `security_review.required`-Teil ab (Fokus lag auf Sandbox-Escape + Capability-Enforcement).
+
+## Remediation-Status (2026-05-24)
+
+Alle Blocker + Should-Fixes behoben:
+
+| Punkt | Commit | Beweis |
+|---|---|---|
+| **B1** unmaskable uncatchbar | `ce03304` | `capability_denied_cannot_be_caught_by_try_catch` (try/catch schluckt CapabilityDenied NICHT) + `rhai_invariants::error_terminated_is_not_catchable` |
+| **B2** Rhai-Packages | `1e4c78d` | `rhai_engine_actually_evaluates_arithmetic` + `..._string_and_array_ops` (echter eval-Pfad) |
+| **B3** Gate im run-Pfad | `ce03304` | `run_and_persist`-Tests mit echten `db.entities`-Skripten: CapabilityDenied bei fehlendem Token im echten eval-Pfad + token_uses-Audit |
+| **S4** token_eq exakt | `50a3476` | `reader_cannot_declare_composite_ui_node_scope` + `reader_may_declare_leaf_ui_node_scope` |
+| **S5** Memory-Limits | `ce03304` | `apply_limits` setzt Rhai-Size-Limits aus `memory_kb`; `ErrorDataTooLarge → MemoryExceeded` |
+| **S6** preview db.patch | `ce03304` | PreviewHostApi `db_patch → ServerOnlyFunction` |
+| **S7** Timeout-Wert | `ce03304` | `ErrorTooManyOperations → Timeout{ echtes limit_ms }` |
+| **S8** client audit.log | `ce03304` | `host_audit_log_on_client_is_server_only_function_error` |
+
+Spike-Vorarbeit: `b2beb26` (Rhai-Invarianten gepinnt). Workspace-Build gruen, server script-Tests 43, client script-Tests 32.
 
 ## Blocker
 
