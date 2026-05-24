@@ -78,3 +78,26 @@ fn syntax_error_maps_to_template_invalid() {
         "erwartet TemplateInvalid, war: {err:?}"
     );
 }
+
+#[test]
+fn renders_loop_over_line_items() {
+    let r = EmailTemplateRenderer::new();
+    let tpl = EmailTemplate {
+        subject: "Bestellung".into(),
+        body_text: "{% for it in items %}- {{ it.name }} x{{ it.qty }}\n{% endfor %}".into(),
+        body_html: None,
+    };
+    let out = r
+        .render(
+            &tpl,
+            &vars(json!({
+                "items": [
+                    { "name": "Widget", "qty": 2 },
+                    { "name": "Gadget", "qty": 5 }
+                ]
+            })),
+        )
+        .expect("render");
+    assert!(out.body_text.contains("- Widget x2"), "war: {}", out.body_text);
+    assert!(out.body_text.contains("- Gadget x5"), "war: {}", out.body_text);
+}
