@@ -41,3 +41,21 @@ fn html_part_escapes_but_text_part_is_raw() {
     // HTML-Part: escaped. minijinja escaped < > & " ' und auch / (als &#x2f;).
     assert_eq!(out.body_html.as_deref(), Some("&lt;b&gt;hi&lt;&#x2f;b&gt;"));
 }
+
+#[test]
+fn missing_variable_fails_loudly() {
+    use server::email::EmailError;
+    let r = EmailTemplateRenderer::new();
+    let tpl = EmailTemplate {
+        subject: "Hallo {{ missing }}".into(),
+        body_text: "egal".into(),
+        body_html: None,
+    };
+    let err = r
+        .render(&tpl, &vars(json!({})))
+        .expect_err("fehlende Variable muss fehlschlagen");
+    assert!(
+        matches!(err, EmailError::RenderFailed(_)),
+        "erwartet RenderFailed, war: {err:?}"
+    );
+}
