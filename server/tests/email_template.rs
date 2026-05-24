@@ -24,3 +24,20 @@ fn renders_simple_substitution_in_all_parts() {
     assert_eq!(out.body_text, "Hallo Alice, anbei Ihre Rechnung.");
     assert_eq!(out.body_html.as_deref(), Some("<p>Hallo Alice</p>"));
 }
+
+#[test]
+fn html_part_escapes_but_text_part_is_raw() {
+    let r = EmailTemplateRenderer::new();
+    let tpl = EmailTemplate {
+        subject: "x".into(),
+        body_text: "{{ x }}".into(),
+        body_html: Some("{{ x }}".into()),
+    };
+    let out = r
+        .render(&tpl, &vars(json!({ "x": "<b>hi</b>" })))
+        .expect("render");
+    // Text-Part: roh durchgereicht.
+    assert_eq!(out.body_text, "<b>hi</b>");
+    // HTML-Part: escaped. minijinja escaped < > & " ' und auch / (als &#x2f;).
+    assert_eq!(out.body_html.as_deref(), Some("&lt;b&gt;hi&lt;&#x2f;b&gt;"));
+}
