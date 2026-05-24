@@ -184,3 +184,93 @@ fn map_rhai_err(e: EvalAltResult) -> ScriptError {
         },
     }
 }
+
+#[cfg(test)]
+mod rhai_invariants {
+    //! Pinnt die Rhai-Verhaltens-Invarianten, auf denen die Sandbox-
+    //! Sicherheit beruht (Q0009 B1/B3): Host-Funktionen koennen ueber
+    //! einen Custom-Type auf pro-Run-Shared-State zugreifen, `ErrorTerminated`
+    //! ist per `try`/`catch` NICHT fangbar (unmaskable), `ErrorRuntime`
+    //! schon (maskable). Bricht eine dieser Invarianten bei einem
+    //! Rhai-Upgrade, faellt hier der Build — bevor die Enforcement-Luecke
+    //! in Produktion landet. Lebt hier, weil rhai-Symbole nur in
+    //! `engine::rhai` auftauchen duerfen (Spec §11).
+    use std::sync::{Arc, Mutex};
+
+    use rhai::{Dynamic, Engine, EvalAltResult, Position, Scope};
+
+    #[derive(Clone)]
+    struct DbProxy {
+        seen: Arc<Mutex<Vec<String>>>,
+    }
+
+    #[test]
+    fn custom_type_method_accesses_shared_state() {
+        let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let mut engine = Engine::new_raw();
+        engine.register_type_with_name::<DbProxy>("Db");
+        let captured = Arc::clone(&seen);
+        engine.register_fn(
+            "entities",
+            move |_db: &mut DbProxy, t: &str| -> Result<Dynamic, Box<EvalAltResult>> {
+                captured.lock().unwrap().push(t.to_string());
+                Ok(Dynamic::from(t.to_string()))
+            },
+        );
+        let mut scope = Scope::new();
+        scope.push("db", DbProxy { seen: Arc::clone(&seen) });
+        let r: Result<Dynamic, _> =
+            engine.eval_with_scope(&mut scope, r#"db.entities("product")"#);
+        assert!(r.is_ok(), "db.entities() muss laufen: {r:?}");
+        assert_eq!(seen.lock().unwrap().as_slice(), &["product".to_string()]);
+    }
+
+    #[test]
+    fn error_terminated_is_not_catchable() {
+        let mut engine = Engine::new_raw();
+        // BasicArray/Logic fuer try/catch + Vergleich werden hier nicht
+        // gebraucht; try/catch ist Core-Syntax.
+        engine.register_fn(
+            "boom",
+            || -> Result<(), Box<EvalAltResult>> {
+                Err(Box::new(EvalAltResult::ErrorTerminated(
+                    Dynamic::from("denied".to_string()),
+                    Position::NONE,
+                )))
+            },
+        );
+        let r: Result<i64, _> =
+            engine.eval(r#"let x = 0; try { boom(); x = 1 } catch(e) { x = 42 } x"#);
+        // Uncatchbar ⇒ eval bricht mit ErrorTerminated ab (nicht x=42).
+        match r {
+            Ok(v) => panic!("ErrorTerminated wurde gefangen (x={v}) — darf NICHT sein"),
+            Err(e) => assert!(
+                matches!(*e, EvalAltResult::ErrorTerminated(..)),
+                "erwartete ErrorTerminated, war {e:?}"
+            ),
+        }
+    }
+
+    #[test]
+    fn error_runtime_is_catchable() {
+        // Kontroll-Test: ErrorRuntime (maskable) MUSS fangbar sein.
+        let mut engine = Engine::new_raw();
+        engine.register_fn(
+            "softfail",
+            || -> Result<(), Box<EvalAltResult>> {
+                Err(Box::new(EvalAltResult::ErrorRuntime(
+                    Dynamic::from("oops".to_string()),
+                    Position::NONE,
+                )))
+            },
+        );
+        // `try/catch` liefert in Rhai `()` (Statement, kein Ausdruck) —
+        // wir schreiben das Ergebnis daher in eine Aussen-Variable.
+        let r: Result<i64, _> =
+            engine.eval(r#"let x = 0; try { softfail(); x = 1 } catch(e) { x = 42 } x"#);
+        match &r {
+            Ok(v) => assert_eq!(*v, 42, "ErrorRuntime muss fangbar sein (catch lief)"),
+            Err(e) => panic!("unerwarteter Fehler statt catch: {e:?}"),
+        }
+    }
+}
