@@ -59,3 +59,22 @@ fn missing_variable_fails_loudly() {
         "erwartet RenderFailed, war: {err:?}"
     );
 }
+
+#[test]
+fn syntax_error_maps_to_template_invalid() {
+    use server::email::EmailError;
+    let r = EmailTemplateRenderer::new();
+    let tpl = EmailTemplate {
+        // ungeschlossener Ausdruck => Parse-/Syntaxfehler
+        subject: "Hallo {{ name".into(),
+        body_text: "egal".into(),
+        body_html: None,
+    };
+    let err = r
+        .render(&tpl, &vars(json!({ "name": "Alice" })))
+        .expect_err("Syntaxfehler muss fehlschlagen");
+    assert!(
+        matches!(err, EmailError::TemplateInvalid(_)),
+        "erwartet TemplateInvalid, war: {err:?}"
+    );
+}
