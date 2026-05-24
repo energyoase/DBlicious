@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# DBlicious pre-push — clippy als CI-Readiness-Gate vor dem Push.
+# Schwerer als fmt (voller Build), darum hier statt im pre-commit-Hook.
+#
+# Hintergrund: docs/queue/done/Q0010. Scope bewusst `--workspace -- -D warnings`
+# (NICHT --all-targets): das ist der verifiziert-gruene Stand. --all-targets
+# zieht aktuell pre-existing Test-Code-Lints rein (z.B. shared/tests/
+# auth_wire_format: needless_borrows_for_generic_args) und wuerde legitime
+# Pushes blockieren. Bei Bedarf spaeter separat aufraeumen und hier ergaenzen.
+
+set -eu
+
+echo "pre-push: cargo clippy --workspace -- -D warnings ..." >&2
+if ! cargo clippy --workspace -- -D warnings; then
+    echo "" >&2
+    echo "X pre-push: clippy-Warnings (siehe oben)." >&2
+    echo "  Fix die Lints, oder Notfall-Umgehung:  git push --no-verify" >&2
+    echo "" >&2
+    exit 1
+fi
+
+exit 0

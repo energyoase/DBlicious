@@ -1,0 +1,4 @@
+# Git-Hooks sind POSIX-sh-Skripte und MUESSEN LF behalten — ein CRLF-Shebang
+# (#!/bin/sh\r) laesst sich unter Git-Bash/Windows nicht ausfuehren, der Hook
+# wuerde stillschweigend fehlschlagen. Ueberschreibt core.autocrlf=true.
+.githooks/** text eol=lf

@@ -1,0 +1,46 @@
+#!/bin/sh
+#
+# DBlicious pre-commit — schnelle Format-Pruefung der staged Rust-Files.
+# Kein cargo-Build, keine target/-Locks -> sicher unter parallelen Sessions.
+# clippy laeuft bewusst NICHT hier, sondern im pre-push-Hook (voller Build).
+#
+# Hintergrund: docs/queue/done/Q0010 — die dev-Baseline ist mehrfach durch
+# fmt-lose Feature-Commits rot geworden (Q0009-Revise, Typst, Email-Template).
+#
+# WICHTIG: prueft die Working-Tree-Version der staged Files via rustfmt auf
+# DATEIPFAD. rustfmt auf STDIN (`git show :file | rustfmt`) erkennt dieselbe
+# Drift NICHT zuverlaessig (empirisch verifiziert 2026-05) — darum Dateipfad.
+# Es werden nur die STAGED .rs-Files geprueft, damit fremde Parallel-WIP im
+# Working-Tree den eigenen Commit nicht blockiert.
+
+set -eu
+
+staged_rs=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.rs$' || true)
+if [ -z "$staged_rs" ]; then
+    exit 0
+fi
+
+# Edition aus [workspace.package].edition; keine rustfmt.toml im Repo, daher
+# entsprechen rustfmt-Defaults dem `cargo fmt`-Verhalten.
+needs_fmt=""
+for f in $staged_rs; do
+    [ -f "$f" ] || continue
+    if ! rustfmt --edition 2021 --check "$f" >/dev/null 2>&1; then
+        needs_fmt="$needs_fmt $f"
+    fi
+done
+
+if [ -n "$needs_fmt" ]; then
+    echo "" >&2
+    echo "X pre-commit: ungeformatete Rust-Files (cargo fmt vergessen?):" >&2
+    for f in $needs_fmt; do
+        echo "    $f" >&2
+    done
+    echo "" >&2
+    echo "  Fix:  cargo fmt   und erneut stagen, dann committen" >&2
+    echo "  Notfall-Umgehung:  git commit --no-verify" >&2
+    echo "" >&2
+    exit 1
+fi
+
+exit 0
