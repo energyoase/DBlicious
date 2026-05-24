@@ -1,7 +1,7 @@
 ---
 id: Q0010
 created: 2026-05-23T00:00:00Z
-status: new
+status: done
 priority: low
 title: "Baseline-Drift: cargo clippy -- -D warnings + cargo fmt --check schlagen auf dev fehl"
 spec: null
@@ -87,3 +87,22 @@ die nichts mit Skripting zu tun haben. Daher: eigenes Item.
   Q0010 offen ist (Baseline ist rot, das ist akzeptiert).
 - Sobald Q0010 abgeschlossen ist, gelten diese Gates für Q0009 wieder
   als Pflicht — entsprechend dem Spec-§12-Testing-Modell.
+
+## Log
+
+- 2026-05-24T00:00:00Z — manual: created (status=new) aus Q0009-Verification-Gate-Befund.
+- 2026-05-24T00:00:00Z — Baseline-Fixes durch Parallel-Session: `41a6032`
+  (clippy -D warnings, u.a. shared/src/{validation,auth,menu}.rs) + `34db512`
+  (cargo fmt workspace-weit).
+- 2026-05-24T00:00:00Z — Re-Drift gefixt: Q0009-Revise (`ce03304`, `50a3476`)
+  und Typst-PDF-Backend (`84b3d00`) wurden ohne fmt/clippy committet und
+  brachen die Baseline erneut. Fix in `40761b8`: 7 Script-Files (fmt) +
+  rhai.rs `match_result_ok` + typst.rs `doc-overindented-list-items` 3x.
+- 2026-05-24T00:00:00Z — closed (status=done), final_sha=40761b8.
+  Verifikation-Gate: `cargo clippy --workspace --target-dir target-test --
+  -D warnings` = exit 0; `cargo fmt --check` = clean fuer alle committeten
+  Files. Rest-WT-Drift (`server/tests/email_template.rs`) gehoert zur
+  laufenden Email-Template-WIP und ist HEAD-clean — nicht Q0010-Scope.
+- HINWEIS: Baseline-Hygiene ist ein wiederkehrendes Thema, solange
+  Parallel-Sessions Features ohne fmt/clippy committen. Empfehlung fuer
+  spaeter: pre-commit-Hook (fmt + clippy) statt periodischer Aufraeum-Items.
