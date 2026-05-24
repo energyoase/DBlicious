@@ -56,6 +56,10 @@ rust_xlsxwriter = "0.79"
 # das wir auch fuer reqwest und sea-orm bereits ziehen). Der Stub-
 # Transport (`AsyncStubTransport`) ist in lettre immer mit dabei und
 # braucht kein eigenes Feature-Flag.
+# 1.7.10 Email-Template-Rendering (render-layer, reines Jinja2-Subset,
+# sandboxed, pure Rust). Serverseitig only.
+minijinja = "2"
+# 1.7.10 SMTP-Email-Versand. `builder` fuer Message-Builder,
 lettre = { version = "0.11", default-features = false, features = [
     "builder",
     "smtp-transport",

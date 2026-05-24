@@ -19,6 +19,7 @@
 
 pub mod smtp;
 pub mod stub;
+pub mod template;
 
 use async_trait::async_trait;
 use thiserror::Error;
@@ -29,6 +30,10 @@ pub enum EmailError {
     Backend(String),
     #[error("invalid_input: {0}")]
     InvalidInput(String),
+    #[error("template_invalid: {0}")]
+    TemplateInvalid(String),
+    #[error("render: {0}")]
+    RenderFailed(String),
 }
 
 /// Eine Email-Nachricht. `body_html` ist optional; ohne wird `body_text`
