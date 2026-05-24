@@ -77,7 +77,7 @@ pub fn lookup_provider_with_script(
     raw_id: &str,
     expected_slot: ProviderSlot,
     script: Option<&Script>,
-    host: &dyn HostApi,
+    host: std::sync::Arc<dyn HostApi>,
     ctx: ScriptCtx,
 ) -> LookupResult {
     let Some(script_id) = parse_script_id(raw_id) else {
@@ -113,7 +113,7 @@ pub fn lookup_provider_with_script(
         }
     }
 
-    let engine = RhaiEngine::new();
+    let engine = RhaiEngine::with_manifest(&script.manifest);
     let ast = match engine.compile(&script.source, &script.manifest) {
         Ok(a) => a,
         Err(e) => {
@@ -206,12 +206,12 @@ mod tests {
 
     #[test]
     fn missing_script_returns_fallback() {
-        let host = MockHostApi::new();
+        let host = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider_with_script(
             "script:miss",
             ProviderSlot::Formatter,
             None,
-            &host,
+            host.clone(),
             ScriptCtx::default(),
         );
         assert!(matches!(
@@ -225,12 +225,12 @@ mod tests {
     #[test]
     fn active_formatter_returns_value_via_engine() {
         let s = formatter_script("disc", "40 + 2", ScriptState::Active);
-        let host = MockHostApi::new();
+        let host = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider_with_script(
             "script:disc",
             ProviderSlot::Formatter,
             Some(&s),
-            &host,
+            host.clone(),
             ScriptCtx::default(),
         );
         match res {
@@ -244,12 +244,12 @@ mod tests {
     #[test]
     fn draft_state_falls_back() {
         let s = formatter_script("d", "42", ScriptState::Draft);
-        let host = MockHostApi::new();
+        let host = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider_with_script(
             "script:d",
             ProviderSlot::Formatter,
             Some(&s),
-            &host,
+            host.clone(),
             ScriptCtx::default(),
         );
         match res {
@@ -263,12 +263,12 @@ mod tests {
     #[test]
     fn slot_mismatch_falls_back() {
         let s = formatter_script("x", "42", ScriptState::Active);
-        let host = MockHostApi::new();
+        let host = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider_with_script(
             "script:x",
             ProviderSlot::Validator,
             Some(&s),
-            &host,
+            host.clone(),
             ScriptCtx::default(),
         );
         match res {
@@ -281,12 +281,12 @@ mod tests {
 
     #[test]
     fn non_script_id_signals_static_path() {
-        let host = MockHostApi::new();
+        let host = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider_with_script(
             "text-plain",
             ProviderSlot::Formatter,
             None,
-            &host,
+            host.clone(),
             ScriptCtx::default(),
         );
         assert!(matches!(res, LookupResult::NotAScriptId));

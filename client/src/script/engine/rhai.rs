@@ -94,9 +94,15 @@ impl ScriptEngine for RhaiEngine {
     fn run(
         &self,
         ast: &Self::Ast,
-        _host: &dyn HostApi,
+        _host: std::sync::Arc<dyn HostApi>,
         _ctx: ScriptCtx,
     ) -> Result<ScriptValue, ScriptError> {
+        // Client-Pfad: reine Compute-Auswertung. Host-Reads laufen NICHT
+        // ueber die Engine, sondern ueber den GraphQL-`ScriptSource`-Adapter
+        // (data_source.rs) — daher werden hier keine Host-fns registriert
+        // und der `host` bleibt ungenutzt. Der Capability-Gate-Pfad ist
+        // server-seitig (Q0009 B3); der Client fuehrt keine privilegierten
+        // Host-Calls aus.
         let mut scope = rhai::Scope::new();
         let res: Result<rhai::Dynamic, Box<EvalAltResult>> =
             self.inner.eval_ast_with_scope(&mut scope, &ast.0);

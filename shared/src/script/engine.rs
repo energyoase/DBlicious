@@ -3,6 +3,8 @@
 //! Der Server- und Client-seitige Engine-Adapter haellt das Rhai-Wissen in
 //! seinem eigenen `engine::rhai`-Submodul.
 
+use std::sync::Arc;
+
 use crate::script::error::ScriptError;
 use crate::script::manifest::ScriptManifest;
 
@@ -18,10 +20,14 @@ pub struct ScriptCtx {
 pub trait ScriptEngine {
     type Ast: Clone + Send + Sync;
     fn compile(&self, source: &str, manifest: &ScriptManifest) -> Result<Self::Ast, ScriptError>;
+    /// Fuehrt das Skript aus. Der Host kommt als `Arc<dyn HostApi>`, weil die
+    /// Engine-Adapter ihn in `'static` Native-Function-Closures capturen
+    /// muessen (Rhai `register_fn` verlangt `'static + Send + Sync`). Ein
+    /// `&dyn HostApi` mit Run-Lifetime liesse sich dort nicht halten.
     fn run(
         &self,
         ast: &Self::Ast,
-        host: &dyn HostApi,
+        host: Arc<dyn HostApi>,
         ctx: ScriptCtx,
     ) -> Result<ScriptValue, ScriptError>;
 }
@@ -38,7 +44,10 @@ pub enum ScriptValue {
 
 /// Engine-agnostischer Host. Beide Crates implementieren ihn — Server mit
 /// echten SeaORM-Calls, Client mit GraphQL-Calls.
-pub trait HostApi {
+///
+/// `Send + Sync`, damit der Host als `Arc<dyn HostApi>` in `'static`
+/// Engine-Closures (Rhai `register_fn`) gehalten werden kann.
+pub trait HostApi: Send + Sync {
     fn db_fetch(&self, query: &serde_json::Value) -> Result<serde_json::Value, ScriptError>;
     fn db_patch(
         &self,

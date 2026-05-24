@@ -20,10 +20,7 @@ use shared::script::engine::ScriptEngine;
 use shared::script::error::{ManifestError, ScriptError};
 use shared::script::manifest::ScriptManifest;
 use shared::script::model::{Script, ScriptId, ScriptKind, ScriptState};
-use shared::script::{
-    capability::{default_tokens_for_tier, ScriptTier},
-    CapabilityToken,
-};
+use shared::script::capability::{default_tokens_for_tier, ScriptTier};
 
 use crate::entity::{script as script_entity, script_version};
 use crate::script::engine::rhai::{analyze_lift_capability, RhaiEngine};
@@ -118,7 +115,7 @@ pub fn prepare_save(input: &SaveInput) -> PreparedSave {
     }
 
     // Schritt 1: Compile.
-    let engine = RhaiEngine::new();
+    let engine = RhaiEngine::with_manifest(&manifest);
     let ast = match engine.compile(&input.source, &manifest) {
         Ok(a) => a,
         Err(e) => {

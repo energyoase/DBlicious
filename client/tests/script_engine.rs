@@ -44,11 +44,11 @@ fn rhai_engine_actually_evaluates_arithmetic_and_array_ops() {
         capabilities: vec![CapabilityToken::ComputeOnly],
         ..Default::default()
     };
-    let host = shared::script::testing::MockHostApi::new();
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
 
     let ast = engine.compile("40 + 2", &manifest).expect("compile");
     assert_eq!(
-        engine.run(&ast, &host, ScriptCtx::default()).expect("eval"),
+        engine.run(&ast, host.clone(), ScriptCtx::default()).expect("eval"),
         ScriptValue::Number(42.0)
     );
 
@@ -56,7 +56,7 @@ fn rhai_engine_actually_evaluates_arithmetic_and_array_ops() {
         .compile("let xs = [1, 2, 3]; if xs.len() == 3 { \"ok\" } else { \"no\" }", &manifest)
         .expect("compile");
     assert_eq!(
-        engine.run(&ast2, &host, ScriptCtx::default()).expect("eval array"),
+        engine.run(&ast2, host.clone(), ScriptCtx::default()).expect("eval array"),
         ScriptValue::String("ok".into())
     );
 }
@@ -330,20 +330,22 @@ fn host_ui_camel_case_primitive_name_is_pinned() {
 }
 
 #[test]
-fn host_audit_log_via_mock_records_event() {
-    // Auch wenn `audit.log` `server_only=true` ist: die Schicht delegiert an
-    // `HostApi::audit_log`, und gegen `MockHostApi` heisst das "wird im
-    // Log-Vektor festgehalten". Damit ist der Symmetry-Vertrag zur Server-
-    // Seite gewahrt — den Run-Time-Schutz uebernimmt die Sandbox (Capability
-    // `WriteAuditLog` fehlt im Reader-tier-Manifest).
+fn host_audit_log_on_client_is_server_only_function_error() {
+    // S8 (Q0009-Review): `audit.log` ist `server_only=true`. Der Client-Host
+    // lehnt einen Skript-Aufruf hart mit `ServerOnlyFunction` ab (analog
+    // `db.patch`), statt zu delegieren — Defence-in-depth. Interne Renderer-
+    // Run-Events laufen ueber `audit_queue::push`, nicht ueber diese Schicht.
     use client::script::host::audit::AuditHost;
-    let mock = shared::script::testing::MockHostApi::new();
-    let h = AuditHost::new(&mock);
-    h.log("custom.event", &serde_json::json!({"x": 1})).unwrap();
-    let log = mock.audit_log_calls();
-    assert_eq!(log.len(), 1);
-    assert_eq!(log[0].0, "custom.event");
-    assert_eq!(log[0].1, serde_json::json!({"x": 1}));
+    let h = AuditHost::new();
+    let err = h
+        .log("custom.event", &serde_json::json!({"x": 1}))
+        .unwrap_err();
+    match err {
+        shared::script::ScriptError::ServerOnlyFunction { name } => {
+            assert_eq!(name, "audit.log");
+        }
+        other => panic!("expected ServerOnlyFunction, got {other:?}"),
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -385,7 +387,7 @@ fn engine_max_operations_kicks_in_on_runaway_loop() {
             &manifest,
         )
         .expect("compile");
-    let host = shared::script::testing::MockHostApi::new();
-    let res = engine.run(&ast, &host, shared::script::engine::ScriptCtx::default());
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
+    let res = engine.run(&ast, host.clone(), shared::script::engine::ScriptCtx::default());
     assert!(res.is_err(), "Endlosschleife muss abbrechen");
 }

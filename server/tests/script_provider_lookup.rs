@@ -52,12 +52,12 @@ fn server_active_formatter_evaluates_to_same_value_as_client() {
     // gleicher source + gleicher Slot + gleiches Manifest → gleicher
     // Display-String.
     let s = formatter_script("discount-tier", "40 + 2", ScriptState::Active);
-    let host = MockHostApi::new();
+    let host = std::sync::Arc::new(MockHostApi::new());
     let res = lookup_provider_with_script(
         "script:discount-tier",
         ProviderSlot::Formatter,
         Some(&s),
-        &host,
+        host.clone(),
         ScriptCtx::default(),
     );
     match res {
@@ -70,12 +70,12 @@ fn server_active_formatter_evaluates_to_same_value_as_client() {
 
 #[test]
 fn server_missing_script_falls_back() {
-    let host = MockHostApi::new();
+    let host = std::sync::Arc::new(MockHostApi::new());
     let res = lookup_provider_with_script(
         "script:does-not-exist",
         ProviderSlot::Formatter,
         None,
-        &host,
+        host.clone(),
         ScriptCtx::default(),
     );
     match res {

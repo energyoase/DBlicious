@@ -68,7 +68,7 @@ pub fn lookup_provider(
     raw_id: &str,
     expected_slot: ProviderSlot,
     registry: &ScriptRegistry,
-    host: &dyn HostApi,
+    host: std::sync::Arc<dyn HostApi>,
     ctx: ScriptCtx,
 ) -> LookupResult {
     let Some(script_id) = parse_script_id(raw_id) else {
@@ -226,12 +226,12 @@ mod tests {
     #[test]
     fn not_a_script_id_signals_static_path() {
         let reg = ScriptRegistry::new();
-        let mock = MockHostApi::new();
+        let mock = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider(
             "text-plain",
             ProviderSlot::Formatter,
             &reg,
-            &mock,
+            mock.clone(),
             ScriptCtx::default(),
         );
         assert!(matches!(res, LookupResult::NotAScriptId));
@@ -240,12 +240,12 @@ mod tests {
     #[test]
     fn missing_script_falls_back() {
         let reg = ScriptRegistry::new();
-        let mock = MockHostApi::new();
+        let mock = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider(
             "script:does-not-exist",
             ProviderSlot::Formatter,
             &reg,
-            &mock,
+            mock.clone(),
             ScriptCtx::default(),
         );
         match res {
@@ -260,12 +260,12 @@ mod tests {
     fn draft_state_falls_back() {
         let reg = ScriptRegistry::new();
         reg.insert(formatter_script("fmt-1", "42", ScriptState::Draft));
-        let mock = MockHostApi::new();
+        let mock = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider(
             "script:fmt-1",
             ProviderSlot::Formatter,
             &reg,
-            &mock,
+            mock.clone(),
             ScriptCtx::default(),
         );
         match res {
@@ -280,12 +280,12 @@ mod tests {
     fn slot_mismatch_falls_back() {
         let reg = ScriptRegistry::new();
         reg.insert(formatter_script("fmt-1", "42", ScriptState::Active));
-        let mock = MockHostApi::new();
+        let mock = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider(
             "script:fmt-1",
             ProviderSlot::Validator, // mismatching slot
             &reg,
-            &mock,
+            mock.clone(),
             ScriptCtx::default(),
         );
         match res {
@@ -300,12 +300,12 @@ mod tests {
     fn active_formatter_runs_engine_and_returns_value() {
         let reg = ScriptRegistry::new();
         reg.insert(formatter_script("fmt-1", "40 + 2", ScriptState::Active));
-        let mock = MockHostApi::new();
+        let mock = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider(
             "script:fmt-1",
             ProviderSlot::Formatter,
             &reg,
-            &mock,
+            mock.clone(),
             ScriptCtx::default(),
         );
         match res {
@@ -324,12 +324,12 @@ mod tests {
             "this is not rhai !!! @@@",
             ScriptState::Active,
         ));
-        let mock = MockHostApi::new();
+        let mock = std::sync::Arc::new(MockHostApi::new());
         let res = lookup_provider(
             "script:fmt-broken",
             ProviderSlot::Formatter,
             &reg,
-            &mock,
+            mock.clone(),
             ScriptCtx::default(),
         );
         assert!(matches!(

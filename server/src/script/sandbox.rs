@@ -27,19 +27,26 @@ pub struct TokenUse {
     pub outcome: TokenOutcome,
 }
 
-pub struct Sandbox<'m> {
-    manifest: &'m ScriptManifest,
+/// Owned-Sandbox-Zustand. Haelt **keine** `&'m ScriptManifest`-Referenz mehr,
+/// damit die Sandbox in einen `Arc<Mutex<…>>` wandern kann (B3: die
+/// Engine-Native-Functions teilen sich den Sandbox-Zustand pro Run). Aus
+/// dem Manifest werden nur die zwei laufzeit-relevanten Werte kopiert:
+/// die erlaubten Capabilities und das Timeout.
+pub struct Sandbox {
+    capabilities: Vec<CapabilityToken>,
+    timeout_ms: Option<u32>,
     deadline: Option<Instant>,
     token_uses: Vec<TokenUse>,
 }
 
-impl<'m> Sandbox<'m> {
-    pub fn new(manifest: &'m ScriptManifest) -> Self {
+impl Sandbox {
+    pub fn new(manifest: &ScriptManifest) -> Self {
         let deadline = manifest
             .timeout_ms
             .map(|ms| Instant::now() + Duration::from_millis(ms as u64));
         Self {
-            manifest,
+            capabilities: manifest.capabilities.clone(),
+            timeout_ms: manifest.timeout_ms,
             deadline,
             token_uses: Vec::new(),
         }
@@ -51,7 +58,7 @@ impl<'m> Sandbox<'m> {
     where
         F: FnOnce() -> Result<T, ScriptError>,
     {
-        if !self.manifest.capabilities.contains(token) {
+        if !self.capabilities.contains(token) {
             self.token_uses.push(TokenUse {
                 token: token.clone(),
                 outcome: TokenOutcome::Denied,
@@ -63,7 +70,7 @@ impl<'m> Sandbox<'m> {
         if let Some(dl) = self.deadline {
             if Instant::now() > dl {
                 return Err(ScriptError::Timeout {
-                    limit_ms: self.manifest.timeout_ms.unwrap_or(0),
+                    limit_ms: self.timeout_ms.unwrap_or(0),
                 });
             }
         }
@@ -93,7 +100,7 @@ impl<'m> Sandbox<'m> {
         if let Some(dl) = self.deadline {
             if Instant::now() > dl {
                 return Err(ScriptError::Timeout {
-                    limit_ms: self.manifest.timeout_ms.unwrap_or(0),
+                    limit_ms: self.timeout_ms.unwrap_or(0),
                 });
             }
         }

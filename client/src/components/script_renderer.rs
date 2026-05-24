@@ -62,7 +62,7 @@ pub enum RenderDecision {
 pub fn render_decision(
     script_ref: &ScriptNodeRef,
     registry: &ScriptRegistry,
-    host: &dyn HostApi,
+    host: std::sync::Arc<dyn HostApi>,
     ctx: ScriptCtx,
 ) -> RenderDecision {
     let Some(script) = registry.get(&script_ref.script_id) else {
@@ -111,7 +111,7 @@ pub fn render_decision(
 /// Engine-Run hinter Sandbox-Deadline-Check.
 fn run_script(
     script: &Script,
-    host: &dyn HostApi,
+    host: std::sync::Arc<dyn HostApi>,
     ctx: ScriptCtx,
 ) -> Result<ScriptValue, ScriptError> {
     let engine = RhaiEngine::new();
@@ -192,8 +192,8 @@ pub fn ScriptRenderer(script_ref: ScriptNodeRef) -> impl IntoView {
             let registry = e.registry.clone();
             let host_clone = e.host.clone();
             let ctx = e.make_ctx();
-            // `host` muss als `&dyn HostApi` reichen — wir leihen aus dem Arc.
-            render_decision(&script_ref, &registry, host_clone.as_ref(), ctx)
+            // `run()` nimmt den Host als `Arc<dyn HostApi>` (B3) — direkt durchreichen.
+            render_decision(&script_ref, &registry, host_clone, ctx)
         })
     };
 
@@ -308,7 +308,10 @@ fn render_ui_subtree(node: &Value) -> AnyView {
 #[derive(Clone)]
 pub struct ScriptRenderEnv {
     pub registry: std::sync::Arc<ScriptRegistry>,
-    pub host: std::sync::Arc<dyn HostApi + Send + Sync>,
+    // `HostApi: Send + Sync` (Supertrait) — `dyn HostApi` ist damit bereits
+    // Send+Sync; kein explizites `+ Send + Sync` noetig (matcht die
+    // `render_decision`/`run`-Signatur `Arc<dyn HostApi>`).
+    pub host: std::sync::Arc<dyn HostApi>,
     pub locale: String,
     pub user_id: Option<String>,
     pub tenant_id: Option<String>,
@@ -373,8 +376,8 @@ mod tests {
     #[test]
     fn missing_script_returns_missing_decision() {
         let reg = ScriptRegistry::new();
-        let host = MockHostApi::new();
-        let dec = render_decision(&make_ref("nope"), &reg, &host, ScriptCtx::default());
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let dec = render_decision(&make_ref("nope"), &reg, host.clone(), ScriptCtx::default());
         match dec {
             RenderDecision::Missing { script_id } => assert_eq!(script_id, "nope"),
             other => panic!("expected Missing, got {other:?}"),
@@ -385,8 +388,8 @@ mod tests {
     fn draft_script_returns_placeholder() {
         let reg = ScriptRegistry::new();
         reg.insert(component_script("c1", r#""hi""#, ScriptState::Draft));
-        let host = MockHostApi::new();
-        let dec = render_decision(&make_ref("c1"), &reg, &host, ScriptCtx::default());
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let dec = render_decision(&make_ref("c1"), &reg, host.clone(), ScriptCtx::default());
         match dec {
             RenderDecision::Placeholder { state, .. } => assert_eq!(state, "draft"),
             other => panic!("expected Placeholder, got {other:?}"),
@@ -397,8 +400,8 @@ mod tests {
     fn locked_script_returns_placeholder() {
         let reg = ScriptRegistry::new();
         reg.insert(component_script("c1", r#""hi""#, ScriptState::Locked));
-        let host = MockHostApi::new();
-        let dec = render_decision(&make_ref("c1"), &reg, &host, ScriptCtx::default());
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let dec = render_decision(&make_ref("c1"), &reg, host.clone(), ScriptCtx::default());
         assert!(matches!(dec, RenderDecision::Placeholder { .. }));
     }
 
@@ -406,8 +409,8 @@ mod tests {
     fn active_component_returns_ok_with_value() {
         let reg = ScriptRegistry::new();
         reg.insert(component_script("c1", r#""hello""#, ScriptState::Active));
-        let host = MockHostApi::new();
-        let dec = render_decision(&make_ref("c1"), &reg, &host, ScriptCtx::default());
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let dec = render_decision(&make_ref("c1"), &reg, host.clone(), ScriptCtx::default());
         match dec {
             RenderDecision::Ok { node } => {
                 assert_eq!(node, serde_json::json!("hello"));
@@ -426,8 +429,8 @@ mod tests {
             slot: ProviderSlot::Formatter,
         };
         reg.insert(s);
-        let host = MockHostApi::new();
-        let dec = render_decision(&make_ref("p1"), &reg, &host, ScriptCtx::default());
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let dec = render_decision(&make_ref("p1"), &reg, host.clone(), ScriptCtx::default());
         match dec {
             RenderDecision::Error { error_key, .. } => {
                 assert_eq!(error_key, "script.error.notAComponent");
@@ -444,8 +447,8 @@ mod tests {
             "!!! this is not rhai @@@",
             ScriptState::Active,
         ));
-        let host = MockHostApi::new();
-        let dec = render_decision(&make_ref("broken"), &reg, &host, ScriptCtx::default());
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let dec = render_decision(&make_ref("broken"), &reg, host.clone(), ScriptCtx::default());
         match dec {
             RenderDecision::Error { error_key, .. } => {
                 assert_eq!(error_key, "script.error.parseFailed");

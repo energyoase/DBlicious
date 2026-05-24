@@ -14,6 +14,8 @@
 //! ziehen den Host-Call-Pfad zentral durch den Engine-Adapter und machen
 //! diese Closure ueberfluessig.
 
+use std::sync::Arc;
+
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use ulid::Ulid;
 
@@ -23,7 +25,7 @@ use shared::script::model::Script;
 
 use crate::entity::script_audit_log;
 use crate::script::engine::rhai::RhaiEngine;
-use crate::script::sandbox::{Sandbox, TokenOutcome, TokenUse};
+use crate::script::sandbox::{TokenOutcome, TokenUse};
 
 /// Outcome-Tag fuer die `script_audit_log.outcome`-Spalte. Wir mappen
 /// `ScriptError::*` auf den jeweiligen camelCase-Tag der Variante (vgl.
@@ -101,33 +103,27 @@ pub struct PreviewRecord {
     pub duration_ms: i64,
 }
 
-/// Wickelt einen Script-Run end-to-end. Die `body`-Closure bekommt die
-/// Engine, den AST und die Sandbox — die ist der "richtige" Ort, an dem
-/// das aufrufende Modul seine gate()-Aufrufe macht (Phase 3.4-Provisorium,
-/// vgl. Modul-Header).
+/// Wickelt einen Script-Run end-to-end: compile → run (Host-fns laufen
+/// durch die Sandbox-Gate, B3) → 1 Audit-Row. Der Host kommt als
+/// `Arc<dyn HostApi>`, weil die Engine ihn in `'static` Native-fns
+/// capturet.
 ///
 /// Outcome-Mapping: `Ok(_)` -> "ok", `Err(e)` -> `outcome_tag(Some(e))`.
-pub async fn run_and_persist<F>(
+pub async fn run_and_persist(
     db: &DatabaseConnection,
     script: &Script,
     ctx: ScriptCtx,
-    _host: &dyn HostApi,
-    body: F,
-) -> Result<RunRecord, sea_orm::DbErr>
-where
-    F: for<'s, 'm> FnOnce(
-        &RhaiEngine,
-        &<RhaiEngine as ScriptEngine>::Ast,
-        &mut Sandbox<'m>,
-        &ScriptCtx,
-    ) -> Result<ScriptValue, ScriptError>,
-{
-    let engine = RhaiEngine::new();
+    host: Arc<dyn HostApi>,
+) -> Result<RunRecord, sea_orm::DbErr> {
+    let engine = RhaiEngine::with_manifest(&script.manifest);
     let started_at = chrono::Utc::now().to_rfc3339();
     let run_id = Ulid::new().to_string();
 
     // ---- Compile ----
     let ast_result = engine.compile(&script.source, &script.manifest);
+
+    // `ctx` wird beim Run konsumiert — user_id vorher fuer die Audit-Row sichern.
+    let user_id = ctx.user_id.clone();
 
     // Bei Compile-Fehler erzeugen wir trotzdem einen Audit-Eintrag,
     // damit jeder Run-Versuch nachvollziehbar bleibt.
@@ -139,14 +135,14 @@ where
             Vec::new(),
         ),
         Ok(ast) => {
-            let mut sb = Sandbox::new(&script.manifest);
-            match body(&engine, &ast, &mut sb, &ctx) {
-                Ok(v) => ("ok".to_string(), Some(v), None, sb.token_uses().to_vec()),
+            let (run_res, token_uses) = engine.run_collecting(&ast, Arc::clone(&host), ctx);
+            match run_res {
+                Ok(v) => ("ok".to_string(), Some(v), None, token_uses),
                 Err(e) => (
                     outcome_tag(&Some(e.clone())).to_string(),
                     None,
                     Some(e),
-                    sb.token_uses().to_vec(),
+                    token_uses,
                 ),
             }
         }
@@ -161,7 +157,7 @@ where
         script_id: Set(script.id.0.clone()),
         script_version: Set(script.version as i32),
         run_id: Set(run_id.clone()),
-        user_id: Set(ctx.user_id.clone()),
+        user_id: Set(user_id),
         started_at: Set(started_at),
         finished_at: Set(finished_at),
         outcome: Set(outcome_str.clone()),
@@ -186,21 +182,8 @@ where
 /// bekommt das volle Outcome inklusive Tokens-Used als JSON zurueck — fuer
 /// die UI-Anzeige reicht das, fuer eine richtige Run-Spur nimmt der Aufrufer
 /// `run_and_persist`.
-pub fn run_preview<F>(
-    script: &Script,
-    ctx: ScriptCtx,
-    _host: &dyn HostApi,
-    body: F,
-) -> PreviewRecord
-where
-    F: for<'s, 'm> FnOnce(
-        &RhaiEngine,
-        &<RhaiEngine as ScriptEngine>::Ast,
-        &mut Sandbox<'m>,
-        &ScriptCtx,
-    ) -> Result<ScriptValue, ScriptError>,
-{
-    let engine = RhaiEngine::new();
+pub fn run_preview(script: &Script, ctx: ScriptCtx, host: Arc<dyn HostApi>) -> PreviewRecord {
+    let engine = RhaiEngine::with_manifest(&script.manifest);
     let started_at = chrono::Utc::now();
     let run_id = Ulid::new().to_string();
 
@@ -214,14 +197,14 @@ where
             Vec::new(),
         ),
         Ok(ast) => {
-            let mut sb = Sandbox::new(&script.manifest);
-            match body(&engine, &ast, &mut sb, &ctx) {
-                Ok(v) => ("ok".to_string(), Some(v), None, sb.token_uses().to_vec()),
+            let (run_res, token_uses) = engine.run_collecting(&ast, Arc::clone(&host), ctx);
+            match run_res {
+                Ok(v) => ("ok".to_string(), Some(v), None, token_uses),
                 Err(e) => (
                     outcome_tag(&Some(e.clone())).to_string(),
                     None,
                     Some(e),
-                    sb.token_uses().to_vec(),
+                    token_uses,
                 ),
             }
         }

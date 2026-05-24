@@ -63,12 +63,12 @@ fn provider_lookup_returns_value_for_active_formatter() {
         "40 + 2",
         ScriptState::Active,
     ));
-    let host = MockHostApi::new();
+    let host = std::sync::Arc::new(MockHostApi::new());
     let res = lookup_provider(
         "script:discount-tier",
         ProviderSlot::Formatter,
         &reg,
-        &host,
+        host.clone(),
         ScriptCtx::default(),
     );
     match res {
@@ -89,12 +89,12 @@ fn provider_lookup_returns_value_for_active_formatter() {
 fn provider_lookup_falls_back_when_state_locked() {
     let reg = ScriptRegistry::new();
     reg.insert(formatter_script("loc", "42", ScriptState::Locked));
-    let host = MockHostApi::new();
+    let host = std::sync::Arc::new(MockHostApi::new());
     let res = lookup_provider(
         "script:loc",
         ProviderSlot::Formatter,
         &reg,
-        &host,
+        host.clone(),
         ScriptCtx::default(),
     );
     assert!(matches!(
@@ -108,12 +108,12 @@ fn provider_lookup_falls_back_when_state_locked() {
 #[test]
 fn provider_lookup_static_id_signals_not_a_script() {
     let reg = ScriptRegistry::new();
-    let host = MockHostApi::new();
+    let host = std::sync::Arc::new(MockHostApi::new());
     let res = lookup_provider(
         "text-plain",
         ProviderSlot::Formatter,
         &reg,
-        &host,
+        host.clone(),
         ScriptCtx::default(),
     );
     assert!(matches!(res, LookupResult::NotAScriptId));
@@ -125,12 +125,12 @@ fn provider_lookup_logs_fallback_into_audit_queue() {
     let _ = drain();
 
     let reg = ScriptRegistry::new();
-    let host = MockHostApi::new();
+    let host = std::sync::Arc::new(MockHostApi::new());
     let _ = lookup_provider(
         "script:does-not-exist-12345",
         ProviderSlot::Formatter,
         &reg,
-        &host,
+        host.clone(),
         ScriptCtx::default(),
     );
 

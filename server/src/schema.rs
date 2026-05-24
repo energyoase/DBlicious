@@ -1489,8 +1489,11 @@ impl shared::script::engine::HostApi for PreviewHostApi {
         _id: &str,
         _patch: &serde_json::Value,
     ) -> Result<(), shared::script::ScriptError> {
-        Err(shared::script::ScriptError::CapabilityDenied {
-            token: shared::script::CapabilityToken::WriteEntity { validated: true },
+        // S6: `db.patch` ist server-only (kein Schreibpfad im Preview/Client).
+        // Konsistent mit dem Client-Host (`ServerOnlyFunction`), nicht
+        // `CapabilityDenied` — der Aufruf ist nie erlaubt, unabhaengig vom Tier.
+        Err(shared::script::ScriptError::ServerOnlyFunction {
+            name: "db.patch".into(),
         })
     }
     fn i18n_t(
@@ -2664,18 +2667,15 @@ impl MutationRoot {
         // `db.entities(...)` liefert leere Arrays, `db.patch(...)` ist
         // hartes Deny, `audit.log()` ist ein No-op. Spaetere Phase kann
         // hier den echten Server-Host einhaengen.
-        use shared::script::engine::ScriptEngine;
-        let host = PreviewHostApi;
+        let host: std::sync::Arc<dyn shared::script::engine::HostApi> =
+            std::sync::Arc::new(PreviewHostApi);
         let ctx_script = shared::script::engine::ScriptCtx {
             user_id: Some(auth.id.clone()),
             tenant_id: None,
             locale: auth.locale.clone().unwrap_or_else(|| "en".into()),
         };
 
-        let rec =
-            crate::script::run::run_preview(&script, ctx_script, &host, |engine, ast, _sb, ctx| {
-                engine.run(ast, &host, ctx.clone())
-            });
+        let rec = crate::script::run::run_preview(&script, ctx_script, host);
 
         let error_json = rec
             .error

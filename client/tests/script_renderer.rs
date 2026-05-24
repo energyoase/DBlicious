@@ -47,8 +47,8 @@ fn make_ref(id: &str) -> ScriptNodeRef {
 fn render_active_component_returns_ok_with_string_payload() {
     let reg = ScriptRegistry::new();
     reg.insert(component_script("c1", r#""hi""#, ScriptState::Active));
-    let host = MockHostApi::new();
-    let dec = render_decision(&make_ref("c1"), &reg, &host, ScriptCtx::default());
+    let host = std::sync::Arc::new(MockHostApi::new());
+    let dec = render_decision(&make_ref("c1"), &reg, host.clone(), ScriptCtx::default());
     match dec {
         RenderDecision::Ok { node } => {
             assert_eq!(node, serde_json::json!("hi"));
@@ -61,8 +61,8 @@ fn render_active_component_returns_ok_with_string_payload() {
 fn render_draft_returns_placeholder() {
     let reg = ScriptRegistry::new();
     reg.insert(component_script("c1", r#""hi""#, ScriptState::Draft));
-    let host = MockHostApi::new();
-    let dec = render_decision(&make_ref("c1"), &reg, &host, ScriptCtx::default());
+    let host = std::sync::Arc::new(MockHostApi::new());
+    let dec = render_decision(&make_ref("c1"), &reg, host.clone(), ScriptCtx::default());
     match dec {
         RenderDecision::Placeholder { state, .. } => assert_eq!(state, "draft"),
         other => panic!("expected Placeholder, got {other:?}"),
@@ -72,8 +72,8 @@ fn render_draft_returns_placeholder() {
 #[test]
 fn render_unknown_script_returns_missing() {
     let reg = ScriptRegistry::new();
-    let host = MockHostApi::new();
-    let dec = render_decision(&make_ref("absent"), &reg, &host, ScriptCtx::default());
+    let host = std::sync::Arc::new(MockHostApi::new());
+    let dec = render_decision(&make_ref("absent"), &reg, host.clone(), ScriptCtx::default());
     match dec {
         RenderDecision::Missing { script_id } => assert_eq!(script_id, "absent"),
         other => panic!("expected Missing, got {other:?}"),
@@ -90,8 +90,8 @@ fn render_runtime_error_returns_error_with_i18n_key() {
         "let i = 0; while i < 1_000_000_000 { i = i + 1; } i",
         ScriptState::Active,
     ));
-    let host = MockHostApi::new();
-    let dec = render_decision(&make_ref("loop"), &reg, &host, ScriptCtx::default());
+    let host = std::sync::Arc::new(MockHostApi::new());
+    let dec = render_decision(&make_ref("loop"), &reg, host.clone(), ScriptCtx::default());
     match dec {
         RenderDecision::Error { error_key, .. } => {
             assert_eq!(error_key, "script.error.timeout");
@@ -110,8 +110,8 @@ fn render_provider_kind_is_an_error() {
         slot: ProviderSlot::Formatter,
     };
     reg.insert(s);
-    let host = MockHostApi::new();
-    let dec = render_decision(&make_ref("p"), &reg, &host, ScriptCtx::default());
+    let host = std::sync::Arc::new(MockHostApi::new());
+    let dec = render_decision(&make_ref("p"), &reg, host.clone(), ScriptCtx::default());
     match dec {
         RenderDecision::Error { error_key, .. } => {
             assert_eq!(error_key, "script.error.notAComponent");

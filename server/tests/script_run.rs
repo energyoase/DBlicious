@@ -1,4 +1,11 @@
 //! Q0009 Phase 3.4 — Run-Pipeline + Audit-Buffer-Flush.
+//!
+//! Nach dem B3-Umbau (Q0009-Review) fuehrt `run_and_persist` echte
+//! Skript-Host-Calls durch die Sandbox-Gate — die Tests treiben das
+//! daher mit echten Skripten (`db.entities(...)`) statt einer
+//! simulierenden Body-Closure.
+
+use std::sync::Arc;
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use serial_test::serial;
@@ -24,11 +31,19 @@ fn manifest_with(caps: Vec<CapabilityToken>, tier: ScriptTier) -> ScriptManifest
 }
 
 async fn persist_simple_script(id: &str, source: &str) -> shared::script::Script {
+    persist_script_with_caps(id, source, vec![CapabilityToken::ReadOwnEntities]).await
+}
+
+async fn persist_script_with_caps(
+    id: &str,
+    source: &str,
+    caps: Vec<CapabilityToken>,
+) -> shared::script::Script {
     let db = server::db::conn();
     let input = SaveInput {
         id: id.into(),
         source: source.into(),
-        manifest: manifest_with(vec![CapabilityToken::ReadOwnEntities], ScriptTier::Author),
+        manifest: manifest_with(caps, ScriptTier::Author),
         kind: ScriptKind::Component { entry: "x".into() },
         user: ScriptTier::Author,
         user_id: "u-system".into(),
@@ -42,27 +57,19 @@ async fn persist_simple_script(id: &str, source: &str) -> shared::script::Script
 async fn run_and_persist_records_ok_outcome_with_token_uses() {
     let _ = server::fresh_test_setup().await;
     let db = server::db::conn();
-    let script = persist_simple_script("r-1", "1 + 2").await;
+    // Echtes Skript: zwei db.entities-Calls (ReadOwnEntities-Gate) + 42.
+    let script = persist_simple_script("r-1", r#"db.entities("a"); db.entities("b"); 42"#).await;
 
-    let mock = shared::script::testing::MockHostApi::new();
+    let mock = Arc::new(shared::script::testing::MockHostApi::new());
     let ctx = ScriptCtx {
         user_id: Some("u-system".into()),
         tenant_id: None,
         locale: "de".into(),
     };
 
-    let rec = run_and_persist(&db, &script, ctx, &mock, |_engine, _ast, sb, _ctx| {
-        // Simuliere zwei Host-Calls via Sandbox-Gate.
-        sb.gate(&CapabilityToken::ReadOwnEntities, || {
-            Ok::<_, ScriptError>(())
-        })?;
-        sb.gate(&CapabilityToken::ReadOwnEntities, || {
-            Ok::<_, ScriptError>(())
-        })?;
-        Ok(ScriptValue::Number(42.0))
-    })
-    .await
-    .expect("run");
+    let rec = run_and_persist(&db, &script, ctx, mock)
+        .await
+        .expect("run");
 
     assert_eq!(rec.outcome, "ok");
     assert!(matches!(rec.value, Some(ScriptValue::Number(_))));
@@ -91,20 +98,22 @@ async fn run_and_persist_records_ok_outcome_with_token_uses() {
 async fn run_and_persist_records_capability_denied_outcome() {
     let _ = server::fresh_test_setup().await;
     let db = server::db::conn();
-    let script = persist_simple_script("r-deny", "1 + 2").await;
+    // Manifest hat NUR ComputeOnly — `db.entities(...)` braucht aber
+    // ReadOwnEntities. Die Gate feuert im echten eval-Pfad (B3) und der
+    // Fehler ist unmaskable (B1), also bricht der Run mit CapabilityDenied.
+    let script = persist_script_with_caps(
+        "r-deny",
+        r#"db.entities("x")"#,
+        vec![CapabilityToken::ComputeOnly],
+    )
+    .await;
 
-    let mock = shared::script::testing::MockHostApi::new();
+    let mock = Arc::new(shared::script::testing::MockHostApi::new());
     let ctx = ScriptCtx::default();
 
-    let rec = run_and_persist(&db, &script, ctx, &mock, |_engine, _ast, sb, _ctx| {
-        // Manifest hat NUR ReadOwnEntities. WriteEntity wird denied.
-        sb.gate(&CapabilityToken::WriteEntity { validated: true }, || {
-            Ok::<_, ScriptError>(())
-        })
-        .map(|_| ScriptValue::Unit)
-    })
-    .await
-    .expect("run");
+    let rec = run_and_persist(&db, &script, ctx, mock)
+        .await
+        .expect("run");
 
     assert_eq!(rec.outcome, "capabilityDenied");
     assert!(matches!(
@@ -126,6 +135,41 @@ async fn run_and_persist_records_capability_denied_outcome() {
     assert_eq!(
         tokens[0]["outcome"],
         serde_json::Value::String("denied".into())
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn capability_denied_cannot_be_caught_by_try_catch() {
+    // B1 (Q0009-Review) end-to-end: ein unmaskable CapabilityDenied darf
+    // nicht per `try`/`catch` im Skript abgefangen werden. Das Skript
+    // versucht genau das — der Run MUSS trotzdem mit capabilityDenied enden
+    // (nicht mit dem catch-Wert 42).
+    let _ = server::fresh_test_setup().await;
+    let db = server::db::conn();
+    let script = persist_script_with_caps(
+        "r-catch",
+        r#"let x = 0; try { db.entities("x"); x = 1 } catch(e) { x = 42 } x"#,
+        vec![CapabilityToken::ComputeOnly], // KEIN ReadOwnEntities
+    )
+    .await;
+
+    let mock = Arc::new(shared::script::testing::MockHostApi::new());
+    let rec = run_and_persist(&db, &script, ScriptCtx::default(), mock)
+        .await
+        .expect("run");
+
+    assert_eq!(
+        rec.outcome, "capabilityDenied",
+        "try/catch darf den unmaskable CapabilityDenied NICHT schlucken"
+    );
+    assert!(matches!(
+        rec.error,
+        Some(ScriptError::CapabilityDenied { .. })
+    ));
+    assert!(
+        !matches!(rec.value, Some(ScriptValue::Number(n)) if n == 42.0),
+        "der catch-Zweig (x=42) darf NICHT erreicht worden sein"
     );
 }
 
@@ -172,16 +216,10 @@ async fn run_and_persist_handles_compile_failure_without_panic() {
     .await
     .expect("seed bad script");
 
-    let mock = shared::script::testing::MockHostApi::new();
-    let rec = run_and_persist(
-        &db,
-        &script,
-        ScriptCtx::default(),
-        &mock,
-        |_engine, _ast, _sb, _ctx| Ok(ScriptValue::Unit), // wird nicht erreicht
-    )
-    .await
-    .expect("run");
+    let mock = Arc::new(shared::script::testing::MockHostApi::new());
+    let rec = run_and_persist(&db, &script, ScriptCtx::default(), mock)
+        .await
+        .expect("run");
 
     assert_eq!(rec.outcome, "parseFailed");
     assert!(matches!(rec.error, Some(ScriptError::ParseFailed { .. })));

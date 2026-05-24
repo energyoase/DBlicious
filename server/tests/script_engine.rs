@@ -42,9 +42,9 @@ fn rhai_engine_actually_evaluates_arithmetic() {
         ..Default::default()
     };
     let ast = engine.compile("40 + 2", &manifest).expect("compile");
-    let host = shared::script::testing::MockHostApi::new();
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
     let val = engine
-        .run(&ast, &host, ScriptCtx::default())
+        .run(&ast, host.clone(), ScriptCtx::default())
         .expect("eval 40+2 muss durchlaufen");
     assert_eq!(val, ScriptValue::Number(42.0));
 }
@@ -64,9 +64,9 @@ fn rhai_engine_evaluates_string_and_array_ops() {
     let ast = engine
         .compile("let xs = [1, 2, 3]; if xs.len() == 3 { \"ok\" } else { \"no\" }", &manifest)
         .expect("compile");
-    let host = shared::script::testing::MockHostApi::new();
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
     let val = engine
-        .run(&ast, &host, ScriptCtx::default())
+        .run(&ast, host.clone(), ScriptCtx::default())
         .expect("eval array/string muss durchlaufen");
     assert_eq!(val, ScriptValue::String("ok".into()));
 }
@@ -424,8 +424,8 @@ fn engine_max_operations_kicks_in_on_runaway_loop() {
             &manifest,
         )
         .expect("compile");
-    let host = shared::script::testing::MockHostApi::new();
-    let res = engine.run(&ast, &host, shared::script::engine::ScriptCtx::default());
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
+    let res = engine.run(&ast, host.clone(), shared::script::engine::ScriptCtx::default());
     // Wir akzeptieren JEDE Error-Variante (Operations, Timeout) — wichtig
     // ist nur, dass die Schleife nicht erfolgreich durchlaeuft.
     assert!(res.is_err(), "Endlosschleife muss abbrechen");

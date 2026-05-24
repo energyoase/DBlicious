@@ -1,39 +1,39 @@
 //! `audit`-Host-Modul (Spec §7.6) — Client-Pendant.
 //!
 //! `audit.log(event, payload)` ist in `ClientHostApiRegistry` als
-//! `server_only=true` markiert. Anders als beim `db.patch`-Pfad ist hier ein
-//! Aufruf vom Skript jedoch **kein Fehler**: das Skript kann nicht aktiv
-//! `audit.log` rufen (das Sandbox-Capability-Gate blockt `WriteAuditLog` auf
-//! Reader-Tier-Skripten ohnehin), aber der Renderer kann sich vorbehalten,
-//! interne Run-Events lokal zu puffern und beim naechsten Heartbeat
-//! hochzuschieben.
+//! `server_only=true` markiert. Analog zu `db.patch` (Spec §5.3) lehnt der
+//! Client-Host einen Skript-Aufruf daher **hart** mit `ServerOnlyFunction`
+//! ab (S8, Q0009-Review) — Defence-in-depth, selbst wenn ein Author-tier-
+//! Manifest `WriteAuditLog` halten sollte.
 //!
-//! Diese Schicht ist daher dual:
-//!   - Ueber `HostApi::audit_log` wird die Server-Implementierung gerufen.
-//!     Im Client-Test gegen `MockHostApi` funktioniert das wie auf dem
-//!     Server.
-//!   - Im echten Client-Run wird `crate::script::audit_queue::push` benutzt,
-//!     und der Heartbeat in Phase 6 entlaedt die Queue.
+//! Davon getrennt: der Renderer puffert **interne** Run-Events lokal ueber
+//! [`crate::script::audit_queue::push`] und schiebt sie beim Heartbeat
+//! hoch. Das laeuft NICHT ueber diese Schicht — `AuditHost::log` ist
+//! ausschliesslich der (verbotene) Skript-Einstiegspunkt.
 
 use serde_json::Value;
 
-use shared::script::engine::HostApi;
 use shared::script::error::ScriptError;
 
-pub struct AuditHost<'a> {
-    host: &'a dyn HostApi,
-}
+pub struct AuditHost;
 
-impl<'a> AuditHost<'a> {
-    pub fn new(host: &'a dyn HostApi) -> Self {
-        Self { host }
+impl AuditHost {
+    pub fn new() -> Self {
+        Self
     }
 
-    /// Default-Pfad: delegiert an die `HostApi`-Impl. Der Renderer-Host
-    /// (Phase 5) wird intern in seine `audit_log`-Impl an die
-    /// `audit_queue::push`-Funktion delegieren — die Buffer-Logik bleibt
-    /// damit ausserhalb dieser Schicht.
-    pub fn log(&self, event: &str, payload: &Value) -> Result<(), ScriptError> {
-        self.host.audit_log(event, payload)
+    /// Server-only: ein Client-Skript darf `audit.log` nicht aufrufen.
+    /// Gibt `ServerOnlyFunction` zurueck (konsistent mit `db.patch`), bevor
+    /// irgendein Effekt entsteht.
+    pub fn log(&self, _event: &str, _payload: &Value) -> Result<(), ScriptError> {
+        Err(ScriptError::ServerOnlyFunction {
+            name: "audit.log".into(),
+        })
+    }
+}
+
+impl Default for AuditHost {
+    fn default() -> Self {
+        Self::new()
     }
 }
