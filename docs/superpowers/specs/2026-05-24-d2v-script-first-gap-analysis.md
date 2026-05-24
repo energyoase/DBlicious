@@ -112,6 +112,40 @@ Legende Script-Slot: F=Formatter, Fi=Filter, C=Computed, V=Validator, R=RowActio
 
 ---
 
+## 4b. Schichten-Klassifikation: wohin gehört jede Eigenheit
+
+Zentrales Ergebnis der Brainstorm-Diskussion. Über die Write-Grenze (Abschnitt 3) und die read-time/persistiert-Achse (Abschnitt 6) hinaus gibt es eine **dritte Achse**: *wie generell* ist die Eigenheit. Vier Schichten, mit klarer Heuristik:
+
+| Schicht | Kriterium | Wo |
+|---|---|---|
+| **1. DBlicious-Framework** | universeller, **konfigurierbarer Mechanismus** (jedes ERP braucht ihn) | `shared`/`server`/`client` — Primitive, Control, Resource |
+| **2. Bookkeeping-Stdlib** | **fester Algorithmus / gesetzliche Struktur**, generisch aber nicht primitiv-würdig; **länder-parametrisiert + zeit-versioniert** | geteilte Script-/Daten-Bibliothek, geladen mit Länder-Einstellung (z.B. „Deutschland") |
+| **3. Installations-Config** | Domänen-**Politik dieser Installation** (welche Sätze/Konten/Mappings) | `examples/d2v/` als Config-Daten |
+| **4. D2V-lokales Script/Template** | nur **diese Installation**, kein anderer Use-Case teilt es | `examples/d2v/scripts/` bzw. Template |
+
+**Heuristik:** *konfigurierbarer Mechanismus* → Schicht 1; *fester Algorithmus / gesetzliche Struktur* → Schicht 2; *installations-spezifische Werte* → Schicht 3; *einmaliges Look-and-Feel/Sonderfall* → Schicht 4.
+
+### Das neue Konzept: Bookkeeping-Stdlib (Schicht 2)
+
+Bisher lädt der Loader nur `examples/<set>/scripts/`. **Neu vorgeschlagen:** eine **länder-parametrisierte, zeit-versionierte** Buchhaltungs-Standard-Bibliothek, die man mit einer Einstellung lädt („lade Buchhaltungs-Standard mit Land = DE"; andere Länder später als eigene Module).
+
+- **Länder-parametrisiert**: IBAN-Prüfung (Länge/Format je Land), SKR-Klassifikation, Split-Regeln, HGB-Gliederung sind pro Land abgelegt — gleiche Struktur, anderer Inhalt je Land.
+- **Zeit-versioniert**: Regeln tragen ein **gültig-ab-Datum** (z.B. MwSt-Satz ändert sich ab Datum X). Eine historische Buchung reproduziert den damals gültigen Satz. **Strukturell analog zum bereits gebauten FX-Rate-Store (1.7.2, historische Kurse)** — möglicher gemeinsamer Mechanismus „zeit-versionierte Parameter-Tabelle".
+
+### Zuordnung der durchgedachten Elemente
+
+| Element | Schicht(en) | Begründung |
+|---|---|---|
+| **ValueType (SOLL/HABEN)** | **1** Framework-Primitive (`directional enum`) | Vorzeichen-Semantik gehört in die Aggregation, nicht in jedes Summen-Script. D2V konfiguriert Werte + Labels. |
+| **DATEV-Konto-Klassifikation** | **1** Range-Lookup-Primitive + **3** SKR-Ranges als DE-Config | „Kategorie aus Wert-Range" ist generischer Mechanismus; die konkreten SKR-Ranges sind Deutschland-Config. |
+| **Calculation-Baum-Formeln** | **1** Tree + Aggregation + `value-expression` (auf `GuardExpr`-Basis) + **3** Config | Summen-Posten = Config-Daten; komplexe Posten (Differenzen/Faktoren) = optionale Formel-Expression. |
+| **GenerateAccountEntries** | **1** Mechanismus (derive-on-save → U2 Preview → F1 persist) + **2** Split-Algorithmus (DE, zeit-versioniert) + **3** Sätze/Konten-Config | Mechanismus universell; USt/Skonto/Bewirtungs-Split-Algorithmus in der DE-Stdlib (MwSt zeit-versioniert); konkrete Konten-Mappings als D2V-Config. |
+| **IBAN-Prüfung** | **2** Bookkeeping-Stdlib (pro Land) | Modulo-97 ist fester Algorithmus, pro Land parametrisiert (Länge/BBAN-Format). Kein FieldType-Primitive nötig. |
+| **HGB-Gliederung (Jahresabschluss)** | **2** Stdlib (DE) | Gesetzliche Struktur (Bilanz §266, GuV §275) — deutsch-standardisiert, länder-versioniert. |
+| **Jahresabschluss-Look-and-Feel / Voucher-Format** | **4** D2V-lokales Template | Konkretes Layout „1:1 übernehmen", Voucher-Excel ohne Standard — nur diese Installation. |
+
+**Konsequenz:** Die D2V-spezifische Schicht (3+4) schrumpft auf *Installations-Config + ein paar Templates*. Der Großteil der „D2V-Eigenheiten" wird entweder Framework-Primitive (Schicht 1, allen Nutzern verfügbar) oder länder-generische Stdlib (Schicht 2, jeder deutschen Buchhaltung verfügbar). Das ist die saubere Trennung, die der Vision (Meta-Framework, kein Demo-Content im Crate) entspricht.
+
 ## 5. Lücken-Cluster (konsolidiert)
 
 ### 5.1 Fehlende Controls (Client-Komponenten)
@@ -196,6 +230,9 @@ Sortiert nach Hebelwirkung für „möglichst viel D2V script-first". (Der examp
 3. **read-time vs. persistiert** wird pro abgeleitetem Wert entschieden (Abschnitt 6): Vorschau/kleine Mengen read-time, DATEV-abgleichbare/große Mengen persistiert.
 4. Der **Loader lädt Provider-Scripts aus dem data-dir bereits** (verifiziert) — der script-first-Pfad steht. Höchster Hebel danach: **U1 FK-Picker** + **Aggregation (1.7.12)**.
 5. Die alte Gap-Analyse (`2026-05-20-…`) bleibt als Track-D/Pattern-Inventar gültig; diese hier ist die script-first-Brille darauf.
+6. **Vier-Schichten-Klassifikation** (Abschnitt 4b) als Leitprinzip für „was wird generalisiert, was bleibt D2V": Framework-Primitive (konfigurierbarer Mechanismus) → Bookkeeping-Stdlib (fester Algorithmus/gesetzliche Struktur, **länder-parametrisiert + zeit-versioniert**) → Installations-Config → D2V-lokales Template. Durchgearbeitet pro Element (ValueType, Konto-Klassifikation, Calc-Formeln, GenerateAccountEntries, IBAN, HGB-Gliederung, Layouts).
+7. **Neues Konzept Bookkeeping-Stdlib** (Schicht 2): geteilte, mit Länder-Einstellung geladene Standard-Bibliothek; Regeln mit gültig-ab-Datum (MwSt-Änderung reproduzierbar), strukturell analog zum FX-Rate-Store (1.7.2). Heute lädt der Loader nur `examples/<set>/scripts/` — der geteilte/länder-parametrisierte Lade-Pfad ist eine **neue Folge-Spec** (eigenes Brainstorm, falls gebaut wird).
+8. **Konsequenz:** Die rein-D2V-Schicht schrumpft auf Installations-Config + wenige Templates. „D2V abbilden" heißt zum größten Teil: Framework-Primitives + DE-Stdlib bauen, die jeder Nutzer / jede deutsche Buchhaltung mitbenutzt.
 
 ## 9. Referenzen
 
