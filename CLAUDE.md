@@ -12,12 +12,13 @@ Rust workspace (`shared`, `server`, `client`, `cli`) implementing a Leptos CSR/W
 
 ## Commands
 
-Prereqs (one-time): `rustup target add wasm32-unknown-unknown` and `cargo install trunk`. The `wasm32-unknown-unknown` target is also pinned in `rust-toolchain.toml`.
+Prereqs (one-time): `rustup target add wasm32-unknown-unknown` and `cargo install trunk`. The `wasm32-unknown-unknown` target is also pinned in `rust-toolchain.toml`. **Git-Hooks aktivieren** (einmalig pro Clone): `git config core.hooksPath .githooks` — `core.hooksPath` ist lokale Config, reist nicht im Repo mit; ohne diesen Schritt feuern pre-commit/pre-push still **nicht**.
 
 - Run server (port from `config.toml` / `--bind`, GraphiQL at `/`, GraphQL at `POST /graphql`): `cargo run -p server -- --data-dir ./examples/shop`
 - Run client (port 8080, proxies `/graphql` → `127.0.0.1:8000`): `cd client && trunk serve`
 - Both must be running for the app to load data. The client expects the server's GraphQL endpoint at the same origin via the Trunk proxy (`client/Trunk.toml`).
 - Build / lint / format: `cargo build`, `cargo clippy`, `cargo fmt`.
+- Git-Hooks (`.githooks/`, via `core.hooksPath`): **pre-commit** = `rustfmt --check` der staged `.rs` (instant, kein Build, keine `target/`-Locks); **pre-push** = `cargo clippy --workspace --all-targets -- -D warnings`. Halten die fmt/clippy-Baseline gruen (Hintergrund: `docs/queue/done/Q0010`). Notfall-Umgehung: `git commit`/`git push --no-verify`.
 - Tests: `cargo test --workspace` (oder gezielt `cargo test -p shared`, `cargo test -p server`). Wenn ein lokaler Dev-Server laufen koennte (`server.exe`-Datei-Lock unter Windows), nutze `cargo test --target-dir target-test ...` — `target-test/` ist in `.gitignore`.
 - The release profile in the workspace `Cargo.toml` (`opt-level = "z"`, `lto`, `codegen-units = 1`, `strip`) is tuned for WASM size — don't loosen it without reason.
 
