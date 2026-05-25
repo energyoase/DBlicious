@@ -165,7 +165,7 @@ impl RhaiEngine {
     pub fn run_collecting(
         &self,
         ast: &RhaiAst,
-        _inputs: ScriptInputs,
+        inputs: ScriptInputs,
         host: Arc<dyn HostApi>,
         _ctx: ScriptCtx,
     ) -> (Result<ScriptValue, ScriptError>, Vec<TokenUse>) {
@@ -182,6 +182,11 @@ impl RhaiEngine {
         let mut scope = Scope::new();
         scope.push("db", HostBridge);
         scope.push("ctx", HostBridge);
+        scope.push_constant("value", json_to_dynamic(&inputs.value));
+        scope.push_constant(
+            "fields",
+            json_to_dynamic(&serde_json::Value::Object(inputs.fields.clone())),
+        );
 
         let res: Result<Dynamic, Box<EvalAltResult>> =
             engine.eval_ast_with_scope(&mut scope, &ast.0);
@@ -348,6 +353,35 @@ pub fn analyze_lift_capability(ast: &RhaiAst) -> bool {
     lift_capable.get()
 }
 
+/// serde_json::Value -> rhai::Dynamic. Manuell, weil das rhai-`serde`-
+/// Feature bewusst NICHT aktiviert ist (nur std/sync/internals). Zahlen:
+/// ganzzahlig -> INT, sonst FLOAT. Arrays/Objects rekursiv.
+fn json_to_dynamic(v: &serde_json::Value) -> Dynamic {
+    match v {
+        serde_json::Value::Null => Dynamic::UNIT,
+        serde_json::Value::Bool(b) => Dynamic::from(*b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Dynamic::from(i)
+            } else {
+                Dynamic::from(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        serde_json::Value::String(s) => Dynamic::from(s.clone()),
+        serde_json::Value::Array(a) => {
+            let arr: rhai::Array = a.iter().map(json_to_dynamic).collect();
+            Dynamic::from(arr)
+        }
+        serde_json::Value::Object(o) => {
+            let mut map = rhai::Map::new();
+            for (k, val) in o {
+                map.insert(k.as_str().into(), json_to_dynamic(val));
+            }
+            Dynamic::from(map)
+        }
+    }
+}
+
 fn rhai_to_script_value(v: rhai::Dynamic) -> ScriptValue {
     if v.is::<bool>() {
         return ScriptValue::Bool(v.as_bool().unwrap_or(false));
@@ -396,6 +430,43 @@ fn map_rhai_err(e: EvalAltResult, timeout_ms: u32, memory_kb: u32) -> ScriptErro
         other => ScriptError::HostError {
             source: format!("{other}"),
         },
+    }
+}
+
+#[cfg(test)]
+mod input_binding {
+    use super::*;
+    use shared::script::engine::{ScriptInputs, ScriptValue};
+    use shared::script::testing::MockHostApi;
+
+    #[test]
+    fn value_is_bound_into_scope() {
+        let eng = RhaiEngine::new();
+        let ast = eng.compile(r#"value"#, &ScriptManifest::default()).unwrap();
+        let inputs = ScriptInputs {
+            value: serde_json::json!("SOLL"),
+            fields: serde_json::Map::new(),
+        };
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let out = eng.run(&ast, inputs, host, ScriptCtx::default()).unwrap();
+        assert_eq!(out, ScriptValue::String("SOLL".into()));
+    }
+
+    #[test]
+    fn fields_map_is_bound_and_indexable() {
+        let eng = RhaiEngine::new();
+        let ast = eng
+            .compile(r#"fields["k"]"#, &ScriptManifest::default())
+            .unwrap();
+        let mut m = serde_json::Map::new();
+        m.insert("k".into(), serde_json::json!("v"));
+        let inputs = ScriptInputs {
+            value: serde_json::Value::Null,
+            fields: m,
+        };
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let out = eng.run(&ast, inputs, host, ScriptCtx::default()).unwrap();
+        assert_eq!(out, ScriptValue::String("v".into()));
     }
 }
 
