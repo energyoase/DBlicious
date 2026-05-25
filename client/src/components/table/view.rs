@@ -317,6 +317,7 @@ fn BodyRow(
                             key=col.key
                             value=value
                             fields=fields
+                            formatter_id=col.formatter_id
                         />
                     </td>
                 }

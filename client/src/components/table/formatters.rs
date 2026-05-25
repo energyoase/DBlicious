@@ -9,34 +9,81 @@ use serde_json::Value;
 use shared::FieldType;
 
 use crate::components::field::{use_field_registry, FieldContext, FieldMode};
+use crate::components::script_renderer::ScriptRenderEnv;
 use crate::i18n::I18nContext;
+use crate::script::provider_lookup::{
+    lookup_provider, script_value_to_display, LookupResult, SCRIPT_PREFIX,
+};
 
 /// Zellen-Renderer fuer eine einzelne Tabellenzelle.
 ///
 /// `fields` enthaelt das gesamte `Entity.fields`-Map, damit
 /// kreuzfeldabhaengige Renderer (z.B. Geldbetraege mit Verweis auf das
 /// Currency-Code-Feld) ohne Sonderpfad funktionieren.
+///
+/// `formatter_id` ist die optionale Formatter-Implementierungs-ID aus
+/// [`shared::ColumnMeta`]. Hat sie den `script:`-Prefix und ist eine
+/// [`ScriptRenderEnv`] im Leptos-Context, wird das Provider-Skript
+/// ausgefuehrt. Andernfalls – oder bei jedem Fehler – faellt der Renderer
+/// auf den statischen Default-Pfad zurueck.
 #[component]
 pub fn FieldCell(
     field_type: FieldType,
     key: String,
     value: Value,
     fields: serde_json::Map<String, Value>,
+    #[prop(default = None)] formatter_id: Option<String>,
 ) -> impl IntoView {
     let locale = I18nContext::use_context().locale;
     let registry = use_field_registry();
 
+    // Script-Pfad: nur wenn formatter_id einen `script:`-Prefix traegt und
+    // eine ScriptRenderEnv im Leptos-Context vorhanden ist.
+    let script_out = {
+        let value_for_script = value.clone();
+        let fields_for_script = fields.clone();
+        let formatter_id_for_script = formatter_id.clone();
+        move || -> Option<String> {
+            let fid = formatter_id_for_script.clone()?;
+            if !fid.starts_with(SCRIPT_PREFIX) {
+                return None;
+            }
+            let env = use_context::<ScriptRenderEnv>()?;
+            let host = env.host.clone();
+            let ctx = env.make_ctx();
+            let inputs = shared::script::engine::ScriptInputs {
+                value: value_for_script.clone(),
+                fields: fields_for_script.clone(),
+            };
+            match lookup_provider(
+                &fid,
+                shared::script::model::ProviderSlot::Formatter,
+                &env.registry,
+                host,
+                ctx,
+                inputs,
+            ) {
+                LookupResult::Ok { value } => Some(script_value_to_display(&value)),
+                _ => None,
+            }
+        }
+    };
+
     view! {
         {move || {
-            let l = locale.get();
-            registry.render(FieldContext {
-                mode: FieldMode::View,
-                field: &field_type,
-                key: &key,
-                value: &value,
-                fields: &fields,
-                locale: l,
-            })
+            if let Some(s) = script_out() {
+                view! { <span>{s}</span> }.into_any()
+            } else {
+                let l = locale.get();
+                registry.render(FieldContext {
+                    mode: FieldMode::View,
+                    field: &field_type,
+                    key: &key,
+                    value: &value,
+                    fields: &fields,
+                    locale: l,
+                }).into_any()
+            }
         }}
     }
 }
@@ -93,6 +140,15 @@ pub fn compatible_formatters_for(ft: &shared::FieldType) -> Vec<FormatterDescrip
         .collect()
 }
 
+/// Prueft, ob eine `formatter_id` den `script:`-Prefix traegt. Keine
+/// `ScriptRenderEnv` noetig — reine ID-Klassifikation. Aufgerufen von
+/// `FieldCell` und auch direkt testbar.
+pub fn formatter_id_is_script(id: &Option<String>) -> bool {
+    id.as_deref()
+        .map(|s| s.starts_with(SCRIPT_PREFIX))
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod compatible_tests {
     use super::*;
@@ -113,5 +169,28 @@ mod compatible_tests {
             d.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(),
             vec!["bool-yesno"]
         );
+    }
+}
+
+#[cfg(test)]
+mod script_branch_tests {
+    use super::*;
+
+    #[test]
+    fn none_formatter_id_is_not_script() {
+        assert!(!formatter_id_is_script(&None));
+    }
+
+    #[test]
+    fn static_formatter_id_is_not_script() {
+        assert!(!formatter_id_is_script(&Some("money-symbol".into())));
+        assert!(!formatter_id_is_script(&Some("text-plain".into())));
+        assert!(!formatter_id_is_script(&Some("date-iso".into())));
+    }
+
+    #[test]
+    fn script_prefix_is_recognised() {
+        assert!(formatter_id_is_script(&Some("script:my-formatter".into())));
+        assert!(formatter_id_is_script(&Some("script:".into())));
     }
 }

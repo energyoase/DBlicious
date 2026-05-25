@@ -406,6 +406,7 @@ fn BodyRow(entity: Entity, even: bool, columns: Vec<ColumnMeta>) -> impl IntoVie
                         key=col.key
                         value=value
                         fields=fields
+                        formatter_id=col.formatter_id
                     />
                 </td>
             }
