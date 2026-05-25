@@ -24,6 +24,41 @@ fallback_mode = "block"
 parallelism  = "sequential"
 max_parallel = 3
 
+# Test-/Lint-Gates (ccm-config-project, 2026-05-25). lint_cmd spiegelt die
+# Git-Hooks: pre-commit=fmt, pre-push=clippy (.githooks/, Commit 9b0a5c1).
+[ccm.runtime]
+test_cmd = "cargo test --workspace"
+lint_cmd = "cargo fmt --check && cargo clippy --workspace -- -D warnings"
+
+# Review-Stage zwischen done und archived. Solo: mode=block (kein Channel/Daemon
+# fuer async). Notes wie Q0009 in docs/reviews.
+[ccm.review]
+require              = true
+review_question_mode = "block"
+default_reviewer     = "claude"
+notes_dir            = "docs/reviews"
+# auto_request=true, archive_after_days=7 = Defaults.
+
+# Security-Review opt-in pro Item (Items setzen security_review.required selbst,
+# wie Q0009). auto_detect_triggers um DBlicious-Code-Execution-Begriffe erweitert.
+[ccm.security_review]
+require              = false
+auto_detect_triggers = ["auth", "crypto", "secrets", "ipc", "external-api", "script", "sandbox", "wasm", "plugin"]
+notes_dir            = "docs/reviews"
+
+# Opt-In: security_review aktivieren, damit der per-item-Flag tatsaechlich feuert.
+[ccm.skills.enabled]
+security_review = true
+# review/debug/design/pr/new_skill/extract_skill = true (Default).
+
+# GitHub-Integration (ccm-config-project, 2026-05-25; gh authed, origin energyoase/DBlicious).
+[ccm.github]
+enabled                = true
+repo                   = "energyoase/DBlicious"
+default_base_for_pr    = "dev"
+default_base_for_merge = "main"
+merge_method           = "squash"
+# auto_push_promote=false, copilot_review_enabled=false = Defaults.
+
 # Keine [ccm.channels.*]-Sektionen — Solo-Mode, Daemon nicht in Verwendung.
 # Keine [ccm.models]-Overrides — Defaults aus ccm-model-mapping.md greifen.
-# Keine [ccm.review]-Sektion — Review-Pipeline kommt erst in M1+.
