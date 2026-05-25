@@ -305,6 +305,12 @@ fn render_ui_subtree(node: &Value) -> AnyView {
 /// Bundle, das der Aufrufer dem Renderer per Leptos-Context zur Verfuegung
 /// stellt. Registry + Host + Locale/User-Snapshot — alles, was die
 /// Engine fuer einen Run braucht.
+///
+/// `scripts_version` ist ein Bump-Counter, den `app.rs` nach erfolgreichem
+/// `ScriptRegistry::refresh_from_server` erhoht. `FieldCell.script_out` liest
+/// ihn (via `scripts_version.get()`), um eine reaktive Subskription zu
+/// erzeugen — dadurch rendern script-formatierte Zellen nach dem async Refresh
+/// neu, ohne die Registry oder den Renderer umzubauen.
 #[derive(Clone)]
 pub struct ScriptRenderEnv {
     pub registry: std::sync::Arc<ScriptRegistry>,
@@ -315,6 +321,10 @@ pub struct ScriptRenderEnv {
     pub locale: String,
     pub user_id: Option<String>,
     pub tenant_id: Option<String>,
+    /// Reaktiver Bump-Counter. Wird von `app.rs` nach `refresh_from_server`
+    /// erhoht; `FieldCell.script_out` subskribiert, um nach dem Laden neu zu
+    /// rendern. `RwSignal` ist `Copy`, also kein Clone-Overhead.
+    pub scripts_version: RwSignal<u32>,
 }
 
 impl ScriptRenderEnv {
@@ -489,14 +499,17 @@ mod tests {
 
     #[test]
     fn render_env_make_ctx_passes_through_user_and_locale() {
-        let env = ScriptRenderEnv {
+        // RwSignal benoetigt einen reaktiven Owner-Scope.
+        let owner = Owner::new();
+        let env = owner.with(|| ScriptRenderEnv {
             registry: std::sync::Arc::new(ScriptRegistry::new()),
             host: std::sync::Arc::new(MockHostApi::new()),
             locale: "de".into(),
             user_id: Some("u-1".into()),
             tenant_id: Some("t-1".into()),
-        };
-        let ctx = env.make_ctx();
+            scripts_version: RwSignal::new(0),
+        });
+        let ctx = owner.with(|| env.make_ctx());
         assert_eq!(ctx.user_id.as_deref(), Some("u-1"));
         assert_eq!(ctx.tenant_id.as_deref(), Some("t-1"));
         assert_eq!(ctx.locale, "de");

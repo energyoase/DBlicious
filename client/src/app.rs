@@ -53,6 +53,10 @@ pub fn App() -> impl IntoView {
     // ScriptRenderEnv: Registry + Host bereitstellen, danach async vom Server laden.
     // Die Registry ist Arc<ScriptRegistry> mit Mutex-Innenleben, sodass der
     // async-Refresh nach provide_context die gleiche Instanz befuellt.
+    // `scripts_version` ist ein Bump-Counter: nach erfolgreichem Refresh wird er
+    // erhoht, damit FieldCell-script_out-Closures (die ihn subskribieren) neu
+    // rendern — ohne die Registry oder den Renderer umzubauen.
+    let scripts_version = RwSignal::new(0u32);
     let script_registry = std::sync::Arc::new(ScriptRegistry::new());
     let registry_for_refresh = script_registry.clone();
     provide_script_render_env(ScriptRenderEnv {
@@ -61,6 +65,7 @@ pub fn App() -> impl IntoView {
         locale: i18n.locale.get_untracked().code().to_string(),
         user_id: auth.user.get_untracked().as_ref().map(|u| u.id.clone()),
         tenant_id: None,
+        scripts_version,
     });
 
     // Registry befuellen (wasm32-only; auf nativen Test-Targets ist der
@@ -69,7 +74,12 @@ pub fn App() -> impl IntoView {
     {
         spawn_local(async move {
             match registry_for_refresh.refresh_from_server(None).await {
-                Ok(n) => log::info!("ScriptRegistry: {n} Skripte vom Server geladen."),
+                Ok(n) => {
+                    log::info!("ScriptRegistry: {n} Skripte vom Server geladen.");
+                    // Bump: alle FieldCell-Closures, die scripts_version.get()
+                    // gelesen haben, werden neu ausgefuehrt.
+                    scripts_version.update(|v| *v += 1);
+                }
                 Err(e) => log::warn!("ScriptRegistry konnte nicht geladen werden: {e:?}"),
             }
         });

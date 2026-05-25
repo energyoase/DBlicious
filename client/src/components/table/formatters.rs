@@ -49,6 +49,10 @@ pub fn FieldCell(
                 return None;
             }
             let env = use_context::<ScriptRenderEnv>()?;
+            // Reaktive Subskription auf den Bump-Counter: sobald
+            // `app.rs` nach `refresh_from_server` erhoht, laeuft diese
+            // Closure neu und ruft das jetzt verfuegbare Script auf.
+            let _ = env.scripts_version.get();
             let host = env.host.clone();
             let ctx = env.make_ctx();
             let inputs = shared::script::engine::ScriptInputs {
