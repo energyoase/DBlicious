@@ -10,7 +10,7 @@ use client::script::provider_lookup::{
     lookup_provider, parse_script_id, script_value_to_display, LookupResult, SCRIPT_PREFIX,
 };
 use client::script::registry::ScriptRegistry;
-use shared::script::engine::{ScriptCtx, ScriptValue};
+use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
 use shared::script::model::{ProviderSlot, Script, ScriptKind, ScriptState};
 use shared::script::testing::MockHostApi;
 use shared::script::{CapabilityToken, ScriptId, ScriptManifest, ScriptTier};
@@ -70,6 +70,7 @@ fn provider_lookup_returns_value_for_active_formatter() {
         &reg,
         host.clone(),
         ScriptCtx::default(),
+        ScriptInputs::default(),
     );
     match res {
         LookupResult::Ok { value } => {
@@ -96,6 +97,7 @@ fn provider_lookup_falls_back_when_state_locked() {
         &reg,
         host.clone(),
         ScriptCtx::default(),
+        ScriptInputs::default(),
     );
     assert!(matches!(
         res,
@@ -115,6 +117,7 @@ fn provider_lookup_static_id_signals_not_a_script() {
         &reg,
         host.clone(),
         ScriptCtx::default(),
+        ScriptInputs::default(),
     );
     assert!(matches!(res, LookupResult::NotAScriptId));
 }
@@ -132,6 +135,7 @@ fn provider_lookup_logs_fallback_into_audit_queue() {
         &reg,
         host.clone(),
         ScriptCtx::default(),
+        ScriptInputs::default(),
     );
 
     let drained = drain();
