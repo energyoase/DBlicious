@@ -9,6 +9,7 @@ use crate::auth::AuthContext;
 use crate::commands::provide_command_registry;
 use crate::components::field::provide_field_registry;
 use crate::components::navigation::Navigation;
+use crate::components::script_renderer::{provide_script_render_env, ScriptRenderEnv};
 use crate::graphql::queries::{fetch_translatable, logout};
 use crate::header::{provide_debounce_queue, provide_header_registry};
 use crate::i18n::{
@@ -18,6 +19,8 @@ use crate::i18n::{
 use crate::routes::{
     BuilderPage, DashboardPage, DesignerPage, EditorPage, EntityListPage, LoginPage, NotFoundPage,
 };
+use crate::script::registry::ScriptRegistry;
+use crate::script::render_host::RenderHost;
 use crate::styling::{
     provide_design_system, provide_style_overrides, use_design, use_style_overrides, ButtonVariant,
     SurfaceLevel, TextVariant,
@@ -44,8 +47,37 @@ pub fn App() -> impl IntoView {
     provide_tabs_state();
     provide_command_registry();
 
-    I18nContext::provide(detect_browser_locale());
+    let i18n = I18nContext::provide(detect_browser_locale());
     let auth = AuthContext::provide();
+
+    // ScriptRenderEnv: Registry + Host bereitstellen, danach async vom Server laden.
+    // Die Registry ist Arc<ScriptRegistry> mit Mutex-Innenleben, sodass der
+    // async-Refresh nach provide_context die gleiche Instanz befuellt.
+    let script_registry = std::sync::Arc::new(ScriptRegistry::new());
+    let registry_for_refresh = script_registry.clone();
+    provide_script_render_env(ScriptRenderEnv {
+        registry: script_registry,
+        host: std::sync::Arc::new(RenderHost),
+        locale: i18n.locale.get_untracked().code().to_string(),
+        user_id: auth.user.get_untracked().as_ref().map(|u| u.id.clone()),
+        tenant_id: None,
+    });
+
+    // Registry befuellen (wasm32-only; auf nativen Test-Targets ist der
+    // cfg-Block leer, der Env bleibt mit leerer Registry — FieldCell faellt zurueck).
+    #[cfg(target_arch = "wasm32")]
+    {
+        spawn_local(async move {
+            match registry_for_refresh.refresh_from_server(None).await {
+                Ok(n) => log::info!("ScriptRegistry: {n} Skripte vom Server geladen."),
+                Err(e) => log::warn!("ScriptRegistry konnte nicht geladen werden: {e:?}"),
+            }
+        });
+    }
+    // Sicherstellen, dass der Compiler `registry_for_refresh` nicht als ungenutzten
+    // Move-Capture auf non-wasm-Targets bestaendig.
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = registry_for_refresh;
 
     // DB-Translatable nachziehen + bump.
     let _hydrate = LocalResource::new(|| async {
