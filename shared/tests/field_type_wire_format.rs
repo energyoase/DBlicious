@@ -283,4 +283,5 @@ fn directional_enum_is_scalar() {
         amount_field: "value".into(),
     };
     assert!(ft.is_scalar());
+    assert_eq!(ft.kind_str(), "directionalEnum");
 }

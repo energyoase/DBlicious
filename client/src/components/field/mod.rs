@@ -130,6 +130,11 @@ impl FieldRegistry for DefaultFieldRegistry {
             }
 
             (FieldType::Enum { .. }, Value::String(s)) => render_text(s),
+            // IntEnum/DirectionalEnum liefern nach der Server-Grenz-Konvertierung
+            // einen wire_name-String — wie Enum als Text rendern (statt
+            // Placeholder).
+            (FieldType::IntEnum { .. }, Value::String(s)) => render_text(s),
+            (FieldType::DirectionalEnum { .. }, Value::String(s)) => render_text(s),
 
             // -------- Reference: zeigt die ID des verknuepften Datensatzes.
             // Echtes Display-Label-Lookup (`category-1` → "Werkzeug") braucht
