@@ -1,5 +1,6 @@
 {
   "entityType": "customer",
+  "displayField": "displayName",
   "access": "public",
   "defaultPageSize": 10,
   "defaultSort": null,

@@ -313,6 +313,24 @@ fn permissions_toml_format_works_too() {
 }
 
 #[test]
+fn shop_customer_has_display_field() {
+    let set = example::load(&shop_dir()).expect("examples/shop laden");
+    let customer = set
+        .entities
+        .get("customer")
+        .expect("Entity 'customer' muss vorhanden sein");
+    let s = customer
+        .settings
+        .as_ref()
+        .expect("customer muss Settings haben");
+    assert_eq!(
+        s.display_field.as_deref(),
+        Some("displayName"),
+        "customer.displayField muss 'displayName' sein (U1 Reference-Label)"
+    );
+}
+
+#[test]
 fn json_navigation_is_parsed() {
     // Verifiziert den .json-Format-Dispatch nebenher.
     let dir = std::env::temp_dir().join("dblicious_loader_json_nav");
