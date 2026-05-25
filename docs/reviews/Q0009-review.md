@@ -3,7 +3,7 @@
 Date: 2026-05-23
 Reviewer: claude (feature-dev:code-reviewer Sub-Agent, Sandbox-Sicherheits-Fokus)
 Scope: committeter Q0009-Code @ HEAD `4cba6b2` (alle 6 Phasen), gegen Spec `2026-05-23-q0009-skript-sprache-design.md`.
-Verdict: **NEEDS-WORK** → **REMEDIATED** (2026-05-24)
+Verdict: **NEEDS-WORK** → **REMEDIATED** (2026-05-24) → **RE-REVIEWED: SECURITY CLEARED + APPROVE** (2026-05-25)
 
 Dieser Review deckt zugleich den `security_review.required`-Teil ab (Fokus lag auf Sandbox-Escape + Capability-Enforcement).
 
@@ -23,6 +23,53 @@ Alle Blocker + Should-Fixes behoben:
 | **S8** client audit.log | `ce03304` | `host_audit_log_on_client_is_server_only_function_error` |
 
 Spike-Vorarbeit: `b2beb26` (Rhai-Invarianten gepinnt). Workspace-Build gruen, server script-Tests 43, client script-Tests 32.
+
+## Security-Re-Review (2026-05-25)
+
+Unabhaengige Re-Review der Remediation (opus-Sub-Agent, scoped auf den
+Remediation-Diff `4cba6b2..HEAD` der `script`-Pfade; Code gelesen, nicht
+Commit-Messages vertraut).
+
+**Verdikt: Security CLEARED, Korrektheit APPROVE.**
+
+- **B1–B3 + S4–S8 sind im aktuellen Code genuin gefixt**, jeweils mit
+  file:line-Mechanismus bestaetigt. Kern: jede daten-/capability-beruehrende
+  Host-fn (`db.entities`/`db.entity`/`ctx.t`) ist in `register_host_fns`
+  durch `sandbox.gate(token, …)` gewickelt (`engine/rhai.rs:207-251`,
+  `gated_db_fetch:257-278`); `db.patch`/`audit.log` sind serverseitig gar
+  nicht als Rhai-fns registriert → ein Skript kann sie nicht benennen.
+  Capability-Match ist exakte `==`-Gleichheit auf Save- (`save.rs`) **und**
+  Runtime-Pfad (`sandbox.rs` `contains`) → S4-Tier-Bypass geschlossen.
+  Unmaskable-Fehler propagieren als `ErrorTerminated` (per `try`/`catch`
+  uncatchbar), maskable als `ErrorRuntime`.
+- **Schliessung der B3-Test-Luecke:** der vom Original-Review vermisste
+  Beweis ist nachgezogen — `server/tests/script_gate_integration.rs`
+  (commit `17e41a0`) jagt `db.entities()` durch `RhaiEngine::with_manifest →
+  run()` und beweist deny-ohne-Token / Daten-mit-Token / unmaskable-nicht-
+  fangbar im echten eval-Pfad.
+- **Verifikation:** gesamtes Server-Script-Test-Set isoliert gruen (frisches
+  `target-q0009closeout`, 59 Tests / 9 Binaries).
+
+### Neuer Befund (nicht-blockierend) → Follow-up Q0011
+
+**Audit-Outcome-Spoofing via Rhai-`throw` (Important, kein Escape).**
+Ein Skript kann per `throw "<json>"` einen `ErrorRuntime`-Payload erzeugen,
+den `map_rhai_err` (`engine/rhai.rs:365-398`) als `ScriptError`
+zurueck-deserialisiert. Damit kann ein Skript den **gemeldeten**
+`outcome`/`error`-Wert seines eigenen Runs faelschen (z.B. `timeout`
+behaupten). **Kein Sandbox-Escape und kein Capability-Bypass:**
+- Ein echter Deny ist `ErrorTerminated` (uncatchbar) — das Skript erlangt
+  nach einem echten Deny nie wieder Kontrolle, kann also keinen unmaskable
+  Fehler zu maskable downgraden.
+- Der `token_uses`-Audit-Ledger wird aus der echten `Sandbox` gezogen
+  (`run_collecting`), unabhaengig vom geworfenen Payload.
+- Kein Codepfad gewaehrt einen Seiteneffekt aufgrund des zurueckgemappten
+  `ScriptError` (nur Reporting: Audit-`outcome` + Preview-`error_json`).
+
+Wirkung also auf **Audit-Fidelity** begrenzt. Haertung (Host-Fehler
+out-of-band statt durch den Rhai-Fehlerwert transportieren + `throw`-Spoof-
+Test) ist als **Q0011** angelegt. Ausserdem Minor: heuristisches Memory-Limit
+(dokumentiert, akzeptiert) und client-`Timeout{limit_ms:0}`-Kosmetik.
 
 ## Blocker
 
