@@ -20,7 +20,7 @@
 
 use serde_json::Value;
 
-use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
+use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptInputs, ScriptValue};
 use shared::script::model::{ProviderSlot, ScriptKind, ScriptState};
 use shared::script::ScriptId;
 
@@ -70,6 +70,7 @@ pub fn lookup_provider(
     registry: &ScriptRegistry,
     host: std::sync::Arc<dyn HostApi>,
     ctx: ScriptCtx,
+    inputs: ScriptInputs,
 ) -> LookupResult {
     let Some(script_id) = parse_script_id(raw_id) else {
         return LookupResult::NotAScriptId;
@@ -134,7 +135,7 @@ pub fn lookup_provider(
         push_fallback(reason.clone());
         return LookupResult::Fallback { reason };
     }
-    match engine.run(&ast, host, ctx) {
+    match engine.run(&ast, inputs, host, ctx) {
         Ok(value) => LookupResult::Ok { value },
         Err(e) => {
             let reason = FallbackReason::RuntimeError {
@@ -233,6 +234,7 @@ mod tests {
             &reg,
             mock.clone(),
             ScriptCtx::default(),
+            ScriptInputs::default(),
         );
         assert!(matches!(res, LookupResult::NotAScriptId));
     }
@@ -247,6 +249,7 @@ mod tests {
             &reg,
             mock.clone(),
             ScriptCtx::default(),
+            ScriptInputs::default(),
         );
         match res {
             LookupResult::Fallback {
@@ -267,6 +270,7 @@ mod tests {
             &reg,
             mock.clone(),
             ScriptCtx::default(),
+            ScriptInputs::default(),
         );
         match res {
             LookupResult::Fallback {
@@ -287,6 +291,7 @@ mod tests {
             &reg,
             mock.clone(),
             ScriptCtx::default(),
+            ScriptInputs::default(),
         );
         match res {
             LookupResult::Fallback {
@@ -307,6 +312,7 @@ mod tests {
             &reg,
             mock.clone(),
             ScriptCtx::default(),
+            ScriptInputs::default(),
         );
         match res {
             LookupResult::Ok { value } => {
@@ -331,6 +337,7 @@ mod tests {
             &reg,
             mock.clone(),
             ScriptCtx::default(),
+            ScriptInputs::default(),
         );
         assert!(matches!(
             res,

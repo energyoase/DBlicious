@@ -18,7 +18,7 @@ use rhai::packages::{
 use rhai::{ASTNode, Dynamic, Engine, EvalAltResult, Expr, Position, Scope, AST};
 
 use shared::script::capability::CapabilityToken;
-use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
+use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptInputs, ScriptValue};
 use shared::script::error::ScriptError;
 use shared::script::manifest::ScriptManifest;
 use shared::script::model::ScriptKind;
@@ -130,10 +130,11 @@ impl ScriptEngine for RhaiEngine {
     fn run(
         &self,
         ast: &Self::Ast,
+        inputs: ScriptInputs,
         host: Arc<dyn HostApi>,
         ctx: ScriptCtx,
     ) -> Result<ScriptValue, ScriptError> {
-        self.run_collecting(ast, host, ctx).0
+        self.run_collecting(ast, inputs, host, ctx).0
     }
 }
 
@@ -164,6 +165,7 @@ impl RhaiEngine {
     pub fn run_collecting(
         &self,
         ast: &RhaiAst,
+        _inputs: ScriptInputs,
         host: Arc<dyn HostApi>,
         _ctx: ScriptCtx,
     ) -> (Result<ScriptValue, ScriptError>, Vec<TokenUse>) {

@@ -21,7 +21,7 @@ use rhai::packages::{
 };
 use rhai::{Engine, EvalAltResult, AST};
 
-use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
+use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptInputs, ScriptValue};
 use shared::script::error::ScriptError;
 use shared::script::manifest::ScriptManifest;
 use shared::script::model::ScriptKind;
@@ -94,6 +94,7 @@ impl ScriptEngine for RhaiEngine {
     fn run(
         &self,
         ast: &Self::Ast,
+        _inputs: ScriptInputs,
         _host: std::sync::Arc<dyn HostApi>,
         _ctx: ScriptCtx,
     ) -> Result<ScriptValue, ScriptError> {

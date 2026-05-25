@@ -24,7 +24,7 @@
 use leptos::prelude::*;
 use serde_json::Value;
 
-use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
+use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptInputs, ScriptValue};
 use shared::script::error::ScriptError;
 use shared::script::model::{Script, ScriptKind, ScriptState};
 use shared::script::ScriptNodeRef;
@@ -118,7 +118,7 @@ fn run_script(
     let ast = engine.compile(&script.source, &script.manifest)?;
     let sb = Sandbox::new(&script.manifest);
     sb.check_deadline()?;
-    engine.run(&ast, host, ctx)
+    engine.run(&ast, ScriptInputs::default(), host, ctx)
 }
 
 fn script_value_to_json(v: ScriptValue) -> Value {

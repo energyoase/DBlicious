@@ -19,7 +19,7 @@
 
 use std::sync::Arc;
 
-use shared::script::engine::{ScriptCtx, ScriptEngine, ScriptValue};
+use shared::script::engine::{ScriptCtx, ScriptEngine, ScriptInputs, ScriptValue};
 use shared::script::testing::MockHostApi;
 use shared::script::{CapabilityToken, ScriptError, ScriptManifest, ScriptTier};
 
@@ -44,7 +44,7 @@ fn db_call_without_token_is_denied_at_real_execution() {
         .expect("compile");
 
     let host = Arc::new(MockHostApi::new());
-    let res = engine.run(&ast, host, ScriptCtx::default());
+    let res = engine.run(&ast, ScriptInputs::default(), host, ScriptCtx::default());
 
     match res {
         Err(ScriptError::CapabilityDenied { token }) => {
@@ -66,7 +66,7 @@ fn db_call_with_token_returns_seeded_data() {
 
     let host = Arc::new(MockHostApi::new());
     host.seed_entities("product", serde_json::json!([{"id": "p-1", "price": 100}]));
-    let res = engine.run(&ast, host, ScriptCtx::default());
+    let res = engine.run(&ast, ScriptInputs::default(), host, ScriptCtx::default());
 
     match res {
         Ok(ScriptValue::String(s)) => {
@@ -94,7 +94,7 @@ fn capability_denied_is_not_catchable_via_try_catch() {
         .expect("compile");
 
     let host = Arc::new(MockHostApi::new());
-    let res = engine.run(&ast, host, ScriptCtx::default());
+    let res = engine.run(&ast, ScriptInputs::default(), host, ScriptCtx::default());
 
     assert!(
         !matches!(&res, Ok(ScriptValue::Number(n)) if *n == 42.0),

@@ -17,7 +17,7 @@
 //! Wenn ein DB-fuetterndes Skript spaeter notwendig wird, gibt es eine
 //! separate `run_and_persist`-Schiene.
 
-use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
+use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptInputs, ScriptValue};
 use shared::script::model::{ProviderSlot, ScriptKind, ScriptState};
 use shared::script::{Script, ScriptId};
 
@@ -136,7 +136,7 @@ pub fn lookup_provider_with_script(
         };
     }
 
-    match engine.run(&ast, host, ctx) {
+    match engine.run(&ast, ScriptInputs::default(), host, ctx) {
         Ok(value) => LookupResult::Ok { value },
         Err(e) => LookupResult::Fallback {
             reason: FallbackReason::RuntimeError {

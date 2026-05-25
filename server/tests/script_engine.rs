@@ -6,7 +6,7 @@
 //! Damit braucht diese Datei kein `serial_test`-Setup und beruehrt den
 //! prozessweiten DB-Pool nicht.
 
-use shared::script::engine::ScriptEngine;
+use shared::script::engine::{ScriptEngine, ScriptInputs};
 use shared::script::{CapabilityToken, ScriptManifest, ScriptTier};
 
 // ----------------------------------------------------------------------------
@@ -44,7 +44,12 @@ fn rhai_engine_actually_evaluates_arithmetic() {
     let ast = engine.compile("40 + 2", &manifest).expect("compile");
     let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
     let val = engine
-        .run(&ast, host.clone(), ScriptCtx::default())
+        .run(
+            &ast,
+            ScriptInputs::default(),
+            host.clone(),
+            ScriptCtx::default(),
+        )
         .expect("eval 40+2 muss durchlaufen");
     assert_eq!(val, ScriptValue::Number(42.0));
 }
@@ -69,7 +74,12 @@ fn rhai_engine_evaluates_string_and_array_ops() {
         .expect("compile");
     let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
     let val = engine
-        .run(&ast, host.clone(), ScriptCtx::default())
+        .run(
+            &ast,
+            ScriptInputs::default(),
+            host.clone(),
+            ScriptCtx::default(),
+        )
         .expect("eval array/string muss durchlaufen");
     assert_eq!(val, ScriptValue::String("ok".into()));
 }
@@ -430,6 +440,7 @@ fn engine_max_operations_kicks_in_on_runaway_loop() {
     let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
     let res = engine.run(
         &ast,
+        ScriptInputs::default(),
         host.clone(),
         shared::script::engine::ScriptCtx::default(),
     );

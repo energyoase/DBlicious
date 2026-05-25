@@ -15,6 +15,18 @@ pub struct ScriptCtx {
     pub locale: String,
 }
 
+/// Pro-Aufruf-Eingaben für einen Provider-Slot-Run (Formatter/Filter/...).
+/// Bewusst getrennt von [`ScriptCtx`] (ambient: user/tenant/locale): ein
+/// Component-Script hat keinen Zellenwert, ein Formatter schon.
+#[derive(Debug, Clone, Default)]
+pub struct ScriptInputs {
+    /// Der Zellenwert wie der Client ihn hält (nach Server-Grenz-Decode,
+    /// z.B. directionalEnum 1 -> "SOLL"). NICHT vorformatiert.
+    pub value: serde_json::Value,
+    /// Die gesamte Zeile (`Entity.fields`) für kreuzfeld-Formatter.
+    pub fields: serde_json::Map<String, serde_json::Value>,
+}
+
 /// Engine-spezifischer kompilierter AST (associated type, damit der Trait
 /// engine-agnostisch bleibt).
 pub trait ScriptEngine {
@@ -27,6 +39,7 @@ pub trait ScriptEngine {
     fn run(
         &self,
         ast: &Self::Ast,
+        inputs: ScriptInputs,
         host: Arc<dyn HostApi>,
         ctx: ScriptCtx,
     ) -> Result<ScriptValue, ScriptError>;

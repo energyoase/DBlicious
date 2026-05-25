@@ -19,7 +19,7 @@ use std::sync::Arc;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use ulid::Ulid;
 
-use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptValue};
+use shared::script::engine::{HostApi, ScriptCtx, ScriptEngine, ScriptInputs, ScriptValue};
 use shared::script::error::ScriptError;
 use shared::script::model::Script;
 
@@ -135,7 +135,8 @@ pub async fn run_and_persist(
             Vec::new(),
         ),
         Ok(ast) => {
-            let (run_res, token_uses) = engine.run_collecting(&ast, Arc::clone(&host), ctx);
+            let (run_res, token_uses) =
+                engine.run_collecting(&ast, ScriptInputs::default(), Arc::clone(&host), ctx);
             match run_res {
                 Ok(v) => ("ok".to_string(), Some(v), None, token_uses),
                 Err(e) => (
@@ -197,7 +198,8 @@ pub fn run_preview(script: &Script, ctx: ScriptCtx, host: Arc<dyn HostApi>) -> P
             Vec::new(),
         ),
         Ok(ast) => {
-            let (run_res, token_uses) = engine.run_collecting(&ast, Arc::clone(&host), ctx);
+            let (run_res, token_uses) =
+                engine.run_collecting(&ast, ScriptInputs::default(), Arc::clone(&host), ctx);
             match run_res {
                 Ok(v) => ("ok".to_string(), Some(v), None, token_uses),
                 Err(e) => (
