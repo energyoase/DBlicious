@@ -15,7 +15,8 @@
 
 use serde_json::{json, Value};
 use shared::{
-    ColumnFilter, FieldType, FilterCriteria, FilterPredicate, IntEnumValue, Sort, SortDirection,
+    ColumnFilter, DirectionalEnumValue, FieldType, FilterCriteria, FilterPredicate, IntEnumValue,
+    Sort, SortDirection,
 };
 
 #[test]
@@ -225,4 +226,47 @@ fn filter_criteria_with_predicates_is_not_empty() {
         }],
     };
     assert!(!fc.is_empty());
+}
+
+#[test]
+fn directional_enum_serializes_with_kind_amount_field_and_sign() {
+    let v = serde_json::to_value(FieldType::DirectionalEnum {
+        values: vec![
+            DirectionalEnumValue {
+                value: 0,
+                label_key: "soll".into(),
+                wire_name: "SOLL".into(),
+                sign: 1,
+            },
+            DirectionalEnumValue {
+                value: 1,
+                label_key: "haben".into(),
+                wire_name: "HABEN".into(),
+                sign: -1,
+            },
+        ],
+        amount_field: "value".into(),
+    })
+    .unwrap();
+    assert_eq!(v["kind"], "directionalEnum");
+    assert_eq!(v["amountField"], "value");
+    assert_eq!(v["values"][0]["wireName"], "SOLL");
+    assert_eq!(v["values"][0]["sign"], 1);
+    assert_eq!(v["values"][1]["sign"], -1);
+}
+
+#[test]
+fn directional_enum_roundtrips() {
+    let original = FieldType::DirectionalEnum {
+        values: vec![DirectionalEnumValue {
+            value: 1,
+            label_key: "haben".into(),
+            wire_name: "HABEN".into(),
+            sign: -1,
+        }],
+        amount_field: "value".into(),
+    };
+    let json = serde_json::to_string(&original).unwrap();
+    let back: FieldType = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, original);
 }

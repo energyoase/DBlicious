@@ -348,6 +348,11 @@ pub fn ops_for(field: &FieldType) -> Box<dyn FieldOps> {
         FieldType::IntEnum { values } => Box::new(EnumOps {
             values: values.iter().map(|v| v.wire_name.clone()).collect(),
         }),
+        // DirectionalEnum: wie IntEnum, wire_name-basiert. Das sign-Feld
+        // wird bei Aggregationen (Welle 2) benutzt; hier nur Enum-Ops.
+        FieldType::DirectionalEnum { values, .. } => Box::new(EnumOps {
+            values: values.iter().map(|v| v.wire_name.clone()).collect(),
+        }),
         FieldType::Reference { .. } => Box::new(OpaqueOps),
         FieldType::Collection { .. } => Box::new(OpaqueOps),
     }

@@ -180,6 +180,16 @@ pub enum FieldType {
     IntEnum {
         values: Vec<IntEnumValue>,
     },
+    /// Vorzeichenbehafteter Aufzählungstyp: jeder Wert traegt `sign` (+1/−1),
+    /// das `amount_field` (Betrags-Feld derselben Entitaet) in Aggregationen
+    /// gewichtet. Beispiel: ValueType SOLL(+1)/HABEN(−1) gewichtet `value`.
+    /// Wie `IntEnum` int-gespeichert (DB-i32 ↔ wire_name); die Vorzeichen-
+    /// Anwendung (Saldo) ist Aggregation (Welle 2), hier nur das Modell.
+    #[serde(rename_all = "camelCase")]
+    DirectionalEnum {
+        values: Vec<DirectionalEnumValue>,
+        amount_field: String,
+    },
 }
 
 /// Ein einzelner Wert eines [`FieldType::IntEnum`]: die DB-Zahl, der
@@ -190,6 +200,17 @@ pub struct IntEnumValue {
     pub value: i32,
     pub label_key: String,
     pub wire_name: String,
+}
+
+/// Ein Wert eines [`FieldType::DirectionalEnum`]: wie [`IntEnumValue`]
+/// (DB-Zahl + Label + wire_name) plus `sign` (+1/−1).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectionalEnumValue {
+    pub value: i32,
+    pub label_key: String,
+    pub wire_name: String,
+    pub sign: i8,
 }
 
 impl FieldType {
@@ -208,6 +229,7 @@ impl FieldType {
                 | FieldType::Money { .. }
                 | FieldType::Enum { .. }
                 | FieldType::IntEnum { .. }
+                | FieldType::DirectionalEnum { .. }
         )
     }
 
@@ -228,6 +250,7 @@ impl FieldType {
             FieldType::Collection { .. } => "collection",
             FieldType::Enum { .. } => "enum",
             FieldType::IntEnum { .. } => "intEnum",
+            FieldType::DirectionalEnum { .. } => "directionalEnum",
         }
     }
 }
