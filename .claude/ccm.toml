@@ -28,7 +28,7 @@ max_parallel = 3
 # Git-Hooks: pre-commit=fmt, pre-push=clippy (.githooks/, Commit 9b0a5c1).
 [ccm.runtime]
 test_cmd = "cargo test --workspace"
-lint_cmd = "cargo fmt --check && cargo clippy --workspace -- -D warnings"
+lint_cmd = "cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings"
 
 # Review-Stage zwischen done und archived. Solo: mode=block (kein Channel/Daemon
 # fuer async). Notes wie Q0009 in docs/reviews.
