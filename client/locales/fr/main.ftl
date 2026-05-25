@@ -203,3 +203,9 @@ formatter-datetime-local  = Local Date+Heure
 formatter-int-default     = Par défaut
 formatter-bool-yesno      = Oui / Non
 formatter-text-plain      = Texte brut
+
+## Sélecteur de référence (U1)
+picker.no_results          = Aucun résultat
+picker.loading             = Chargement…
+picker.search.placeholder  = Rechercher…
+picker.selected_label      = Sélection

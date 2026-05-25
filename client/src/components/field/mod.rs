@@ -32,6 +32,9 @@ use leptos::prelude::*;
 use serde_json::Value;
 use shared::FieldType;
 
+pub mod reference_picker;
+pub use reference_picker::ReferencePicker;
+
 use crate::i18n::{format, Locale};
 use crate::styling::use_design;
 
@@ -368,6 +371,12 @@ pub fn FieldEditor(
     let help_key = meta.help_key.clone().unwrap_or_default();
     let field_type = meta.field_type.clone();
     let control = meta.control;
+    // Fuer FieldType::Reference: Ziel-Entity-Typ extrahieren, bevor field_type
+    // im nachfolgenden `effective`-Match konsumiert wird.
+    let reference_target_entity: Option<String> = match &meta.field_type {
+        FieldType::Reference { entity } => Some(entity.clone()),
+        _ => None,
+    };
 
     let value_str = match &value {
         Value::String(s) => s.clone(),
@@ -481,12 +490,31 @@ pub fn FieldEditor(
             >{value_str.clone()}</textarea>
         }
         .into_any(),
-        ControlKind::Lookup => view! {
-            <span style="color: #6b7280; font-style: italic;">
-                {move || crate::i18n::t("editor.placeholder.complex")}
-            </span>
+        ControlKind::Lookup => {
+            // Ziel-Entity aus FieldType::Reference extrahiert (s.o.).
+            if let Some(target) = reference_target_entity {
+                let current_id = match &value {
+                    Value::String(s) if !s.is_empty() => Some(s.clone()),
+                    _ => None,
+                };
+                view! {
+                    <ReferencePicker
+                        target_entity=target
+                        current_id=current_id
+                        on_change=on_change_value
+                    />
+                }
+                .into_any()
+            } else {
+                // Sicherheits-Fallback: FieldType ist kein Reference (sollte nicht passieren).
+                view! {
+                    <span style="color: #6b7280; font-style: italic;">
+                        {move || crate::i18n::t("editor.placeholder.complex")}
+                    </span>
+                }
+                .into_any()
+            }
         }
-        .into_any(),
         ControlKind::InlineList => render_inline_list(value, on_change_value).into_any(),
         _ /* Input + Fallback */ => {
             // Zahleneingabe fuer numerische Typen, sonst Text.
