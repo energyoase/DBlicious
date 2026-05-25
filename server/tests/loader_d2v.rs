@@ -199,3 +199,37 @@ fn d2v_groups_grant_read_to_every_entity() {
         );
     }
 }
+
+#[test]
+fn d2v_datev_entry_value_type_is_directional_enum() {
+    // D2V ValueType (EF-Core-Enum: DEBIT/SOLL=1, CREDIT/HABEN=2) traegt das
+    // Vorzeichen, das `value` in der Saldo-Aggregation (Welle 2) gewichtet:
+    // SOLL = +1, HABEN = -1 (siehe D2V `AsStarMoneyValue`).
+    let set = example::load(&d2v_dir()).expect("laden");
+    let col = set.entities["datev_entry"]
+        .columns
+        .iter()
+        .find(|c| c.key == "valueType")
+        .expect("datev_entry: valueType-Spalte fehlt");
+    match &col.field_type {
+        shared::FieldType::DirectionalEnum {
+            values,
+            amount_field,
+        } => {
+            assert_eq!(amount_field, "value", "amountField muss auf 'value' zeigen");
+            let soll = values
+                .iter()
+                .find(|v| v.wire_name == "SOLL")
+                .expect("SOLL-Wert fehlt");
+            assert_eq!(soll.value, 1, "SOLL = DB-int 1");
+            assert_eq!(soll.sign, 1, "SOLL = +1");
+            let haben = values
+                .iter()
+                .find(|v| v.wire_name == "HABEN")
+                .expect("HABEN-Wert fehlt");
+            assert_eq!(haben.value, 2, "HABEN = DB-int 2");
+            assert_eq!(haben.sign, -1, "HABEN = -1");
+        }
+        other => panic!("valueType muss DirectionalEnum sein, war {other:?}"),
+    }
+}
