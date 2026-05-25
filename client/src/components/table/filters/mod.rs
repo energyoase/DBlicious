@@ -65,6 +65,7 @@ fn default_id_for(ft: &FieldType) -> Option<&'static str> {
         FieldType::Enum { .. } | FieldType::IntEnum { .. } => Some(enum_in::ID),
         FieldType::Date | FieldType::DateTime => Some(date_range::ID),
         FieldType::Reference { .. } | FieldType::Collection { .. } => None,
+        FieldType::DirectionalEnum { .. } => Some(enum_in::ID),
     }
 }
 

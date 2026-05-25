@@ -17,28 +17,47 @@ pub enum IntEnumError {
     WrongType(&'static str),
 }
 
-pub fn decode(stored: &Value, values: &[IntEnumValue]) -> Value {
+/// Kern: DB-i32 -> wire_name. Unbekannt -> Null (defensiv). Geteilt von
+/// IntEnum + DirectionalEnum.
+pub fn decode_pairs(stored: &Value, pairs: &[(i32, &str)]) -> Value {
     let Some(n) = stored.as_i64() else {
         return Value::Null;
     };
-    match values.iter().find(|v| v.value as i64 == n) {
-        Some(v) => Value::String(v.wire_name.clone()),
+    match pairs.iter().find(|(val, _)| *val as i64 == n) {
+        Some((_, wire)) => Value::String((*wire).to_string()),
         None => Value::Null,
     }
 }
 
-pub fn encode(incoming: &Value, values: &[IntEnumValue]) -> Result<Value, IntEnumError> {
+/// Kern: wire_name -> DB-i32. Null passthrough; unbekannt -> Err.
+pub fn encode_pairs(incoming: &Value, pairs: &[(i32, &str)]) -> Result<Value, IntEnumError> {
     if incoming.is_null() {
         return Ok(Value::Null);
     }
     let Some(name) = incoming.as_str() else {
         return Err(IntEnumError::WrongType(type_name(incoming)));
     };
-    let v = values
+    let (val, _) = pairs
         .iter()
-        .find(|v| v.wire_name == name)
+        .find(|(_, wire)| *wire == name)
         .ok_or_else(|| IntEnumError::UnknownWireName(name.into()))?;
-    Ok(Value::Number(serde_json::Number::from(v.value)))
+    Ok(Value::Number(serde_json::Number::from(*val)))
+}
+
+pub fn decode(stored: &Value, values: &[IntEnumValue]) -> Value {
+    let pairs: Vec<(i32, &str)> = values
+        .iter()
+        .map(|v| (v.value, v.wire_name.as_str()))
+        .collect();
+    decode_pairs(stored, &pairs)
+}
+
+pub fn encode(incoming: &Value, values: &[IntEnumValue]) -> Result<Value, IntEnumError> {
+    let pairs: Vec<(i32, &str)> = values
+        .iter()
+        .map(|v| (v.value, v.wire_name.as_str()))
+        .collect();
+    encode_pairs(incoming, &pairs)
 }
 
 fn type_name(v: &Value) -> &'static str {

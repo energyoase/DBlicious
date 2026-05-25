@@ -10,6 +10,7 @@ pub mod auth;
 pub mod data;
 pub mod db;
 pub mod ddl;
+pub mod directional_enum;
 pub mod email;
 pub mod entity;
 pub mod events;

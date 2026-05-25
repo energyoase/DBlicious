@@ -69,7 +69,11 @@ impl FilterRegistry {
             Integer | Decimal { .. } | Money { .. } => &["number-range"],
             Boolean => &["bool-equals"],
             Date | DateTime => &["date-range"],
-            Reference { .. } | Collection { .. } | Enum { .. } | IntEnum { .. } => &["enum-in"],
+            Reference { .. }
+            | Collection { .. }
+            | Enum { .. }
+            | IntEnum { .. }
+            | DirectionalEnum { .. } => &["enum-in"],
         };
         let mut out: Vec<FilterDescriptor> = candidates
             .iter()
