@@ -2353,11 +2353,14 @@ pub async fn seed_scripts_from_example(
             .and_then(|v| v.as_str())
             .unwrap_or("component")
             .to_string();
+        let kind_json =
+            serde_json::to_string(&seed.kind).map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
 
         let now = chrono::Utc::now().to_rfc3339();
         entity::script::ActiveModel {
             id: ActiveValue::Set(id.clone()),
             kind: ActiveValue::Set(kind_tag),
+            kind_json: ActiveValue::Set(kind_json),
             manifest_json: ActiveValue::Set(manifest_json),
             source: ActiveValue::Set(seed.source.clone()),
             version: ActiveValue::Set(1),

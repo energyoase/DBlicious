@@ -199,6 +199,7 @@ async fn run_and_persist_handles_compile_failure_without_panic() {
     server::entity::script::ActiveModel {
         id: sea_orm::Set("r-bad".into()),
         kind: sea_orm::Set("component".into()),
+        kind_json: sea_orm::Set(r#"{"kind":"component","entry":"x"}"#.into()),
         manifest_json: sea_orm::Set("{}".into()),
         source: sea_orm::Set("let x = ;".into()),
         version: sea_orm::Set(1),

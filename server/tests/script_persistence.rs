@@ -16,6 +16,7 @@ async fn insert_default_script(db: &DatabaseConnection, id: &str) {
     let am = script::ActiveModel {
         id: Set(id.into()),
         kind: Set("provider".into()),
+        kind_json: Set(r#"{"kind":"provider","slot":"formatter"}"#.into()),
         manifest_json: Set("{}".into()),
         source: Set("".into()),
         version: Set(1),
@@ -39,6 +40,7 @@ async fn script_table_round_trip_insert_fetch_mutate() {
     let am = script::ActiveModel {
         id: Set("formatter.eur".into()),
         kind: Set("provider".into()),
+        kind_json: Set(r#"{"kind":"provider","slot":"formatter"}"#.into()),
         manifest_json: Set(r#"{"manifestVersion":1,"tier":"reader","capabilities":[]}"#.into()),
         source: Set("fn fmt(v) { v }".into()),
         version: Set(1),

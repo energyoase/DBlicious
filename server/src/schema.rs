@@ -1387,16 +1387,15 @@ fn script_model_to_gql(m: &crate::entity::script::Model) -> ScriptGql {
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
 
-    // `kind` in der DB ist nur der camelCase-Tag (z.B. "provider"). Wir
-    // rekonstruieren das vollstaendige `ScriptKind`-JSON aus Tag +
-    // Manifest-Feldern, falls vorhanden. Fuer `provider` muessen wir den
-    // `slot` aus dem Manifest mit dem Default `"formatter"` ergaenzen, weil
-    // die DB den nicht separat fuehrt — der Loader/Save-Pfad hingegen
-    // serialisiert `ScriptKind` voll und wir reichen es via `manifest_json`-
-    // schema-Erweiterung in einer kuenftigen Phase nach. Heute geben wir
-    // mindestens den `kind`-Tag zurueck, damit der Client `ScriptKind`
-    // deserialisieren kann.
-    let kind: serde_json::Value = serde_json::json!({ "kind": m.kind });
+    // `kind_json` enthaelt das vollstaendige `ScriptKind`-JSON (inkl. `slot`
+    // bei `provider`). Bei leeren kind_json-Werten (alte persistierte DBs ohne
+    // die Spalte / DEFAULT '') faellt der Pfad auf den blossen Tag zurueck,
+    // damit der Client zumindest den kind-Tag deserialisiert.
+    let kind: serde_json::Value = if m.kind_json.is_empty() {
+        serde_json::json!({ "kind": m.kind })
+    } else {
+        serde_json::from_str(&m.kind_json).unwrap_or_else(|_| serde_json::json!({ "kind": m.kind }))
+    };
 
     ScriptGql {
         id: m.id.clone(),

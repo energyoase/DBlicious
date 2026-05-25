@@ -136,6 +136,15 @@ async fn create_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
              ON entity_views(entity_type, view_name, layer, IFNULL(owner_id, ''))",
         )
         .await?;
+
+    // Migration fuer persistierte File-DBs: kind_json wurde in Q0009/PRW-C1
+    // ergaenzt. `IF NOT EXISTS` gibt es fuer ADD COLUMN in SQLite nicht —
+    // stattdessen fangen wir den Fehler "duplicate column name" einfach ab.
+    // Frische DBs haben die Spalte bereits via CREATE TABLE; das is kein Fehler.
+    let _ = db
+        .execute_unprepared("ALTER TABLE scripts ADD COLUMN kind_json TEXT NOT NULL DEFAULT ''")
+        .await;
+
     Ok(())
 }
 

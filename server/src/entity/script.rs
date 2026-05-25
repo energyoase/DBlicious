@@ -8,6 +8,9 @@
 //!   - `id` — ID gemaess [`shared::script::ScriptId`].
 //!   - `kind` — `provider`/`component`/`wasm`, gespeichert als
 //!     camelCase-String und gegen das Manifest abgeglichen.
+//!   - `kind_json` — vollstaendiges `shared::script::ScriptKind` als JSON
+//!     (inkl. `slot` bei `provider`). `kind` bleibt als Backward-Compat-Tag
+//!     erhalten; `kind_json` wird fuer den GQL-Output genutzt.
 //!   - `manifest` — `shared::script::ScriptManifest` als JSON.
 //!   - `source` — Rhai-Source (bei `wasm` ein leerer String — Spec §11).
 //!   - `version` — Monotone Versionsnummer. `save_script` rejiziert
@@ -32,6 +35,11 @@ pub struct Model {
     /// `wasm`). Inner-Felder leben im `manifest_json`/`source`.
     #[sea_orm(column_type = "Text")]
     pub kind: String,
+    /// Vollstaendiges `shared::script::ScriptKind` als JSON (inkl. `slot`
+    /// bei `provider`). Neue Zeilen setzen dieses Feld; alte Zeilen in
+    /// persisted File-DBs liefern leer (Fallback auf `kind`-Tag).
+    #[sea_orm(column_type = "Text")]
+    pub kind_json: String,
     /// `shared::script::ScriptManifest` als JSON.
     #[sea_orm(column_type = "Text")]
     pub manifest_json: String,

@@ -174,6 +174,8 @@ pub async fn persist_save(
         .and_then(|v| v.as_str())
         .unwrap_or("component")
         .to_string();
+    let kind_json =
+        serde_json::to_string(&input.kind).map_err(|e| sea_orm::DbErr::Custom(e.to_string()))?;
 
     let state_str = match prepared.state {
         ScriptState::Draft => "draft",
@@ -197,6 +199,7 @@ pub async fn persist_save(
     if let Some(r) = existing {
         let mut am: script_entity::ActiveModel = r.into();
         am.kind = Set(kind_tag.clone());
+        am.kind_json = Set(kind_json.clone());
         am.manifest_json = Set(manifest_json.clone());
         am.source = Set(input.source.clone());
         am.version = Set(prepared.version as i32);
@@ -208,6 +211,7 @@ pub async fn persist_save(
         script_entity::ActiveModel {
             id: Set(script_id.clone()),
             kind: Set(kind_tag.clone()),
+            kind_json: Set(kind_json.clone()),
             manifest_json: Set(manifest_json.clone()),
             source: Set(input.source.clone()),
             version: Set(prepared.version as i32),
