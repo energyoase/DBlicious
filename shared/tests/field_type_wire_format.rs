@@ -270,3 +270,17 @@ fn directional_enum_roundtrips() {
     let back: FieldType = serde_json::from_str(&json).unwrap();
     assert_eq!(back, original);
 }
+
+#[test]
+fn directional_enum_is_scalar() {
+    let ft = FieldType::DirectionalEnum {
+        values: vec![DirectionalEnumValue {
+            value: 0,
+            label_key: "s".into(),
+            wire_name: "S".into(),
+            sign: 1,
+        }],
+        amount_field: "value".into(),
+    };
+    assert!(ft.is_scalar());
+}
