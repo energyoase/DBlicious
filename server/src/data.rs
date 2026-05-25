@@ -507,6 +507,25 @@ fn int_enum_specs(entity_type: &str) -> Vec<(String, Vec<shared::IntEnumValue>)>
         .collect()
 }
 
+/// Liefert `(key, values)` fuer alle `FieldType::DirectionalEnum`-Spalten.
+fn directional_enum_specs(entity_type: &str) -> Vec<(String, Vec<shared::DirectionalEnumValue>)> {
+    let Some(set) = crate::example::current() else {
+        return Vec::new();
+    };
+    let Some(et) = set.entities.get(entity_type) else {
+        return Vec::new();
+    };
+    et.columns
+        .iter()
+        .filter_map(|c| match &c.field_type {
+            shared::FieldType::DirectionalEnum { values, .. } => {
+                Some((c.key.clone(), values.clone()))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// G7 Read-Pfad: DB-Integer -> wire_name-String fuer jede IntEnum-Spalte.
 fn apply_int_enum_decode(
     entity_type: &str,
@@ -515,6 +534,12 @@ fn apply_int_enum_decode(
     for (key, values) in int_enum_specs(entity_type) {
         if let Some(stored) = fields.get(&key) {
             let wired = crate::int_enum::decode(stored, &values);
+            fields.insert(key, wired);
+        }
+    }
+    for (key, values) in directional_enum_specs(entity_type) {
+        if let Some(stored) = fields.get(&key) {
+            let wired = crate::directional_enum::decode(stored, &values);
             fields.insert(key, wired);
         }
     }
@@ -543,6 +568,23 @@ fn apply_int_enum_encode(
             }
             Err(e) => {
                 tracing::warn!(target: "server::data", "int_enum encode skip {key}: {e}");
+            }
+        }
+    }
+    for (key, values) in directional_enum_specs(entity_type) {
+        let Some(incoming) = fields.get(&key) else {
+            continue;
+        };
+        if !incoming.is_string() {
+            continue;
+        }
+        let incoming = incoming.clone();
+        match crate::directional_enum::encode(&incoming, &values) {
+            Ok(stored) => {
+                fields.insert(key, stored);
+            }
+            Err(e) => {
+                tracing::warn!(target: "server::data", "directional_enum encode skip {key}: {e}");
             }
         }
     }
@@ -1222,6 +1264,17 @@ pub fn validate_against_editor(
     // G7: ein eingehender IntEnum-Wert muss ein bekannter wire_name sein.
     // Laeuft unabhaengig vom EditorMeta (Spalten tragen den FieldType).
     for (key, values) in int_enum_specs(entity_type) {
+        if let Some(serde_json::Value::String(s)) = fields.get(&key) {
+            if !s.is_empty() && !values.iter().any(|v| &v.wire_name == s) {
+                result.push(ValidationMessage::error(
+                    key.clone(),
+                    "validation.enum_value",
+                ));
+            }
+        }
+    }
+
+    for (key, values) in directional_enum_specs(entity_type) {
         if let Some(serde_json::Value::String(s)) = fields.get(&key) {
             if !s.is_empty() && !values.iter().any(|v| &v.wire_name == s) {
                 result.push(ValidationMessage::error(
