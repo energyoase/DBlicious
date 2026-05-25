@@ -20,6 +20,7 @@ pub mod engine;
 pub mod host;
 pub mod provider_lookup;
 pub mod registry;
+pub mod render_host;
 pub mod sandbox;
 
 pub use registry::ScriptRegistry;
