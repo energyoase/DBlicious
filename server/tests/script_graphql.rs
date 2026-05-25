@@ -208,7 +208,7 @@ async fn preview_script_run_for_simple_addition_returns_value_without_audit_row(
         .as_f64()
         .expect("output.value muss Zahl sein");
     assert!((val - 2.0).abs() < 1e-9, "erwartete 2, bekam {val}");
-    assert!(v["previewScriptRun"]["runId"].as_str().unwrap().len() > 0);
+    assert!(!v["previewScriptRun"]["runId"].as_str().unwrap().is_empty());
 
     // Audit-Log-Stand nach Preview: unveraendert.
     let after = script_audit_log::Entity::find()

@@ -66,8 +66,7 @@ async fn postgres_rejects_non_table_locator() {
     let err = src
         .list_page(&binding, &server::source::PageQuery::default())
         .await
-        .err()
-        .expect("non-table locator muss abgelehnt werden");
+        .expect_err("non-table locator muss abgelehnt werden");
     assert!(
         matches!(err, SourceError::UnsupportedLocator(_)),
         "Erwarte UnsupportedLocator, bekam: {err:?}"

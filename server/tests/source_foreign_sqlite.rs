@@ -279,8 +279,7 @@ async fn foreign_read_only_binding_rejects_mutations() {
     let err = src
         .create(&b, None, fields, None)
         .await
-        .err()
-        .expect("should error");
+        .expect_err("should error");
     assert!(matches!(err, server::source::SourceError::ReadOnly));
 }
 

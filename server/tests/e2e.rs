@@ -1173,7 +1173,7 @@ async fn install_field_type_default(
         let entry = s
             .field_type_defaults
             .entry(field_type_kind.to_string())
-            .or_insert_with(shared::FieldTypeDefaults::default);
+            .or_default();
         // Ein einzelnes Feld setzen — generisch ueber serde_json::Value.
         match field {
             "filter_id" => entry.filter_id = value.as_str().map(String::from),

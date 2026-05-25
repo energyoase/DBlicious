@@ -256,8 +256,7 @@ async fn test_star_money_booking_text_read_only_rejects_update() {
     let err = src
         .update(&binding, &id, patch, None)
         .await
-        .err()
-        .expect("update auf read-only Binding muss Err liefern");
+        .expect_err("update auf read-only Binding muss Err liefern");
 
     assert!(
         matches!(err, SourceError::ReadOnly),

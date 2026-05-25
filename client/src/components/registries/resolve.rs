@@ -122,8 +122,10 @@ mod tests {
             currency_code_field: None,
         });
         let mut settings = EntitySettings::default();
-        let mut defaults = shared::FieldTypeDefaults::default();
-        defaults.editor_id = Some("money-editor".into());
+        let defaults = shared::FieldTypeDefaults {
+            editor_id: Some("money-editor".into()),
+            ..Default::default()
+        };
         settings
             .field_type_defaults
             .insert("money".into(), defaults);

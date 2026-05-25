@@ -1,4 +1,4 @@
-use server::source::{boot_registry, registry};
+use server::source::registry;
 
 #[tokio::test]
 #[serial_test::serial]

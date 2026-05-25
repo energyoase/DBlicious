@@ -421,11 +421,10 @@ mod rhai_invariants {
         let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let mut engine = Engine::new_raw();
         engine.register_type_with_name::<DbProxy>("Db");
-        let captured = Arc::clone(&seen);
         engine.register_fn(
             "entities",
-            move |_db: &mut DbProxy, t: &str| -> Result<Dynamic, Box<EvalAltResult>> {
-                captured.lock().unwrap().push(t.to_string());
+            |db: &mut DbProxy, t: &str| -> Result<Dynamic, Box<EvalAltResult>> {
+                db.seen.lock().unwrap().push(t.to_string());
                 Ok(Dynamic::from(t.to_string()))
             },
         );

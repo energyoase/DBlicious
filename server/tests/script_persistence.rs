@@ -95,7 +95,7 @@ async fn script_version_table_supports_composite_pk_history() {
             script_id: Set("formatter.eur".into()),
             version: Set(v),
             manifest_json: Set("{}".into()),
-            source: Set(format!("/* v{v} */").into()),
+            source: Set(format!("/* v{v} */")),
             state_at_save: Set(if v == 2 {
                 "draft".into()
             } else {

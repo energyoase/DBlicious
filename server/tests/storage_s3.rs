@@ -4,11 +4,11 @@
 //!   1. Ohne I/O — Konstruktor + Trait-Konformitaet. Laeuft immer.
 //!   2. Echter Roundtrip gegen MinIO — `#[ignore]`, nur aktiv wenn die
 //!      env-Variablen gesetzt sind. Manuell:
-//!        $env:DBLICIOUS_S3_TEST_ENDPOINT="http://localhost:9000"
-//!        $env:DBLICIOUS_S3_TEST_BUCKET="dblicious-test"
-//!        $env:DBLICIOUS_S3_TEST_ACCESS_KEY="minioadmin"
-//!        $env:DBLICIOUS_S3_TEST_SECRET_KEY="minioadmin"
-//!        cargo test -p server --test storage_s3 -- --ignored
+//!      $env:DBLICIOUS_S3_TEST_ENDPOINT="http://localhost:9000"
+//!      $env:DBLICIOUS_S3_TEST_BUCKET="dblicious-test"
+//!      $env:DBLICIOUS_S3_TEST_ACCESS_KEY="minioadmin"
+//!      $env:DBLICIOUS_S3_TEST_SECRET_KEY="minioadmin"
+//!      cargo test -p server --test storage_s3 -- --ignored
 
 use server::storage::{
     s3::{S3Config, S3Storage},

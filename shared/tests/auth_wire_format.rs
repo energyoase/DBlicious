@@ -232,7 +232,7 @@ fn op_serializes_as_camelcase_string() {
     ];
     for (op, expected) in cases {
         assert_eq!(
-            serde_json::to_value(&op).unwrap(),
+            serde_json::to_value(op).unwrap(),
             Value::String(expected.into()),
             "Op::{:?} sollte als \"{}\" serialisieren",
             op,

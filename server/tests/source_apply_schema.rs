@@ -100,8 +100,7 @@ async fn foreign_sqlite_rejects_schema_with_read_only() {
     let err = src
         .apply_schema(&minimal_schema())
         .await
-        .err()
-        .expect("apply_schema muss bei foreign-sqlite fehlschlagen");
+        .expect_err("apply_schema muss bei foreign-sqlite fehlschlagen");
     assert!(
         matches!(err, SourceError::ReadOnly),
         "Erwarte SourceError::ReadOnly, bekam: {err:?}"
