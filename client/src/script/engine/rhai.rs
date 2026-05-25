@@ -381,4 +381,28 @@ mod run_inputs {
             .unwrap();
         assert_eq!(out, ScriptValue::String("[t:hello]".into()));
     }
+
+    /// Sicherheitsinvariante (Spec §10): ein `CapabilityDenied` aus `ctx.t`
+    /// muss `ErrorTerminated` sein — per Rhai `try/catch` NICHT fangbar.
+    /// Wuerde `script_err_to_rhai` faelschlicherweise `ErrorRuntime` liefern,
+    /// wuerde `run()` `Ok("swallowed")` zurueckgeben statt `Err(CapabilityDenied)`.
+    #[test]
+    fn ctx_t_denial_is_not_catchable() {
+        let eng = RhaiEngine::with_manifest(&manifest_with(vec![CapabilityToken::ComputeOnly]));
+        let ast = eng
+            .compile(
+                r#"let x = "init"; try { x = ctx.t("k") } catch(e) { x = "swallowed" } x"#,
+                &ScriptManifest::default(),
+            )
+            .unwrap();
+        let host = std::sync::Arc::new(MockHostApi::new());
+        let res = eng.run(&ast, ScriptInputs::default(), host, ScriptCtx::default());
+        match res {
+            Ok(v) => panic!("CapabilityDenied wurde gefangen (x={v:?}) — darf NICHT sein"),
+            Err(e) => assert!(
+                matches!(e, ScriptError::CapabilityDenied { .. }),
+                "war {e:?}"
+            ),
+        }
+    }
 }
