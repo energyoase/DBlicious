@@ -1,7 +1,7 @@
 # FieldType::DirectionalEnum — Design
 
 Date: 2026-05-25
-Status: Draft — awaiting user review
+Status: Implemented (Welle 1) — Commits 3dc9e7d (shared) / b0b02c2 (server boundary + client matches) / ffdbca5 (data.rs)
 Welle: 1 (Framework-Primitives) der D2V-script-first-Umsetzung
 (`2026-05-24-d2v-script-first-gap-analysis.md` §4b, Schicht 1).
 
