@@ -99,6 +99,7 @@ impl Source for MemorySource {
             total_count: total,
             page: page as u32,
             page_size: page_size as u32,
+            reference_labels: Default::default(),
         })
     }
 

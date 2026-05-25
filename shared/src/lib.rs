@@ -312,6 +312,12 @@ pub struct EntityPage {
     pub total_count: u64,
     pub page: u32,
     pub page_size: u32,
+    /// Pro Datensatz-id eine Map {reference-Spalten-key → aufgelöstes Label}.
+    /// Page-level, damit der Kern-`Entity`-Typ (auch für create/update) frei
+    /// bleibt. Fehlt ein Eintrag, fällt der Client auf die ID zurück.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub reference_labels:
+        std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>>,
 }
 
 /// Sortierrichtung fuer Tabellenspalten.

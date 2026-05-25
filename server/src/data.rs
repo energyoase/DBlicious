@@ -280,6 +280,7 @@ pub async fn entities_page_raw(
         total_count: total,
         page: page.max(1) as u32,
         page_size: page_size.max(1) as u32,
+        reference_labels: Default::default(),
     }
 }
 

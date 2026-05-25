@@ -956,6 +956,7 @@ impl QueryRoot {
             properties: resolved.properties,
             field_type_defaults: Default::default(),
             binding: None,
+            display_field: None,
             append_only: false,
             state_machine: None,
         };

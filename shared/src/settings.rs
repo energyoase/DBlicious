@@ -143,6 +143,12 @@ pub struct EntitySettings {
     /// Binding (managed-sqlite, generische entities-Tabelle).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub binding: Option<crate::source::EntityBinding>,
+    /// Schlüssel der Spalte dieser Entity, die als Anzeige-Label dient, wenn
+    /// ein anderes Feld via `FieldType::Reference` auf sie verweist (z.B.
+    /// customer → "displayName"). None → Reference-Anzeige fällt auf die ID
+    /// zurück. Einzelfeld; Mehrfeld-Template ist eine spätere Erweiterung.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_field: Option<String>,
     /// Phase 1.7.4: GoBD-Unveraenderbarkeit. Wenn `true`, lehnen die
     /// CRUD-Resolver Update + Delete mit `gobd_protected`-Fehler ab.
     /// Aenderung nur ueber Storno-Operation (neue Gegenbuchung, alter

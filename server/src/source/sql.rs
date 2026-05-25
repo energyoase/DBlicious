@@ -289,6 +289,7 @@ pub async fn relational_list_page(
         total_count: count_row.c as u64,
         page: page as u32,
         page_size: page_size as u32,
+        reference_labels: Default::default(),
     })
 }
 
