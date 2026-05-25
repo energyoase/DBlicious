@@ -22,6 +22,7 @@ pub mod jobs;
 pub mod pdf;
 pub mod period_locks;
 pub mod plugins;
+pub mod reference;
 pub mod schema;
 pub mod script;
 pub mod sequences;

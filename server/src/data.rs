@@ -131,6 +131,17 @@ fn shared_columns_for(entity_type: &str) -> Vec<shared::ColumnMeta> {
         .unwrap_or_default()
 }
 
+/// Synchrones Pendant zu [`settings_for_async`] — liest ausschliesslich den
+/// In-Memory-Snapshot des installierten Beispiel-Sets. Wird von der
+/// Reference-Label-Resolution aufgerufen, die bereits alle DB-IO-Awaits
+/// abgeschlossen hat und danach nur noch synchron arbeitet.
+pub fn display_field_for(entity_type: &str) -> Option<String> {
+    crate::example::current()
+        .and_then(|set| set.entities.get(entity_type).cloned())
+        .and_then(|et| et.settings)
+        .and_then(|s| s.display_field)
+}
+
 /// Wertet eine [`shared::FilterCriteria`] gegen eine Entitaet aus. Logik
 /// gespiegelt zu `client/src/components/table/data_source.rs::LocalSource`,
 /// damit Server- und Clientseite identisches Verhalten zeigen. Wenn die
@@ -275,12 +286,58 @@ pub async fn entities_page_raw(
         Vec::new()
     };
 
+    // U1: Reference-Label-Resolution (ServerEmbed). Alle Ziel-Entities einmalig
+    // asynchron laden, dann synchron in `resolve_server_embed` auswerten.
+    let ref_columns: Vec<&shared::ColumnMeta> = columns
+        .iter()
+        .filter(|c| matches!(c.field_type, shared::FieldType::Reference { .. }))
+        .collect();
+    let mut preloaded: std::collections::BTreeMap<
+        String,
+        std::collections::BTreeMap<String, serde_json::Map<String, serde_json::Value>>,
+    > = std::collections::BTreeMap::new();
+    for col in &ref_columns {
+        if let shared::FieldType::Reference { entity: target } = &col.field_type {
+            if preloaded.contains_key(target) {
+                continue;
+            }
+            let target_rows = entity::entities::Entity::find()
+                .filter(entity::entities::Column::EntityType.eq(target.as_str()))
+                .all(db)
+                .await
+                .unwrap_or_default();
+            let map: std::collections::BTreeMap<
+                String,
+                serde_json::Map<String, serde_json::Value>,
+            > = target_rows
+                .into_iter()
+                .map(|m| {
+                    let parsed: serde_json::Value =
+                        serde_json::from_str(&m.fields_json).unwrap_or_default();
+                    let fields = match parsed {
+                        serde_json::Value::Object(o) => o,
+                        _ => serde_json::Map::new(),
+                    };
+                    (m.id, fields)
+                })
+                .collect();
+            preloaded.insert(target.clone(), map);
+        }
+    }
+    // Synchron auswerten — kein `.await` im Closure erlaubt (und nötig).
+    let reference_labels = crate::reference::resolve_server_embed(
+        &slice,
+        &columns,
+        &mut |t| preloaded.get(t).cloned().unwrap_or_default(),
+        &|t| crate::data::display_field_for(t),
+    );
+
     shared::EntityPage {
         items: slice,
         total_count: total,
         page: page.max(1) as u32,
         page_size: page_size.max(1) as u32,
-        reference_labels: Default::default(),
+        reference_labels,
     }
 }
 
@@ -405,6 +462,7 @@ pub async fn entities_page(
                     total_count: 0,
                     page,
                     page_size,
+                    reference_labels: Json(serde_json::Value::Object(serde_json::Map::new())),
                 };
             }
         }
@@ -416,23 +474,82 @@ pub async fn entities_page(
         filter,
     };
     match source.list_page(&binding, &q).await {
-        Ok(p) => EntityPage {
-            items: p
+        Ok(p) => {
+            let columns = shared_columns_for(entity_type);
+            let shared_items: Vec<shared::Entity> = p
                 .items
                 .into_iter()
                 .map(|e| {
                     let mut fields = e.fields;
                     apply_int_enum_decode(entity_type, &mut fields);
-                    Entity {
-                        id: e.id,
-                        fields: Json(serde_json::Value::Object(fields)),
-                    }
+                    shared::Entity { id: e.id, fields }
                 })
-                .collect(),
-            total_count: p.total_count as i64,
-            page: p.page as i32,
-            page_size: p.page_size as i32,
-        },
+                .collect();
+
+            // U1: Reference-Label-Resolution fuer die Source-Schicht.
+            // Ziel-Entities aus der generischen `entities`-Tabelle laden.
+            let ref_targets: Vec<String> = columns
+                .iter()
+                .filter_map(|c| match &c.field_type {
+                    shared::FieldType::Reference { entity } => Some(entity.clone()),
+                    _ => None,
+                })
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect();
+            let mut preloaded: std::collections::BTreeMap<
+                String,
+                std::collections::BTreeMap<String, serde_json::Map<String, serde_json::Value>>,
+            > = std::collections::BTreeMap::new();
+            let db = &conn();
+            for target in &ref_targets {
+                let target_rows = entity::entities::Entity::find()
+                    .filter(entity::entities::Column::EntityType.eq(target.as_str()))
+                    .all(db)
+                    .await
+                    .unwrap_or_default();
+                let map: std::collections::BTreeMap<
+                    String,
+                    serde_json::Map<String, serde_json::Value>,
+                > = target_rows
+                    .into_iter()
+                    .map(|m| {
+                        let parsed: serde_json::Value =
+                            serde_json::from_str(&m.fields_json).unwrap_or_default();
+                        let fields = match parsed {
+                            serde_json::Value::Object(o) => o,
+                            _ => serde_json::Map::new(),
+                        };
+                        (m.id, fields)
+                    })
+                    .collect();
+                preloaded.insert(target.clone(), map);
+            }
+            let reference_labels = crate::reference::resolve_server_embed(
+                &shared_items,
+                &columns,
+                &mut |t| preloaded.get(t).cloned().unwrap_or_default(),
+                &|t| crate::data::display_field_for(t),
+            );
+            let reference_labels_json =
+                Json(serde_json::to_value(&reference_labels).unwrap_or_default());
+
+            let items: Vec<Entity> = shared_items
+                .into_iter()
+                .map(|e| Entity {
+                    id: e.id,
+                    fields: Json(serde_json::Value::Object(e.fields)),
+                })
+                .collect();
+
+            EntityPage {
+                items,
+                total_count: p.total_count as i64,
+                page: p.page as i32,
+                page_size: p.page_size as i32,
+                reference_labels: reference_labels_json,
+            }
+        }
         Err(e) => {
             tracing::error!(target: "server::data", "list_page error: {e}");
             EntityPage {
@@ -440,6 +557,7 @@ pub async fn entities_page(
                 total_count: 0,
                 page,
                 page_size,
+                reference_labels: Json(serde_json::Value::Object(serde_json::Map::new())),
             }
         }
     }

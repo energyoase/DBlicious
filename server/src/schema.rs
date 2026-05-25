@@ -52,6 +52,11 @@ pub struct EntityPage {
     pub total_count: i64,
     pub page: i32,
     pub page_size: i32,
+    /// U1: {row_id → {col_key → label}} fuer Reference-Spalten der Seite.
+    /// Serialisiert als rohes JSON-Objekt; der Client deserialisiert in
+    /// `BTreeMap<String, BTreeMap<String, String>>`. Leer = keine Referenzen
+    /// oder kein `display_field` konfiguriert.
+    pub reference_labels: Json<serde_json::Value>,
 }
 
 #[derive(Clone, SimpleObject)]
