@@ -315,6 +315,10 @@ pub struct EntitySettings {
     pub default_sort: Option<Json<serde_json::Value>>,
     pub default_filter: Option<Json<serde_json::Value>>,
     pub properties: Vec<PropertySettings>,
+    /// Schluessel der Spalte, die als Anzeige-Label dient, wenn eine andere
+    /// Entity via `FieldType::Reference` auf diesen Typ verweist.
+    /// `None` → Picker/Referenz-Renderer fallen auf die ID zurueck.
+    pub display_field: Option<String>,
 }
 
 // ---------- Mutation-Ergebnisse ----------
@@ -638,6 +642,7 @@ fn map_settings(s: shared::EntitySettings) -> EntitySettings {
                 min_width: p.min_width.map(|w| w as i32),
             })
             .collect(),
+        display_field: s.display_field,
     }
 }
 

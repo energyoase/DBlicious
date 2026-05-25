@@ -209,3 +209,42 @@ async fn gql_entities_carries_reference_labels_field() {
         "referenceLabels muss Objekt oder null sein, ist: {rl}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// 4. GQL entitySettings liefert displayField (U1-fix Roundtrip-Guard)
+// ---------------------------------------------------------------------------
+
+/// Verifiziert, dass `entitySettings.displayField` fuer `customer` den
+/// konfigurierten Wert "displayName" liefert — end-to-end ueber GQL.
+/// Regress-Guard: stellt sicher, dass `map_settings` das Feld nicht
+/// still auf None laesst.
+#[tokio::test(flavor = "current_thread")]
+#[serial]
+async fn gql_settings_carries_display_field_for_customer() {
+    let ctx = boot().await;
+
+    let res = exec(
+        r#"query($t: String!) {
+            entitySettings(entityType: $t) {
+                entityType
+                displayField
+            }
+        }"#,
+        json!({"t": "customer"}),
+        ctx,
+    )
+    .await;
+
+    assert!(
+        res.errors.is_empty(),
+        "Keine GQL-Fehler erwartet: {:?}",
+        res.errors
+    );
+    let v = res.data.into_json().unwrap();
+    let df = &v["entitySettings"]["displayField"];
+    assert_eq!(
+        df,
+        &json!("displayName"),
+        "entitySettings.displayField fuer customer muss 'displayName' sein, ist: {df}"
+    );
+}

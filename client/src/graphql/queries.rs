@@ -721,6 +721,7 @@ const SETTINGS_QUERY: &str = r#"
             defaultPageSize
             defaultSort
             defaultFilter
+            displayField
             properties {
                 key visibility access loadMethod order labelOverrideKey minWidth
             }
@@ -748,6 +749,8 @@ struct RawSettings {
     default_page_size: Option<i32>,
     default_sort: Option<serde_json::Value>,
     default_filter: Option<serde_json::Value>,
+    #[serde(default)]
+    display_field: Option<String>,
     properties: Vec<RawPropertySettings>,
 }
 
@@ -791,9 +794,8 @@ pub async fn fetch_settings(entity_type: &str) -> Result<Option<EntitySettings>,
         field_type_defaults: std::collections::BTreeMap::new(),
         // Phase 0.6: binding wird ueber GraphQL noch nicht exponiert.
         binding: None,
-        // U1: display_field wird ueber GraphQL noch nicht exponiert; Client
-        // liest es spaeter aus dem aufgeloesten reference_labels-Feld.
-        display_field: None,
+        // U1-fix: display_field wird jetzt vom Server geliefert (EntitySettings.displayField).
+        display_field: raw.display_field,
         // Phase 1.7.4: append_only wird ueber GraphQL noch nicht exponiert;
         // Client behandelt es konservativ als false. Der Server enforced ihn.
         append_only: false,

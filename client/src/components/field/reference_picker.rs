@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::graphql::queries;
 use crate::i18n::t;
-use crate::styling::use_design;
+use crate::styling::{use_design, TextVariant, Tokens};
 
 /// Filtert Kandidaten-Zeilen client-seitig ueber das display_field
 /// (case-insensitive contains). Leerer Query → alle.
@@ -30,19 +30,28 @@ pub fn filter_candidates<'a>(
 }
 
 /// Liefert das display_field einer Ziel-Entity. Strategie:
-/// 1. Zuerst `fetch_columns` der Ziel-Entity und den ersten Text-aehnlichen
-///    Spalten-Key zurueckgeben (das reicht fuer Phase U1, da `display_field`
-///    noch nicht via GraphQL exponiert wird).
-/// 2. Fallback: leerer String (Picker zeigt dann nur IDs).
+/// 1. `fetch_settings(entity_type).display_field` — vom Server konfiguriert.
+/// 2. Fallback: erster Text-aehnlicher Spalten-Key, der nicht "id" ist.
+/// 3. Letzter Fallback: leerer String (Picker zeigt dann nur IDs).
 async fn resolve_display_field(entity_type: &str) -> String {
+    // Stufe 1: settings.display_field (vom Server via GraphQL)
+    if let Ok(Some(settings)) = queries::fetch_settings(entity_type).await {
+        if let Some(df) = settings.display_field {
+            if !df.is_empty() {
+                return df;
+            }
+        }
+    }
+    // Stufe 2: erstes Text-/Integer-Feld, das nicht "id" ist
     match queries::fetch_columns(entity_type).await {
         Ok(cols) => cols
             .into_iter()
             .find(|c| {
-                matches!(
-                    c.field_type,
-                    shared::FieldType::Text | shared::FieldType::Integer
-                )
+                c.key != "id"
+                    && matches!(
+                        c.field_type,
+                        shared::FieldType::Text | shared::FieldType::Integer
+                    )
             })
             .map(|c| c.key)
             .unwrap_or_default(),
@@ -85,6 +94,8 @@ pub fn ReferencePicker(
 ) -> impl IntoView {
     let design = use_design();
     let input_style = design.input().inline.clone();
+    let text_muted = design.text(TextVariant::Muted).inline.clone();
+    let text_caption = design.text(TextVariant::Caption).inline.clone();
 
     // Suchtext-Signal
     let query = RwSignal::new(String::new());
@@ -95,6 +106,26 @@ pub fn ReferencePicker(
     let entity_type_for_resource = target_entity.clone();
     let picker_resource: LocalResource<PickerData> =
         LocalResource::new(move || load_picker_data(entity_type_for_resource.clone()));
+
+    // Auswahl-Label aus geladenen Kandidaten aufloesen
+    let selected_label = move || -> Option<String> {
+        let id = selected_id.get()?;
+        let resource_val = picker_resource.get()?;
+        let data = resource_val.take();
+        if data.display_field.is_empty() {
+            return Some(id.clone());
+        }
+        // Label aus Kandidaten suchen; Fallback: id
+        let label = data
+            .candidates
+            .iter()
+            .find(|e| e.id == id)
+            .and_then(|e| e.fields.get(&data.display_field))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| id.clone());
+        Some(label)
+    };
 
     view! {
         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
@@ -115,8 +146,9 @@ pub fn ReferencePicker(
                 match resource_val {
                     None => {
                         // Noch am Laden
+                        let muted = text_muted.clone();
                         view! {
-                            <div style="color: #6b7280; font-size: 0.85rem; padding: 0.25rem 0;">
+                            <div style=format!("{muted} padding: 0.25rem 0;")>
                                 {move || t("picker.loading")}
                             </div>
                         }.into_any()
@@ -130,12 +162,19 @@ pub fn ReferencePicker(
                         let sel = selected_id.get();
 
                         if filtered.is_empty() {
+                            let muted = text_muted.clone();
                             view! {
-                                <div style="color: #6b7280; font-size: 0.85rem; font-style: italic; padding: 0.25rem 0;">
+                                <div style=format!("{muted} font-style: italic; padding: 0.25rem 0;")>
                                     {move || t("picker.no_results")}
                                 </div>
                             }.into_any()
                         } else {
+                            let list_style = format!(
+                                "border: 1px solid {border}; border-radius: {radius}; \
+                                 max-height: 12rem; overflow-y: auto;",
+                                border = Tokens::COLOR_BORDER,
+                                radius = Tokens::RADIUS_SM,
+                            );
                             let items: Vec<_> = filtered
                                 .into_iter()
                                 .map(|e| {
@@ -150,10 +189,20 @@ pub fn ReferencePicker(
                                             .unwrap_or_else(|| e.id.clone())
                                     };
                                     let is_selected = sel.as_deref() == Some(&e.id);
-                                    let bg = if is_selected {
-                                        "background: #dbeafe; font-weight: 600;"
+                                    let item_style = if is_selected {
+                                        format!(
+                                            "padding: 0.3rem 0.5rem; cursor: pointer; \
+                                             border-radius: {radius}; font-size: 0.9rem; \
+                                             background: rgba(59,130,246,0.12); font-weight: 600;",
+                                            radius = Tokens::RADIUS_SM,
+                                        )
                                     } else {
-                                        "background: transparent;"
+                                        format!(
+                                            "padding: 0.3rem 0.5rem; cursor: pointer; \
+                                             border-radius: {radius}; font-size: 0.9rem; \
+                                             background: transparent;",
+                                            radius = Tokens::RADIUS_SM,
+                                        )
                                     };
                                     let id_for_click = id.clone();
                                     let on_click = move |_| {
@@ -162,11 +211,7 @@ pub fn ReferencePicker(
                                     };
                                     view! {
                                         <div
-                                            style=format!(
-                                                "padding: 0.3rem 0.5rem; cursor: pointer; border-radius: 4px; \
-                                                 font-size: 0.9rem; {}",
-                                                bg
-                                            )
+                                            style=item_style
                                             on:click=on_click
                                         >
                                             {label}
@@ -175,7 +220,7 @@ pub fn ReferencePicker(
                                 })
                                 .collect();
                             view! {
-                                <div style="border: 1px solid #e5e7eb; border-radius: 4px; max-height: 12rem; overflow-y: auto;">
+                                <div style=list_style>
                                     {items}
                                 </div>
                             }.into_any()
@@ -184,15 +229,17 @@ pub fn ReferencePicker(
                 }
             }}
 
-            // Aktuelle Auswahl anzeigen
+            // Aktuelle Auswahl anzeigen — zeigt das Display-Label, nicht die rohe ID
             {move || {
-                let sel = selected_id.get();
-                sel.map(|id| view! {
-                    <div style="font-size: 0.8rem; color: #374151;">
-                        {move || t("picker.selected_label")}
-                        {": "}
-                        <strong>{id.clone()}</strong>
-                    </div>
+                selected_label().map(|label| {
+                    let caption = text_caption.clone();
+                    view! {
+                        <div style=format!("{caption} color: {};", Tokens::COLOR_TEXT_PRIMARY)>
+                            {move || t("picker.selected_label")}
+                            {": "}
+                            <strong>{label.clone()}</strong>
+                        </div>
+                    }
                 })
             }}
         </div>
