@@ -134,6 +134,7 @@ const ENTITIES_QUERY: &str = r#"
             totalCount
             page
             pageSize
+            referenceLabels
         }
     }
 "#;
@@ -159,6 +160,8 @@ struct ServerEntityPage {
     total_count: i64,
     page: i32,
     page_size: i32,
+    #[serde(default)]
+    reference_labels: serde_json::Value,
 }
 
 #[derive(Deserialize)]
@@ -172,6 +175,11 @@ pub struct EntityPageResult {
     pub total_count: u64,
     pub page: u32,
     pub page_size: u32,
+    /// Aufgeloeste Display-Labels fuer Reference-Felder: `{ col_key → { row_id → label } }`.
+    /// Leer, wenn der Server keine Reference-Spalten kennt oder `display_field` nicht
+    /// konfiguriert ist.
+    pub reference_labels:
+        std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>>,
 }
 
 pub async fn fetch_entities(
@@ -200,11 +208,14 @@ pub async fn fetch_entities(
             Entity { id: e.id, fields }
         })
         .collect();
+    let reference_labels =
+        serde_json::from_value(data.entities.reference_labels).unwrap_or_default();
     Ok(EntityPageResult {
         items,
         total_count: data.entities.total_count.max(0) as u64,
         page: data.entities.page.max(0) as u32,
         page_size: data.entities.page_size.max(0) as u32,
+        reference_labels,
     })
 }
 
@@ -1751,5 +1762,39 @@ mod tests {
             s.last_error,
             Some(ScriptError::ParseFailed { .. })
         ));
+    }
+
+    // ---- U1: reference_labels-Decode ----
+
+    /// Verifiziert, dass ein `referenceLabels`-JSON-Blob korrekt in die
+    /// `BTreeMap<String, BTreeMap<String, String>>`-Struktur dekodiert wird.
+    /// Diese Logik spiegelt die `serde_json::from_value`-Konvertierung in
+    /// `fetch_entities`.
+    #[test]
+    fn reference_labels_decode_from_json() {
+        let raw = serde_json::json!({
+            "category_id": {
+                "row-1": "Werkzeug",
+                "row-2": "Material"
+            }
+        });
+        let decoded: std::collections::BTreeMap<
+            String,
+            std::collections::BTreeMap<String, String>,
+        > = serde_json::from_value(raw).unwrap();
+        assert_eq!(decoded["category_id"]["row-1"], "Werkzeug");
+        assert_eq!(decoded["category_id"]["row-2"], "Material");
+    }
+
+    /// Verifiziert, dass ein fehlendes / null `referenceLabels`-Feld
+    /// (default-Attribut) auf eine leere Map faellt — kein Panic.
+    #[test]
+    fn reference_labels_missing_falls_back_to_empty() {
+        let raw = serde_json::Value::Null;
+        let decoded: std::collections::BTreeMap<
+            String,
+            std::collections::BTreeMap<String, String>,
+        > = serde_json::from_value(raw).unwrap_or_default();
+        assert!(decoded.is_empty());
     }
 }

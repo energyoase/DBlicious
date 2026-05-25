@@ -4,13 +4,15 @@
 //! Komponenten ([`super::selection_column::SelectionColumn`],
 //! [`super::row_actions::RowActions`]) in den Context geschrieben haben.
 
+use std::collections::BTreeMap;
+
 use leptos::prelude::*;
 use shared::{ColumnMeta, Entity, SortDirection};
 
 use super::actions::RowContext;
 use super::column_editor::{compute_reorder, ActiveDrag, DragReorderCtx, HeaderRect};
 use super::filters::{resolve_filter_id, FilterContext};
-use super::formatters::FieldCell;
+use super::formatters::{resolve_reference_label, FieldCell};
 use super::selection::SelectionMode;
 use super::shell::use_shell;
 use super::state::TableState;
@@ -134,16 +136,19 @@ pub fn TableView() -> impl IntoView {
                                     // Vec extrahieren (statt Rc<Vec>), damit der
                                     // For-children-Closure Send-bar wird.
                                     let cols: Vec<ColumnMeta> = (*shell.columns()).clone();
+                                    let ref_labels = resp.reference_labels.clone();
                                     view! {
                                         <For
                                             each={move || resp.items.clone().into_iter().enumerate().collect::<Vec<_>>()}
                                             key={|(_, e)| e.id.clone()}
                                             children={move |(idx, entity): (usize, Entity)| {
+                                                let ref_labels = ref_labels.clone();
                                                 view! {
                                                     <BodyRow
                                                         entity=entity
                                                         even={idx % 2 == 0}
                                                         columns=cols.clone()
+                                                        reference_labels=ref_labels
                                                     />
                                                 }
                                             }}
@@ -372,7 +377,12 @@ fn HeaderCell(column: ColumnMeta, state: TableState) -> impl IntoView {
 }
 
 #[component]
-fn BodyRow(entity: Entity, even: bool, columns: Vec<ColumnMeta>) -> impl IntoView {
+fn BodyRow(
+    entity: Entity,
+    even: bool,
+    columns: Vec<ColumnMeta>,
+    #[prop(default = BTreeMap::new())] reference_labels: BTreeMap<String, BTreeMap<String, String>>,
+) -> impl IntoView {
     let shell = use_shell();
     let design = use_design();
     let row_style = design.table_row(even).inline.clone();
@@ -399,6 +409,9 @@ fn BodyRow(entity: Entity, even: bool, columns: Vec<ColumnMeta>) -> impl IntoVie
                 .unwrap_or(serde_json::Value::Null);
             let fields = entity.fields.clone();
             let cell_style = cell_style.clone();
+            // Aufgeloestes Label fuer diese Spalte + Zeile (col_key → row_id → label).
+            let reference_label =
+                resolve_reference_label(&reference_labels, &col.key, &entity.id).map(str::to_owned);
             view! {
                 <td style=cell_style>
                     <FieldCell
@@ -407,6 +420,7 @@ fn BodyRow(entity: Entity, even: bool, columns: Vec<ColumnMeta>) -> impl IntoVie
                         value=value
                         fields=fields
                         formatter_id=col.formatter_id
+                        reference_label=reference_label
                     />
                 </td>
             }

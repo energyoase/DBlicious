@@ -55,6 +55,10 @@ pub struct FieldContext<'a> {
     pub value: &'a Value,
     pub fields: &'a serde_json::Map<String, Value>,
     pub locale: Locale,
+    /// Aufgeloestes Display-Label fuer Reference-Felder. `Some(label)` wenn der
+    /// Server ein `reference_labels`-Mapping fuer diese Spalte und Zeile
+    /// geliefert hat; `None` → Fallback auf die rohe ID.
+    pub reference_label: Option<&'a str>,
 }
 
 /// Vertrag fuer alle Renderer-Registries.
@@ -136,12 +140,15 @@ impl FieldRegistry for DefaultFieldRegistry {
             (FieldType::IntEnum { .. }, Value::String(s)) => render_text(s),
             (FieldType::DirectionalEnum { .. }, Value::String(s)) => render_text(s),
 
-            // -------- Reference: zeigt die ID des verknuepften Datensatzes.
-            // Echtes Display-Label-Lookup (`category-1` → "Werkzeug") braucht
-            // entweder einen Batch-Resolver auf dem Server oder einen Cache-
-            // Pfad in `DataSource`; bis dahin ist die ID lesbar und kopierbar,
-            // was eine Verbesserung gegenueber dem reinen `⟨Verweis⟩` ist.
-            (FieldType::Reference { .. }, Value::String(s)) if !s.is_empty() => render_reference(s),
+            // -------- Reference: zeigt das aufgeloeste Display-Label (wenn vom
+            // Server via `reference_labels` geliefert) oder – als Fallback –
+            // die rohe ID des verknuepften Datensatzes.
+            (FieldType::Reference { .. }, Value::String(s)) if !s.is_empty() => {
+                match ctx.reference_label {
+                    Some(label) => render_text(label),
+                    None => render_reference(s),
+                }
+            }
             (FieldType::Reference { .. }, Value::Number(n)) => render_reference(&n.to_string()),
             (FieldType::Reference { .. }, Value::Null) => render_empty(),
             (FieldType::Reference { .. }, _) => placeholder("table.placeholder.reference"),

@@ -33,6 +33,10 @@ pub fn FieldCell(
     value: Value,
     fields: serde_json::Map<String, Value>,
     #[prop(default = None)] formatter_id: Option<String>,
+    /// Aufgeloestes Display-Label fuer Reference-Felder. Wird von `BodyRow`
+    /// aus der `DataResponse.reference_labels`-Map pro Zelle befuellt.
+    #[prop(default = None)]
+    reference_label: Option<String>,
 ) -> impl IntoView {
     let locale = I18nContext::use_context().locale;
     let registry = use_field_registry();
@@ -86,6 +90,7 @@ pub fn FieldCell(
                     value: &value,
                     fields: &fields,
                     locale: l,
+                    reference_label: reference_label.as_deref(),
                 }).into_any()
             }
         }}
@@ -151,6 +156,78 @@ pub fn formatter_id_is_script(id: &Option<String>) -> bool {
     id.as_deref()
         .map(|s| s.starts_with(SCRIPT_PREFIX))
         .unwrap_or(false)
+}
+
+/// Hilfsfunktion: liefert das aufgeloeste Label fuer eine Zelle aus der
+/// `reference_labels`-Map, oder `None`. Extrahiert aus `BodyRow`, damit es
+/// separat testbar ist.
+pub fn resolve_reference_label<'a>(
+    reference_labels: &'a std::collections::BTreeMap<
+        String,
+        std::collections::BTreeMap<String, String>,
+    >,
+    col_key: &str,
+    row_id: &str,
+) -> Option<&'a str> {
+    reference_labels
+        .get(col_key)
+        .and_then(|by_row| by_row.get(row_id))
+        .map(String::as_str)
+}
+
+#[cfg(test)]
+mod reference_label_tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn make_labels() -> BTreeMap<String, BTreeMap<String, String>> {
+        let mut inner = BTreeMap::new();
+        inner.insert("row-1".into(), "Werkzeug".into());
+        inner.insert("row-2".into(), "Material".into());
+        let mut outer = BTreeMap::new();
+        outer.insert("category_id".into(), inner);
+        outer
+    }
+
+    #[test]
+    fn resolve_reference_label_hit() {
+        let labels = make_labels();
+        assert_eq!(
+            resolve_reference_label(&labels, "category_id", "row-1"),
+            Some("Werkzeug")
+        );
+        assert_eq!(
+            resolve_reference_label(&labels, "category_id", "row-2"),
+            Some("Material")
+        );
+    }
+
+    #[test]
+    fn resolve_reference_label_miss_unknown_col() {
+        let labels = make_labels();
+        assert_eq!(
+            resolve_reference_label(&labels, "nonexistent", "row-1"),
+            None
+        );
+    }
+
+    #[test]
+    fn resolve_reference_label_miss_unknown_row() {
+        let labels = make_labels();
+        assert_eq!(
+            resolve_reference_label(&labels, "category_id", "row-999"),
+            None
+        );
+    }
+
+    #[test]
+    fn resolve_reference_label_empty_map() {
+        let labels = BTreeMap::new();
+        assert_eq!(
+            resolve_reference_label(&labels, "category_id", "row-1"),
+            None
+        );
+    }
 }
 
 #[cfg(test)]

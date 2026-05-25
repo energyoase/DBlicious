@@ -12,7 +12,7 @@
 //! Sortierung gerade serverseitig oder clientseitig erfolgt.
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -40,6 +40,10 @@ pub struct DataRequest {
 pub struct DataResponse {
     pub items: Vec<Entity>,
     pub total_count: u64,
+    /// Aufgeloeste Display-Labels fuer Reference-Felder:
+    /// `{ col_key → { row_id → label } }`. Leer bei LocalSource oder wenn
+    /// der Server keine Reference-Spalten mit `display_field` konfiguriert hat.
+    pub reference_labels: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T>>>;
@@ -117,6 +121,7 @@ impl DataSource for RemoteSource {
             Ok(DataResponse {
                 items: res.items,
                 total_count: res.total_count,
+                reference_labels: res.reference_labels,
             })
         })
     }
@@ -304,6 +309,7 @@ impl DataSource for LocalSource {
             Ok(DataResponse {
                 items: slice,
                 total_count,
+                reference_labels: BTreeMap::new(),
             })
         })
     }
