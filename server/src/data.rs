@@ -1224,7 +1224,10 @@ pub fn validate_against_editor(
     for (key, values) in int_enum_specs(entity_type) {
         if let Some(serde_json::Value::String(s)) = fields.get(&key) {
             if !s.is_empty() && !values.iter().any(|v| &v.wire_name == s) {
-                result.push(ValidationMessage::error(key.clone(), "validation.enum_value"));
+                result.push(ValidationMessage::error(
+                    key.clone(),
+                    "validation.enum_value",
+                ));
             }
         }
     }
