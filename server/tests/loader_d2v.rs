@@ -201,6 +201,26 @@ fn d2v_groups_grant_read_to_every_entity() {
 }
 
 #[test]
+fn d2v_value_type_formatter_script_loads_active() {
+    let set = example::load(&d2v_dir()).expect("laden");
+    let s = set
+        .scripts
+        .get("d2v_value_type_label")
+        .expect("Script fehlt im Set");
+    assert!(
+        s.manifest_error.is_none(),
+        "manifest_error: {:?}",
+        s.manifest_error
+    );
+    assert!(matches!(
+        s.kind,
+        shared::script::ScriptKind::Provider {
+            slot: shared::script::ProviderSlot::Formatter
+        }
+    ));
+}
+
+#[test]
 fn d2v_datev_entry_value_type_is_directional_enum() {
     // D2V ValueType (EF-Core-Enum: DEBIT/SOLL=1, CREDIT/HABEN=2) traegt das
     // Vorzeichen, das `value` in der Saldo-Aggregation (Welle 2) gewichtet:

@@ -48,6 +48,8 @@
   { "id": "field.datev_entry.description",                    "category": "field", "description": "Beschreibung" },
   { "id": "field.datev_entry.value",                          "category": "field", "description": "Betrag" },
   { "id": "field.datev_entry.value_type",                     "category": "field", "description": "Soll/Haben" },
+  { "id": "field.datev_entry.value_type.soll",               "category": "field", "description": "Wert-Typ Soll (DATEV-Buchungsseite)" },
+  { "id": "field.datev_entry.value_type.haben",              "category": "field", "description": "Wert-Typ Haben (DATEV-Buchungsseite)" },
   { "id": "field.datev_entry.key",                            "category": "field", "description": "Buchungsschlüssel" },
   { "id": "field.datev_entry.primary_account_nr",             "category": "field", "description": "Hauptkonto" },
   { "id": "field.datev_entry.secondary_account_nr",           "category": "field", "description": "Gegenkonto" },
