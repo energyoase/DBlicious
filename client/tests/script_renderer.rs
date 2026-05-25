@@ -7,6 +7,7 @@
 
 use client::components::script_renderer::{render_decision, RenderDecision, ScriptRenderEnv};
 use client::script::registry::ScriptRegistry;
+use leptos::prelude::{Owner, RwSignal};
 use shared::script::engine::ScriptCtx;
 use shared::script::manifest::UiPrimitive;
 use shared::script::model::{ProviderSlot, Script, ScriptKind, ScriptState};
@@ -127,14 +128,17 @@ fn render_provider_kind_is_an_error() {
 
 #[test]
 fn render_env_passes_locale_and_user_through_ctx() {
-    let env = ScriptRenderEnv {
+    // RwSignal benoetigt einen reaktiven Owner-Scope.
+    let owner = Owner::new();
+    let env = owner.with(|| ScriptRenderEnv {
         registry: std::sync::Arc::new(ScriptRegistry::new()),
         host: std::sync::Arc::new(MockHostApi::new()),
         locale: "en".into(),
         user_id: Some("u-7".into()),
         tenant_id: None,
-    };
-    let ctx = env.make_ctx();
+        scripts_version: RwSignal::new(0),
+    });
+    let ctx = owner.with(|| env.make_ctx());
     assert_eq!(ctx.locale, "en");
     assert_eq!(ctx.user_id.as_deref(), Some("u-7"));
     assert!(ctx.tenant_id.is_none());
