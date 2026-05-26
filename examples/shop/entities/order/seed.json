@@ -8,10 +8,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "paid",
-      "customer": {
-        "id": "cu-2",
-        "displayName": "Kunde 2"
-      }
+      "customer": "cu-2"
     }
   },
   {
@@ -23,10 +20,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "shipped",
-      "customer": {
-        "id": "cu-3",
-        "displayName": "Kunde 3"
-      }
+      "customer": "cu-3"
     }
   },
   {
@@ -38,10 +32,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "cancelled",
-      "customer": {
-        "id": "cu-4",
-        "displayName": "Kunde 4"
-      }
+      "customer": "cu-4"
     }
   },
   {
@@ -53,10 +44,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "new",
-      "customer": {
-        "id": "cu-5",
-        "displayName": "Kunde 5"
-      }
+      "customer": "cu-5"
     }
   },
   {
@@ -68,10 +56,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "paid",
-      "customer": {
-        "id": "cu-6",
-        "displayName": "Kunde 6"
-      }
+      "customer": "cu-6"
     }
   },
   {
@@ -83,10 +68,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "shipped",
-      "customer": {
-        "id": "cu-7",
-        "displayName": "Kunde 7"
-      }
+      "customer": "cu-7"
     }
   },
   {
@@ -98,10 +80,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "cancelled",
-      "customer": {
-        "id": "cu-8",
-        "displayName": "Kunde 8"
-      }
+      "customer": "cu-8"
     }
   },
   {
@@ -113,10 +92,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "new",
-      "customer": {
-        "id": "cu-1",
-        "displayName": "Kunde 1"
-      }
+      "customer": "cu-1"
     }
   },
   {
@@ -128,10 +104,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "paid",
-      "customer": {
-        "id": "cu-2",
-        "displayName": "Kunde 2"
-      }
+      "customer": "cu-2"
     }
   },
   {
@@ -143,10 +116,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "shipped",
-      "customer": {
-        "id": "cu-3",
-        "displayName": "Kunde 3"
-      }
+      "customer": "cu-3"
     }
   },
   {
@@ -158,10 +128,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "cancelled",
-      "customer": {
-        "id": "cu-4",
-        "displayName": "Kunde 4"
-      }
+      "customer": "cu-4"
     }
   },
   {
@@ -173,10 +140,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "new",
-      "customer": {
-        "id": "cu-5",
-        "displayName": "Kunde 5"
-      }
+      "customer": "cu-5"
     }
   },
   {
@@ -188,10 +152,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "paid",
-      "customer": {
-        "id": "cu-6",
-        "displayName": "Kunde 6"
-      }
+      "customer": "cu-6"
     }
   },
   {
@@ -203,10 +164,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "shipped",
-      "customer": {
-        "id": "cu-7",
-        "displayName": "Kunde 7"
-      }
+      "customer": "cu-7"
     }
   },
   {
@@ -218,10 +176,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "cancelled",
-      "customer": {
-        "id": "cu-8",
-        "displayName": "Kunde 8"
-      }
+      "customer": "cu-8"
     }
   },
   {
@@ -233,10 +188,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "new",
-      "customer": {
-        "id": "cu-1",
-        "displayName": "Kunde 1"
-      }
+      "customer": "cu-1"
     }
   },
   {
@@ -248,10 +200,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "paid",
-      "customer": {
-        "id": "cu-2",
-        "displayName": "Kunde 2"
-      }
+      "customer": "cu-2"
     }
   },
   {
@@ -263,10 +212,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "shipped",
-      "customer": {
-        "id": "cu-3",
-        "displayName": "Kunde 3"
-      }
+      "customer": "cu-3"
     }
   },
   {
@@ -278,10 +224,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "cancelled",
-      "customer": {
-        "id": "cu-4",
-        "displayName": "Kunde 4"
-      }
+      "customer": "cu-4"
     }
   },
   {
@@ -293,10 +236,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "new",
-      "customer": {
-        "id": "cu-5",
-        "displayName": "Kunde 5"
-      }
+      "customer": "cu-5"
     }
   },
   {
@@ -308,10 +248,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "paid",
-      "customer": {
-        "id": "cu-6",
-        "displayName": "Kunde 6"
-      }
+      "customer": "cu-6"
     }
   },
   {
@@ -323,10 +260,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "shipped",
-      "customer": {
-        "id": "cu-7",
-        "displayName": "Kunde 7"
-      }
+      "customer": "cu-7"
     }
   },
   {
@@ -338,10 +272,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "cancelled",
-      "customer": {
-        "id": "cu-8",
-        "displayName": "Kunde 8"
-      }
+      "customer": "cu-8"
     }
   },
   {
@@ -353,10 +284,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "new",
-      "customer": {
-        "id": "cu-1",
-        "displayName": "Kunde 1"
-      }
+      "customer": "cu-1"
     }
   },
   {
@@ -368,10 +296,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "paid",
-      "customer": {
-        "id": "cu-2",
-        "displayName": "Kunde 2"
-      }
+      "customer": "cu-2"
     }
   },
   {
@@ -383,10 +308,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "shipped",
-      "customer": {
-        "id": "cu-3",
-        "displayName": "Kunde 3"
-      }
+      "customer": "cu-3"
     }
   },
   {
@@ -398,10 +320,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "cancelled",
-      "customer": {
-        "id": "cu-4",
-        "displayName": "Kunde 4"
-      }
+      "customer": "cu-4"
     }
   },
   {
@@ -413,10 +332,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "new",
-      "customer": {
-        "id": "cu-5",
-        "displayName": "Kunde 5"
-      }
+      "customer": "cu-5"
     }
   },
   {
@@ -428,10 +344,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "paid",
-      "customer": {
-        "id": "cu-6",
-        "displayName": "Kunde 6"
-      }
+      "customer": "cu-6"
     }
   },
   {
@@ -443,10 +356,7 @@
       "currency": "EUR",
       "placedAt": "2025-03-20T14:15:00Z",
       "status": "shipped",
-      "customer": {
-        "id": "cu-7",
-        "displayName": "Kunde 7"
-      }
+      "customer": "cu-7"
     }
   }
 ]

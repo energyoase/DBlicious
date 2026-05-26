@@ -169,9 +169,10 @@ pub fn resolve_reference_label<'a>(
     col_key: &str,
     row_id: &str,
 ) -> Option<&'a str> {
+    // Server-Achse: { row_id → { col_key → label } }
     reference_labels
-        .get(col_key)
-        .and_then(|by_row| by_row.get(row_id))
+        .get(row_id)
+        .and_then(|by_col| by_col.get(col_key))
         .map(String::as_str)
 }
 
@@ -180,12 +181,15 @@ mod reference_label_tests {
     use super::*;
     use std::collections::BTreeMap;
 
+    /// Baut eine Map in der korrekten Server-Achse: { row_id → { col_key → label } }
     fn make_labels() -> BTreeMap<String, BTreeMap<String, String>> {
-        let mut inner = BTreeMap::new();
-        inner.insert("row-1".into(), "Werkzeug".into());
-        inner.insert("row-2".into(), "Material".into());
+        let mut row1 = BTreeMap::new();
+        row1.insert("category_id".into(), "Werkzeug".into());
+        let mut row2 = BTreeMap::new();
+        row2.insert("category_id".into(), "Material".into());
         let mut outer = BTreeMap::new();
-        outer.insert("category_id".into(), inner);
+        outer.insert("row-1".into(), row1);
+        outer.insert("row-2".into(), row2);
         outer
     }
 
@@ -226,6 +230,29 @@ mod reference_label_tests {
         assert_eq!(
             resolve_reference_label(&labels, "category_id", "row-1"),
             None
+        );
+    }
+
+    /// Verifiziert, dass eine Map, die EXAKT der Server-Ausgabe entspricht
+    /// ({ row_id → { col_key → label } }), korrekt aufgeloest wird.
+    #[test]
+    fn server_shaped_map_resolves_correctly() {
+        // Server baut: out[row.id][col_key] = label  (reference.rs:65-67)
+        let mut inner = BTreeMap::new();
+        inner.insert("customer".into(), "Erika Mustermann".into());
+        let mut server_map = BTreeMap::new();
+        server_map.insert("o-0001".into(), inner);
+
+        assert_eq!(
+            resolve_reference_label(&server_map, "customer", "o-0001"),
+            Some("Erika Mustermann"),
+            "Server-Achse {{ row_id → {{ col_key → label }} }} muss korrekt aufgeloest werden"
+        );
+        // Falsche Reihenfolge (transponiert) liefert None
+        assert_eq!(
+            resolve_reference_label(&server_map, "o-0001", "customer"),
+            None,
+            "Transponierte Achse darf nicht aufgeloest werden"
         );
     }
 }

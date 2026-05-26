@@ -957,6 +957,11 @@ impl QueryRoot {
         if resolved.provenance.is_empty() {
             return Ok(None);
         }
+        // display_field kommt aus den geladenen Loader-Settings (nicht aus dem
+        // View-Resolution-Pfad, der es nicht kennt).
+        let display_field = data::settings_for_async(&entity_type)
+            .await
+            .and_then(|s| s.display_field);
         let settings = shared::EntitySettings {
             entity_type: resolved.entity_type,
             access: shared::settings::Access::default(),
@@ -966,7 +971,7 @@ impl QueryRoot {
             properties: resolved.properties,
             field_type_defaults: Default::default(),
             binding: None,
-            display_field: None,
+            display_field,
             append_only: false,
             state_machine: None,
         };

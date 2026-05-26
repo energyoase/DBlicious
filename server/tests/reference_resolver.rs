@@ -211,7 +211,39 @@ async fn gql_entities_carries_reference_labels_field() {
 }
 
 // ---------------------------------------------------------------------------
-// 4. GQL entitySettings liefert displayField (U1-fix Roundtrip-Guard)
+// 4. Shop-Seed-Resolver: order→customer-Label aus echter Shop-Seed (I1)
+// ---------------------------------------------------------------------------
+
+/// Verifiziert, dass nach dem Shop-Boot der Resolver fuer die order-Seite
+/// korrekte reference_labels liefert. Voraussetzung: customer-FK im Seed ist
+/// ein plain-String (nicht ein Objekt) und customer hat display_field="displayName".
+#[tokio::test(flavor = "current_thread")]
+#[serial]
+async fn shop_seed_order_customer_label_resolved() {
+    let _ = fresh_test_setup().await;
+
+    // Shop-Seed ist nach fresh_test_setup + init geladen.
+    // Order o-0001 referenziert customer cu-2 → displayName "Kunde 2".
+    let page = data::entities_page_raw("order", 1, 30, None, Default::default()).await;
+
+    assert!(
+        !page.items.is_empty(),
+        "Mindestens eine Order muss geladen sein"
+    );
+
+    let row_labels = page
+        .reference_labels
+        .get("o-0001")
+        .expect("o-0001 muss in reference_labels vorhanden sein");
+    assert_eq!(
+        row_labels.get("customer").map(String::as_str),
+        Some("Kunde 2"),
+        "Label 'Kunde 2' fuer order o-0001 customer-FK (cu-2) erwartet"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 6. GQL entitySettings liefert displayField (U1-fix Roundtrip-Guard)
 // ---------------------------------------------------------------------------
 
 /// Verifiziert, dass `entitySettings.displayField` fuer `customer` den
