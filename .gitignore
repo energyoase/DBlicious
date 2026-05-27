@@ -1,6 +1,8 @@
 /target
 /target-test
 /dist
+# Client-WASM-Build-Output — wird lokal/CI via `trunk build` erzeugt, nicht versioniert
+/client/dist/
 **/target
 **/target-test
 # isolierte Parallel-Build-Dirs (target-<slug> via --target-dir -j2, siehe parallel-sessions)
