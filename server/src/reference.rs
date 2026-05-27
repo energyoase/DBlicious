@@ -5,6 +5,9 @@
 use shared::FieldType;
 use std::collections::BTreeMap;
 
+/// Vorab geladene Zielzeilen einer Ziel-Entity: {target_id → fields}.
+type TargetRows = BTreeMap<String, serde_json::Map<String, serde_json::Value>>;
+
 /// Wahl der Resolution-Strategie. Default `ServerEmbed`. `ClientBatch` +
 /// `PerCell` sind dokumentierte Folge-Strategien (Seam) — heute nicht gebaut.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -22,10 +25,7 @@ pub enum ReferenceResolutionStrategy {
 pub fn resolve_server_embed(
     rows: &[shared::Entity],
     columns: &[shared::ColumnMeta],
-    fetch_target: &mut dyn FnMut(
-        &str,
-    )
-        -> BTreeMap<String, serde_json::Map<String, serde_json::Value>>,
+    fetch_target: &mut dyn FnMut(&str) -> TargetRows,
     display_field_of: &dyn Fn(&str) -> Option<String>,
 ) -> BTreeMap<String, BTreeMap<String, String>> {
     let refs: Vec<(&str, &str)> = columns
@@ -38,10 +38,7 @@ pub fn resolve_server_embed(
     if refs.is_empty() {
         return BTreeMap::new();
     }
-    let mut target_cache: BTreeMap<
-        String,
-        BTreeMap<String, serde_json::Map<String, serde_json::Value>>,
-    > = BTreeMap::new();
+    let mut target_cache: BTreeMap<String, TargetRows> = BTreeMap::new();
     let mut df_cache: BTreeMap<String, Option<String>> = BTreeMap::new();
     let mut out: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
     for row in rows {
