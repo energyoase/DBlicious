@@ -18,10 +18,6 @@ use serial_test::serial;
 
 use server::{build_schema, data, fresh_test_setup, AuthContext};
 
-fn anon() -> AuthContext {
-    AuthContext::default()
-}
-
 /// Test-Setup mit Admin-Login
 async fn boot() -> AuthContext {
     let _ = fresh_test_setup().await;
