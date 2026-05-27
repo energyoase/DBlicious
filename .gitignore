@@ -3,6 +3,8 @@
 /dist
 **/target
 **/target-test
+# isolierte Parallel-Build-Dirs (target-<slug> via --target-dir -j2, siehe parallel-sessions)
+target-*/
 **/*.rs.bk
 .DS_Store
 .idea/
@@ -23,3 +25,6 @@ bug-reports/
 # CCM runtime
 .ccm/
 .claude/*-state.json
+
+# transiente Test-Output-Dumps
+test_fail_output.txt
