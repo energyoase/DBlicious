@@ -13,7 +13,7 @@
   { "key": "documentInfo",             "labelKey": "field.datev_entry.document_info",              "fieldType": { "kind": "text" },                         "sortable": true,  "filterable": true  },
   { "key": "externalId",               "labelKey": "field.datev_entry.external_id",                "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
   { "key": "groupId",                  "labelKey": "field.datev_entry.group_id",                   "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
-  { "key": "stackId",                  "labelKey": "field.datev_entry.stack_id",                   "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
+  { "key": "stackId",                  "labelKey": "field.datev_entry.stack_id",                   "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true,  "filterId": "script:d2v_stack_filter" },
   { "key": "starMoneyEntryId",         "labelKey": "field.datev_entry.star_money_entry_id",        "fieldType": { "kind": "integer" },                     "sortable": true,  "filterable": true  },
   { "key": "starMoneyCreditCardEntryId","labelKey": "field.datev_entry.star_money_credit_card_entry_id","fieldType": { "kind": "integer" },                 "sortable": true,  "filterable": true  }
 ]
