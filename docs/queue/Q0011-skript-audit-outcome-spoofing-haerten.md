@@ -1,7 +1,7 @@
 ---
 id: Q0011
 created: 2026-05-25T00:00:00Z
-status: reviewed
+status: security-cleared
 priority: medium
 title: "Skript-Audit-Outcome-Spoofing härten: Host-Fehler nicht durch den Rhai-Fehlerwert transportieren"
 spec: null
@@ -23,8 +23,8 @@ review:
   decided_at: 2026-05-29T14:13:33Z
 security_review:
   required: true
-  status: requested
-  notes_path: null
+  status: cleared
+  notes_path: docs/reviews/Q0011-security-review.md
 diagnosis_path: docs/superpowers/diagnoses/Q0011-skript-audit-outcome-spoofing-haerten-diagnosis.md
 design_path: null
 linked_issue: null
@@ -121,3 +121,4 @@ nicht als beliebig wählbarer typisierter `ScriptError`.
 - 2026-05-29T13:25:47Z — ccm-execute: status planned → executing (pre-approved via plan transition)
 - 2026-05-29T14:00:03Z — ccm-execute: status executing → done, final_sha=13064f0 (Option B Sentinel-Dynamic, server+client; verification green) — awaiting review
 - 2026-05-29T14:13:33Z — ccm-review: status done → reviewed (approved by claude), notes=docs/reviews/Q0011-review.md
+- 2026-05-29T14:25:55Z — ccm-security-review: status reviewed → security-cleared, notes=docs/reviews/Q0011-security-review.md
