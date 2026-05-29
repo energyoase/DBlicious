@@ -221,6 +221,43 @@ fn d2v_value_type_formatter_script_loads_active() {
 }
 
 #[test]
+fn d2v_balance_validator_script_loads_active() {
+    let set = example::load(&d2v_dir()).expect("laden");
+    let s = set
+        .scripts
+        .get("d2v_balance_validator")
+        .expect("Script 'd2v_balance_validator' fehlt im Set");
+    assert!(
+        s.manifest_error.is_none(),
+        "manifest_error: {:?}",
+        s.manifest_error
+    );
+    assert!(
+        matches!(
+            s.kind,
+            shared::script::ScriptKind::Provider {
+                slot: shared::script::ProviderSlot::Validator
+            }
+        ),
+        "P1 muss Provider mit slot=Validator sein, war {:?}",
+        s.kind
+    );
+    let m = s.manifest.as_ref().expect("Manifest geparst");
+    assert_eq!(
+        m.tier,
+        shared::script::ScriptTier::Reader,
+        "P1 laeuft auf Reader-Tier (read/compute-only)"
+    );
+    assert!(
+        m.capabilities
+            .iter()
+            .any(|c| matches!(c, shared::script::CapabilityToken::ComputeOnly)),
+        "P1 muss ComputeOnly deklarieren, hatte {:?}",
+        m.capabilities
+    );
+}
+
+#[test]
 fn d2v_datev_entry_value_type_is_directional_enum() {
     // D2V ValueType (EF-Core-Enum: DEBIT/SOLL=1, CREDIT/HABEN=2) traegt das
     // Vorzeichen, das `value` in der Saldo-Aggregation (Welle 2) gewichtet:

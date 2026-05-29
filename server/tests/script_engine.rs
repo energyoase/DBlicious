@@ -422,6 +422,85 @@ fn server_host_api_registry_marks_server_only_correctly() {
     assert!(!text.server_only, "ui.text ist client-faehig");
 }
 
+// ----------------------------------------------------------------------------
+// Q0013 — P1 Balance-Validator (Engine-Driven-Tests)
+// ----------------------------------------------------------------------------
+
+#[test]
+fn d2v_balance_validator_returns_true_for_balanced_pair() {
+    // Verifiziert die *Algorithmik* von P1 direkt am Engine — unabhaengig
+    // davon, ob `validator_id` als Spalten-Wiring-Slot existiert (heute
+    // nicht; siehe Plan §1).
+    use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
+    let source = include_str!(
+        "../../examples/d2v/scripts/d2v_balance_validator.rhai"
+    );
+    let engine = server::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let ast = engine.compile(source, &manifest).expect("compile P1");
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
+
+    // Balanciertes Paar: SOLL 100 + HABEN 100 → ok=true
+    let mut fields = serde_json::Map::new();
+    fields.insert("value".into(), serde_json::json!(100));
+    fields.insert("valueType".into(), serde_json::json!("SOLL"));
+    fields.insert("partnerValue".into(), serde_json::json!(100));
+    fields.insert("partnerValueType".into(), serde_json::json!("HABEN"));
+    let inputs = ScriptInputs {
+        value: serde_json::Value::Null,
+        fields,
+    };
+    let val = engine
+        .run(&ast, inputs, host.clone(), ScriptCtx::default())
+        .expect("balance-script muss laufen");
+    assert_eq!(
+        val,
+        ScriptValue::Bool(true),
+        "Balance SOLL 100 / HABEN 100 muss true liefern, war {val:?}"
+    );
+}
+
+#[test]
+fn d2v_balance_validator_returns_false_for_unbalanced_pair() {
+    use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
+    let source = include_str!(
+        "../../examples/d2v/scripts/d2v_balance_validator.rhai"
+    );
+    let engine = server::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let ast = engine.compile(source, &manifest).expect("compile P1");
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
+
+    // Unbalanciert: SOLL 100 + HABEN 90 → ok=false
+    let mut fields = serde_json::Map::new();
+    fields.insert("value".into(), serde_json::json!(100));
+    fields.insert("valueType".into(), serde_json::json!("SOLL"));
+    fields.insert("partnerValue".into(), serde_json::json!(90));
+    fields.insert("partnerValueType".into(), serde_json::json!("HABEN"));
+    let inputs = ScriptInputs {
+        value: serde_json::Value::Null,
+        fields,
+    };
+    let val = engine
+        .run(&ast, inputs, host.clone(), ScriptCtx::default())
+        .expect("balance-script muss laufen");
+    assert_eq!(
+        val,
+        ScriptValue::Bool(false),
+        "Balance SOLL 100 / HABEN 90 muss false liefern, war {val:?}"
+    );
+}
+
 #[test]
 fn engine_max_operations_kicks_in_on_runaway_loop() {
     let engine = server::script::engine::RhaiEngine::new();
