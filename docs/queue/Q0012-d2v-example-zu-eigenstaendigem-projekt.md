@@ -1,7 +1,7 @@
 ---
 id: Q0012
 created: 2026-05-29T00:00:00Z
-status: done
+status: reviewed
 priority: medium
 title: "d2v: Example zu eigenständigem Projekt mit dblicious-Binary-Abhängigkeit"
 spec: docs/superpowers/specs/Q0012-d2v-example-zu-eigenstaendigem-projekt-design.md
@@ -16,11 +16,11 @@ requirements: null
 assigned_worker: null
 type: feature
 review:
-  status: requested
+  status: approved
   reviewer: claude
-  notes_path: null
+  notes_path: docs/reviews/Q0012-review.md
   requested_at: 2026-05-29T23:37:00Z
-  decided_at: null
+  decided_at: 2026-05-29T23:43:30Z
 security_review:
   required: true
   status: null
@@ -95,3 +95,4 @@ Modell wurde bewusst verworfen).
 - 2026-05-29T22:50:09Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0012-d2v-example-zu-eigenstaendigem-projekt.md; Standalone-Standort = eigenes Git-Repo (d2v-dblicious-projekt)
 - 2026-05-29T23:17:59Z — ccm-execute: status planned → executing (pre-approved via 'execute beide')
 - 2026-05-29T23:36:19Z — ccm-execute: status executing → done, final_sha=5f085da (shared::DATA_DIR_FORMAT + [meta] dataDirFormat Loader-Boot-Check, additiv & backward-compatible; docs/standalone-projekt-skeleton.md + CLAUDE.md-Notiz; verification green) — awaiting review
+- 2026-05-29T23:43:30Z — ccm-review: status done → reviewed (approved by claude), notes=docs/reviews/Q0012-review.md (3 non-blocking: F1 skeleton-Doku stale post-Q0013, F2 minServerVersion-Semantik-Drift Warn-only, Forward-Compat-Test-Lücke)
