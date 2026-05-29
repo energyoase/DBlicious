@@ -1,7 +1,7 @@
 ---
 id: Q0013
 created: 2026-05-29T00:00:00Z
-status: reviewed
+status: security-cleared
 priority: medium
 title: "Minimale livable d2v2019-Teilmenge im Example (gestaffelte DoD)"
 spec: docs/superpowers/specs/Q0013-minimale-livable-d2v2019-teilmenge-design.md
@@ -23,8 +23,8 @@ review:
   decided_at: 2026-05-29T23:09:16Z
 security_review:
   required: true
-  status: requested
-  notes_path: null
+  status: cleared
+  notes_path: docs/reviews/Q0013-security-review.md
 diagnosis_path: null
 design_path: null
 linked_issue: null
@@ -87,3 +87,4 @@ StarMoneyCreditCard, DescriptionSplitter, StarMoney-Import.
 - 2026-05-29T22:53:16Z — ccm-execute: status planned → executing (pre-approved via 'execute beide')
 - 2026-05-29T23:03:42Z — ccm-execute: status executing → done, final_sha=7b0daad (P1 balance-validator + P3 stack-filter mit filterId-Wiring; IBAN deferred, validator_id-Wiring Stage-2; verification green) — awaiting review
 - 2026-05-29T23:09:16Z — ccm-review: status done → reviewed (approved by claude), notes=docs/reviews/Q0013-review.md (3 non-blocking: F1 readI18n-Drift, F2 Manifest-Test-Kopplung, F3 P1 null-handling)
+- 2026-05-29T23:17:11Z — ccm-security-review: status reviewed → security-cleared, notes=docs/reviews/Q0013-security-review.md (4 advisory; P3 filterId-Wiring ist heute dormant — ops_for_named/lookup_provider im Client-Filter-Pfad noch ungenutzt — Folgeitem-Kandidat)
