@@ -72,4 +72,5 @@ Project Fluent. The two `.ftl` files (`client/locales/{de,en}/main.ftl`) are emb
 - `field_type` round-trips as JSON, not as a typed GraphQL union — keep it that way unless you're prepared to model the union in `async-graphql` and update both serializers.
 - Server CORS is open (`Any`/`Any`/`Any`) for local dev only.
 - The `SortDirection` enum on the wire is `lowercase` (`"asc"`/`"desc"`); other shared types use `camelCase`.
+- `config.toml` kennt eine optionale `[meta]`-Sektion mit `dataDirFormat: u32` (Major-Version des data-dir-Vertrags) und `minServerVersion: String` (Warn-Schwelle). Fehlt `[meta]` ganz, gilt "v0" und der aktuelle Binary akzeptiert; ein groesserer `dataDirFormat` als `shared::DATA_DIR_FORMAT` bricht den Boot ab (Spec Q0012 §2.2). Single source of truth ist `shared::DATA_DIR_FORMAT`. Additive Loader-Aenderungen erhoehen die Konstante **nicht**, breaking Aenderungen +1.
 - Don't bypass `DesignSystem` with hard-coded styles in components — the small handful of inline `style="..."` strings in `app.rs` and `routes/mod.rs` are layout-only (grid templates, padding) and predate the trait, but new visual styling goes through the trait.

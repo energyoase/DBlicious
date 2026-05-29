@@ -14,6 +14,9 @@
 //!
 //! Verzeichnislayout (`examples/<name>/`):
 //!   config.{json,toml}                  optional, sonst Defaults
+//!     [server]                            name, bind (optional)
+//!     [meta]                              dataDirFormat: u32, minServerVersion: String
+//!                                         (optional; Q0012 §2.2 — Boot-Check)
 //!   navigation.{json,toml}              optional
 //!   security/
 //!     users.{json,toml}                 Liste von [`UserSeed`]
