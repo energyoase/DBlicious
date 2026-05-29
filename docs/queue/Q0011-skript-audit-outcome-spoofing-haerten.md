@@ -1,11 +1,11 @@
 ---
 id: Q0011
 created: 2026-05-25T00:00:00Z
-status: diagnosed
+status: planned
 priority: medium
 title: "Skript-Audit-Outcome-Spoofing härten: Host-Fehler nicht durch den Rhai-Fehlerwert transportieren"
 spec: null
-plan: null
+plan: docs/superpowers/plans/Q0011-skript-audit-outcome-spoofing-haerten.md
 pending_question_id: null
 resume_step: null
 parent: Q0009
@@ -117,3 +117,4 @@ nicht als beliebig wählbarer typisierter `ScriptError`.
 
 ## Log
 - 2026-05-29T09:30:24Z — ccm-debug: status new → diagnosed, diagnosis=docs/superpowers/diagnoses/Q0011-skript-audit-outcome-spoofing-haerten-diagnosis.md
+- 2026-05-29T13:20:37Z — ccm-plan: status diagnosed → planned, plan=docs/superpowers/plans/Q0011-skript-audit-outcome-spoofing-haerten.md
