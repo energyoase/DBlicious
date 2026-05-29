@@ -1,11 +1,11 @@
 ---
 id: Q0013
 created: 2026-05-29T00:00:00Z
-status: brainstormed
+status: planned
 priority: medium
 title: "Minimale livable d2v2019-Teilmenge im Example (gestaffelte DoD)"
 spec: docs/superpowers/specs/Q0013-minimale-livable-d2v2019-teilmenge-design.md
-plan: null
+plan: docs/superpowers/plans/Q0013-minimale-livable-d2v2019-teilmenge.md
 pending_question_id: null
 resume_step: null
 parent: null
@@ -83,3 +83,4 @@ StarMoneyCreditCard, DescriptionSplitter, StarMoney-Import.
 ## Log
 - 2026-05-29T14:35:00Z — manual: created (Scope-Split aus /ccm-brainstorm-Anfrage; Schwester-Item Q0012)
 - 2026-05-29T19:49:34Z — ccm-brainstorm: status new → brainstormed, spec=docs/superpowers/specs/Q0013-minimale-livable-d2v2019-teilmenge-design.md; security_review.required=true (Trigger: script, auth)
+- 2026-05-29T22:42:46Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0013-minimale-livable-d2v2019-teilmenge.md; IBAN-Pilot deferred (c); validator_id-Wiring -> Stage-2-Framework-Folgeitem
