@@ -1,7 +1,7 @@
 ---
 id: Q0011
 created: 2026-05-25T00:00:00Z
-status: new
+status: diagnosed
 priority: medium
 title: "Skript-Audit-Outcome-Spoofing härten: Host-Fehler nicht durch den Rhai-Fehlerwert transportieren"
 spec: null
@@ -25,7 +25,7 @@ security_review:
   required: true
   status: null
   notes_path: null
-diagnosis_path: null
+diagnosis_path: docs/superpowers/diagnoses/Q0011-skript-audit-outcome-spoofing-haerten-diagnosis.md
 design_path: null
 linked_issue: null
 linked_pr: null
@@ -114,3 +114,6 @@ nicht als beliebig wählbarer typisierter `ScriptError`.
   hier vermerkt): heuristisches Memory-Limit in `apply_limits` (dokumentiert,
   akzeptiert — kein Byte-genaues Budget); client `map_rhai_err` hardcodet
   `Timeout{limit_ms:0}` (kosmetisch, Client hat kein Manifest/Compute-only).
+
+## Log
+- 2026-05-29T09:30:24Z — ccm-debug: status new → diagnosed, diagnosis=docs/superpowers/diagnoses/Q0011-skript-audit-outcome-spoofing-haerten-diagnosis.md
