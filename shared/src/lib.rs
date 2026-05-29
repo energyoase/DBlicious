@@ -6,6 +6,19 @@
 
 use serde::{Deserialize, Serialize};
 
+/// SemVer-**Major** des data-dir-Loader-Vertrags (`examples/<name>/`-Layout).
+///
+/// Wird vom Server beim Booten gegen `config.toml [meta] dataDirFormat`
+/// verglichen (siehe `server/src/example/loader.rs`). Aenderungs-Politik:
+/// - **Additiv** (neues optionales Feld, neue optionale Datei): **kein** Bump.
+/// - **Breaking** (Pflichtfeld, geaenderte Semantik, umbenannte Wire-Form):
+///   Bump um +1, alte data-dirs muessen migriert werden.
+///
+/// Default-Annahme bei Abwesenheit von `[meta] dataDirFormat`: "v0", wird
+/// vom aktuellen Binary akzeptiert (Spec Q0012 §2.2 — Backward-Compat fuer
+/// alle heute existierenden data-dirs).
+pub const DATA_DIR_FORMAT: u32 = 1;
+
 pub mod auth;
 pub mod builder;
 pub mod editor;
