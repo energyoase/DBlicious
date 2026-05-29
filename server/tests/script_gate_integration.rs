@@ -150,7 +150,9 @@ fn forged_throw_does_not_determine_reported_error_kind() {
 fn non_json_throw_still_maps_to_host_error() {
     let manifest = manifest_with(vec![CapabilityToken::ComputeOnly]);
     let engine = server::script::engine::RhaiEngine::with_manifest(&manifest);
-    let ast = engine.compile(r#"throw "plain-non-json""#, &manifest).expect("compile");
+    let ast = engine
+        .compile(r#"throw "plain-non-json""#, &manifest)
+        .expect("compile");
     let host = Arc::new(MockHostApi::new());
     let res = engine.run(&ast, ScriptInputs::default(), host, ScriptCtx::default());
     match res {

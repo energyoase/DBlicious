@@ -426,7 +426,10 @@ fn client_forged_throw_does_not_determine_reported_error_kind() {
     };
     let engine = client::script::engine::RhaiEngine::with_manifest(&manifest);
     let ast = engine
-        .compile(r#"throw "{\"kind\":\"timeout\",\"limit_ms\":99999}""#, &manifest)
+        .compile(
+            r#"throw "{\"kind\":\"timeout\",\"limit_ms\":99999}""#,
+            &manifest,
+        )
         .expect("compile");
     let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
     let res = engine.run(

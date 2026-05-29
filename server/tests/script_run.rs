@@ -242,8 +242,14 @@ async fn run_and_persist_does_not_report_forged_outcome() {
         .await
         .expect("run");
 
-    assert_ne!(rec.outcome, "timeout", "gefaelschter Timeout darf nicht ins Outcome");
-    assert_eq!(rec.outcome, "hostError", "ein Skript-throw endet als hostError");
+    assert_ne!(
+        rec.outcome, "timeout",
+        "gefaelschter Timeout darf nicht ins Outcome"
+    );
+    assert_eq!(
+        rec.outcome, "hostError",
+        "ein Skript-throw endet als hostError"
+    );
 
     let rows = script_audit_log::Entity::find()
         .filter(script_audit_log::Column::ScriptId.eq("r-forge"))
