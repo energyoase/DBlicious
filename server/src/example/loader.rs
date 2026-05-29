@@ -13,11 +13,13 @@ use anyhow::{anyhow, Context, Result};
 use super::format::{find_file, read_typed_opt, SUPPORTED_EXTS};
 use super::{EntityTypeSet, ExampleConfig, ExampleSet, ScriptSeed, UserSeed};
 
-/// Sektion `[server]` aus `config.{toml,json}`.
+/// Sektion `[server]` und `[meta]` aus `config.{toml,json}`.
 #[derive(serde::Deserialize)]
 struct ConfigFile {
     #[serde(default)]
     server: Option<ConfigServer>,
+    #[serde(default)]
+    meta: Option<ConfigMeta>,
 }
 
 #[derive(serde::Deserialize)]
@@ -27,6 +29,23 @@ struct ConfigServer {
     name: Option<String>,
     #[serde(default)]
     bind: Option<String>,
+}
+
+/// Sektion `[meta]` aus `config.{toml,json}` (Q0012 §2.2).
+///
+/// Vollstaendig optional. Fehlt sie, gilt `dataDirFormat = 0` (vor-Q0012).
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ConfigMeta {
+    /// SemVer-Major des data-dir-Vertrags, gegen den dieses Verzeichnis
+    /// geschrieben wurde. Wird gegen `shared::DATA_DIR_FORMAT` verglichen.
+    #[serde(default)]
+    data_dir_format: Option<u32>,
+    /// Optionale Mindest-Server-Version — reine Warn-Schwelle, kein Stopp.
+    /// Format: `major.minor.patch` (lex-vergleichbar reicht uns hier nicht;
+    /// wir tracen nur, wir parsen es nicht weiter — entkoppelt von SemVer).
+    #[serde(default)]
+    min_server_version: Option<String>,
 }
 
 /// Laed das Beispiel im angegebenen Verzeichnis. Schlaegt fehl, wenn das
@@ -53,6 +72,43 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
             }
         }
     }
+    // ---- Loader-Format-Version (Q0012 §2.2) ----
+    // Re-parse minimal, um `[meta]` getrennt vom `[server]`-Pfad zu lesen.
+    // (Wir koennten das im ersten Read mitnehmen; das hier ist robust gegen
+    // spaetere Refactorings der ConfigFile-Struct und entkoppelt den Check
+    // explizit als eigene Phase.)
+    let meta = {
+        let config_path = find_file(dir, "config");
+        read_typed_opt::<ConfigFile>(config_path)?
+            .and_then(|cf| cf.meta)
+            .unwrap_or_default()
+    };
+    let declared = meta.data_dir_format.unwrap_or(0);
+    let supported = shared::DATA_DIR_FORMAT;
+    if declared > supported {
+        return Err(anyhow!(
+            "data-dir '{}' verlangt dataDirFormat = {declared}, dieses Binary unterstuetzt bis {supported}. \
+             Aktualisiere das dblicious-Binary (Spec Q0012 §2.2).",
+            dir.display()
+        ));
+    }
+    if declared > 0 && declared < supported {
+        tracing::warn!(
+            "data-dir '{}' verwendet dataDirFormat = {declared}; dieses Binary unterstuetzt bis {supported} (Forward-Compat — laeuft, sollte aber aktualisiert werden).",
+            dir.display()
+        );
+    }
+    if let Some(min_ver) = meta.min_server_version.as_deref() {
+        let our_ver = env!("CARGO_PKG_VERSION");
+        if min_ver != our_ver {
+            tracing::warn!(
+                "data-dir '{}' deklariert minServerVersion = '{min_ver}', dieses Binary ist {our_ver}. \
+                 Es findet keine harte Pruefung statt — bitte selbst verifizieren.",
+                dir.display()
+            );
+        }
+    }
+
     if config.name == "unnamed" {
         if let Some(name) = dir.file_name().and_then(|s| s.to_str()) {
             config.name = name.into();
