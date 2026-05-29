@@ -243,6 +243,12 @@ struct ScriptDescriptorFile {
     manifest: shared::script::ScriptManifest,
 }
 
+// Q0012 §4 / Q0013 / gap-analysis 2026-05-24 §4b: heute laedt diese
+// Funktion ausschliesslich `<data-dir>/scripts/`. Eine spaetere,
+// geteilte Bookkeeping-Stdlib (Schicht 2) wuerde hier einen zweiten,
+// geteilten Such-Pfad ergaenzen (z.B. binary-mitgelieferter Standard-Ordner +
+// `[meta] country = "DE"` als Selector). Die Erweiterung ist **additiv**
+// und **nicht** Bestandteil von Q0012 — bitte nicht praeventiv vorbauen.
 fn load_scripts(dir: &Path) -> Result<BTreeMap<String, ScriptSeed>> {
     let scripts_root = dir.join("scripts");
     let mut out: BTreeMap<String, ScriptSeed> = BTreeMap::new();
