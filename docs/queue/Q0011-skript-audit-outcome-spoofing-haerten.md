@@ -16,10 +16,10 @@ requirements: null
 assigned_worker: null
 type: bug
 review:
-  status: null
-  reviewer: null
+  status: requested
+  reviewer: claude
   notes_path: null
-  requested_at: null
+  requested_at: 2026-05-29T14:01:13Z
   decided_at: null
 security_review:
   required: true
