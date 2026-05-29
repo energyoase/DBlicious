@@ -221,6 +221,53 @@ fn d2v_value_type_formatter_script_loads_active() {
 }
 
 #[test]
+fn d2v_stack_filter_script_loads_active() {
+    let set = example::load(&d2v_dir()).expect("laden");
+    let s = set
+        .scripts
+        .get("d2v_stack_filter")
+        .expect("Script 'd2v_stack_filter' fehlt im Set");
+    assert!(s.manifest_error.is_none(), "manifest_error: {:?}", s.manifest_error);
+    assert!(
+        matches!(
+            s.kind,
+            shared::script::ScriptKind::Provider {
+                slot: shared::script::ProviderSlot::Filter
+            }
+        ),
+        "P3 muss Provider mit slot=Filter sein, war {:?}",
+        s.kind
+    );
+    let m = s.manifest.as_ref().expect("Manifest geparst");
+    assert_eq!(m.tier, shared::script::ScriptTier::Reader);
+    assert!(
+        m.capabilities
+            .iter()
+            .any(|c| matches!(c, shared::script::CapabilityToken::ComputeOnly)),
+        "P3 muss ComputeOnly deklarieren"
+    );
+}
+
+#[test]
+fn d2v_datev_entry_stack_id_column_has_script_filter_id() {
+    // Wiring-Pin: das stackId-Column-Meta muss filter_id =
+    // "script:d2v_stack_filter" tragen (Spec §2.2#6, Resolution Phase 1.5
+    // analog zu formatter_id).
+    let set = example::load(&d2v_dir()).expect("laden");
+    let col = set.entities["datev_entry"]
+        .columns
+        .iter()
+        .find(|c| c.key == "stackId")
+        .expect("datev_entry: stackId-Spalte fehlt");
+    assert_eq!(
+        col.filter_id.as_deref(),
+        Some("script:d2v_stack_filter"),
+        "stackId muss filter_id 'script:d2v_stack_filter' tragen, war {:?}",
+        col.filter_id
+    );
+}
+
+#[test]
 fn d2v_balance_validator_script_loads_active() {
     let set = example::load(&d2v_dir()).expect("laden");
     let s = set

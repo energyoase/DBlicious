@@ -423,6 +423,70 @@ fn server_host_api_registry_marks_server_only_correctly() {
 }
 
 // ----------------------------------------------------------------------------
+// Q0013 — P3 Stack-Filter (Engine-Driven-Tests)
+// ----------------------------------------------------------------------------
+
+#[test]
+fn d2v_stack_filter_matches_when_stack_id_equals_selected() {
+    use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
+    let source = include_str!(
+        "../../examples/d2v/scripts/d2v_stack_filter.rhai"
+    );
+    let engine = server::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let ast = engine.compile(source, &manifest).expect("compile P3");
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
+
+    // Match: stackId = 42, selectedStackId = 42 → true.
+    let mut fields = serde_json::Map::new();
+    fields.insert("stackId".into(), serde_json::json!(42));
+    fields.insert("selectedStackId".into(), serde_json::json!(42));
+    let inputs = ScriptInputs {
+        value: serde_json::Value::Null,
+        fields,
+    };
+    let val = engine
+        .run(&ast, inputs, host.clone(), ScriptCtx::default())
+        .expect("stack-filter muss laufen");
+    assert_eq!(val, ScriptValue::Bool(true), "Match-Fall muss true sein");
+}
+
+#[test]
+fn d2v_stack_filter_excludes_when_stack_id_differs() {
+    use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
+    let source = include_str!(
+        "../../examples/d2v/scripts/d2v_stack_filter.rhai"
+    );
+    let engine = server::script::engine::RhaiEngine::new();
+    let manifest = ScriptManifest {
+        manifest_version: 1,
+        tier: ScriptTier::Reader,
+        capabilities: vec![CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let ast = engine.compile(source, &manifest).expect("compile P3");
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
+
+    // Kein Match: stackId = 42, selectedStackId = 7 → false.
+    let mut fields = serde_json::Map::new();
+    fields.insert("stackId".into(), serde_json::json!(42));
+    fields.insert("selectedStackId".into(), serde_json::json!(7));
+    let inputs = ScriptInputs {
+        value: serde_json::Value::Null,
+        fields,
+    };
+    let val = engine
+        .run(&ast, inputs, host.clone(), ScriptCtx::default())
+        .expect("stack-filter muss laufen");
+    assert_eq!(val, ScriptValue::Bool(false), "Non-Match-Fall muss false sein");
+}
+
+// ----------------------------------------------------------------------------
 // Q0013 — P1 Balance-Validator (Engine-Driven-Tests)
 // ----------------------------------------------------------------------------
 
