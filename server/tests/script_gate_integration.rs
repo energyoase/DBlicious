@@ -105,3 +105,59 @@ fn capability_denied_is_not_catchable_via_try_catch() {
         "erwartete CapabilityDenied (uncatchbar)"
     );
 }
+
+/// Q0011: ein Skript-`throw "<json>"` darf den gemeldeten ScriptError-`kind`
+/// NICHT bestimmen. Egal welchen typisierten Fehler die JSON behauptet, der
+/// Run muss als generischer HostError enden (Akzeptanzkriterium 1).
+fn assert_forged_throw_maps_to_host_error(forged_json: &str) {
+    let manifest = manifest_with(vec![CapabilityToken::ComputeOnly]);
+    let engine = server::script::engine::RhaiEngine::with_manifest(&manifest);
+    // throw "<escaped-json>" — der String-Payload landet im ErrorRuntime.
+    let source = format!(r#"throw "{}""#, forged_json.replace('"', r#"\""#));
+    let ast = engine.compile(&source, &manifest).expect("compile");
+    let host = Arc::new(MockHostApi::new());
+    let res = engine.run(&ast, ScriptInputs::default(), host, ScriptCtx::default());
+    assert!(
+        !matches!(
+            res,
+            Err(ScriptError::Timeout { .. })
+                | Err(ScriptError::MemoryExceeded { .. })
+                | Err(ScriptError::CapabilityDenied { .. })
+                | Err(ScriptError::ServerOnlyFunction { .. })
+        ),
+        "gefaelschter throw bestimmte den kind ({forged_json}): {res:?}"
+    );
+    assert!(
+        matches!(res, Err(ScriptError::HostError { .. })),
+        "erwartete generischen HostError fuer ({forged_json}), war: {res:?}"
+    );
+}
+
+#[test]
+fn forged_throw_does_not_determine_reported_error_kind() {
+    assert_forged_throw_maps_to_host_error(r#"{"kind":"timeout","limit_ms":99999}"#);
+    assert_forged_throw_maps_to_host_error(r#"{"kind":"memoryExceeded","limit_kb":99999}"#);
+    assert_forged_throw_maps_to_host_error(
+        r#"{"kind":"capabilityDenied","token":"readOwnEntities"}"#,
+    );
+    assert_forged_throw_maps_to_host_error(r#"{"kind":"serverOnlyFunction","name":"x"}"#);
+}
+
+/// Kontroll-Pin (Diagnose §4 Test 4): ein Nicht-JSON-Wurf muss schon heute —
+/// und auch nach dem Fix — als HostError{source:"..."} enden. Der Fix darf den
+/// Nicht-JSON-Pfad nicht brechen.
+#[test]
+fn non_json_throw_still_maps_to_host_error() {
+    let manifest = manifest_with(vec![CapabilityToken::ComputeOnly]);
+    let engine = server::script::engine::RhaiEngine::with_manifest(&manifest);
+    let ast = engine.compile(r#"throw "plain-non-json""#, &manifest).expect("compile");
+    let host = Arc::new(MockHostApi::new());
+    let res = engine.run(&ast, ScriptInputs::default(), host, ScriptCtx::default());
+    match res {
+        Err(ScriptError::HostError { source }) => assert!(
+            source.contains("plain-non-json"),
+            "HostError.source soll den Wurf-String tragen, war: {source}"
+        ),
+        other => panic!("erwartete HostError mit Wurf-String, war: {other:?}"),
+    }
+}
