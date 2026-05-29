@@ -413,3 +413,34 @@ fn engine_max_operations_kicks_in_on_runaway_loop() {
     );
     assert!(res.is_err(), "Endlosschleife muss abbrechen");
 }
+
+#[test]
+fn client_forged_throw_does_not_determine_reported_error_kind() {
+    // Q0011 Symmetrie: der Client-Engine-Pfad (Preview/Compute) darf einen
+    // gefaelschten throw-JSON nicht als typisierten ScriptError melden.
+    let manifest = shared::script::ScriptManifest {
+        manifest_version: 1,
+        tier: shared::script::ScriptTier::Reader,
+        capabilities: vec![shared::script::CapabilityToken::ComputeOnly],
+        ..Default::default()
+    };
+    let engine = client::script::engine::RhaiEngine::with_manifest(&manifest);
+    let ast = engine
+        .compile(r#"throw "{\"kind\":\"timeout\",\"limit_ms\":99999}""#, &manifest)
+        .expect("compile");
+    let host = std::sync::Arc::new(shared::script::testing::MockHostApi::new());
+    let res = engine.run(
+        &ast,
+        shared::script::engine::ScriptInputs::default(),
+        host,
+        shared::script::engine::ScriptCtx::default(),
+    );
+    assert!(
+        !matches!(res, Err(shared::script::ScriptError::Timeout { .. })),
+        "Client: gefaelschter throw bestimmte den kind: {res:?}"
+    );
+    assert!(
+        matches!(res, Err(shared::script::ScriptError::HostError { .. })),
+        "Client: erwartete generischen HostError, war: {res:?}"
+    );
+}
