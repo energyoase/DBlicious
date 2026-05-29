@@ -1,7 +1,7 @@
 ---
 id: Q0013
 created: 2026-05-29T00:00:00Z
-status: done
+status: reviewed
 priority: medium
 title: "Minimale livable d2v2019-Teilmenge im Example (gestaffelte DoD)"
 spec: docs/superpowers/specs/Q0013-minimale-livable-d2v2019-teilmenge-design.md
@@ -16,11 +16,11 @@ requirements: null
 assigned_worker: null
 type: feature
 review:
-  status: requested
+  status: approved
   reviewer: claude
-  notes_path: null
+  notes_path: docs/reviews/Q0013-review.md
   requested_at: 2026-05-29T23:04:22Z
-  decided_at: null
+  decided_at: 2026-05-29T23:09:16Z
 security_review:
   required: true
   status: null
@@ -86,3 +86,4 @@ StarMoneyCreditCard, DescriptionSplitter, StarMoney-Import.
 - 2026-05-29T22:42:46Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0013-minimale-livable-d2v2019-teilmenge.md; IBAN-Pilot deferred (c); validator_id-Wiring -> Stage-2-Framework-Folgeitem
 - 2026-05-29T22:53:16Z — ccm-execute: status planned → executing (pre-approved via 'execute beide')
 - 2026-05-29T23:03:42Z — ccm-execute: status executing → done, final_sha=7b0daad (P1 balance-validator + P3 stack-filter mit filterId-Wiring; IBAN deferred, validator_id-Wiring Stage-2; verification green) — awaiting review
+- 2026-05-29T23:09:16Z — ccm-review: status done → reviewed (approved by claude), notes=docs/reviews/Q0013-review.md (3 non-blocking: F1 readI18n-Drift, F2 Manifest-Test-Kopplung, F3 P1 null-handling)
