@@ -23,7 +23,7 @@ review:
   decided_at: 2026-05-29T14:13:33Z
 security_review:
   required: true
-  status: null
+  status: requested
   notes_path: null
 diagnosis_path: docs/superpowers/diagnoses/Q0011-skript-audit-outcome-spoofing-haerten-diagnosis.md
 design_path: null
