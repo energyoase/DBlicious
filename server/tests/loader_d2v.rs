@@ -227,7 +227,11 @@ fn d2v_stack_filter_script_loads_active() {
         .scripts
         .get("d2v_stack_filter")
         .expect("Script 'd2v_stack_filter' fehlt im Set");
-    assert!(s.manifest_error.is_none(), "manifest_error: {:?}", s.manifest_error);
+    assert!(
+        s.manifest_error.is_none(),
+        "manifest_error: {:?}",
+        s.manifest_error
+    );
     assert!(
         matches!(
             s.kind,

@@ -429,9 +429,7 @@ fn server_host_api_registry_marks_server_only_correctly() {
 #[test]
 fn d2v_stack_filter_matches_when_stack_id_equals_selected() {
     use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
-    let source = include_str!(
-        "../../examples/d2v/scripts/d2v_stack_filter.rhai"
-    );
+    let source = include_str!("../../examples/d2v/scripts/d2v_stack_filter.rhai");
     let engine = server::script::engine::RhaiEngine::new();
     let manifest = ScriptManifest {
         manifest_version: 1,
@@ -459,9 +457,7 @@ fn d2v_stack_filter_matches_when_stack_id_equals_selected() {
 #[test]
 fn d2v_stack_filter_excludes_when_stack_id_differs() {
     use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
-    let source = include_str!(
-        "../../examples/d2v/scripts/d2v_stack_filter.rhai"
-    );
+    let source = include_str!("../../examples/d2v/scripts/d2v_stack_filter.rhai");
     let engine = server::script::engine::RhaiEngine::new();
     let manifest = ScriptManifest {
         manifest_version: 1,
@@ -483,7 +479,11 @@ fn d2v_stack_filter_excludes_when_stack_id_differs() {
     let val = engine
         .run(&ast, inputs, host.clone(), ScriptCtx::default())
         .expect("stack-filter muss laufen");
-    assert_eq!(val, ScriptValue::Bool(false), "Non-Match-Fall muss false sein");
+    assert_eq!(
+        val,
+        ScriptValue::Bool(false),
+        "Non-Match-Fall muss false sein"
+    );
 }
 
 // ----------------------------------------------------------------------------
@@ -496,9 +496,7 @@ fn d2v_balance_validator_returns_true_for_balanced_pair() {
     // davon, ob `validator_id` als Spalten-Wiring-Slot existiert (heute
     // nicht; siehe Plan §1).
     use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
-    let source = include_str!(
-        "../../examples/d2v/scripts/d2v_balance_validator.rhai"
-    );
+    let source = include_str!("../../examples/d2v/scripts/d2v_balance_validator.rhai");
     let engine = server::script::engine::RhaiEngine::new();
     let manifest = ScriptManifest {
         manifest_version: 1,
@@ -532,9 +530,7 @@ fn d2v_balance_validator_returns_true_for_balanced_pair() {
 #[test]
 fn d2v_balance_validator_returns_false_for_unbalanced_pair() {
     use shared::script::engine::{ScriptCtx, ScriptInputs, ScriptValue};
-    let source = include_str!(
-        "../../examples/d2v/scripts/d2v_balance_validator.rhai"
-    );
+    let source = include_str!("../../examples/d2v/scripts/d2v_balance_validator.rhai");
     let engine = server::script::engine::RhaiEngine::new();
     let manifest = ScriptManifest {
         manifest_version: 1,
