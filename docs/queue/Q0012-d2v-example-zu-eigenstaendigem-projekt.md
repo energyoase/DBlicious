@@ -1,7 +1,7 @@
 ---
 id: Q0012
 created: 2026-05-29T00:00:00Z
-status: planned
+status: executing
 priority: medium
 title: "d2v: Example zu eigenständigem Projekt mit dblicious-Binary-Abhängigkeit"
 spec: docs/superpowers/specs/Q0012-d2v-example-zu-eigenstaendigem-projekt-design.md
@@ -93,3 +93,4 @@ Modell wurde bewusst verworfen).
 - 2026-05-29T14:35:00Z — manual: created (Scope-Split aus /ccm-brainstorm-Anfrage; Schwester-Item Q0013)
 - 2026-05-29T19:49:34Z — ccm-brainstorm: status new → brainstormed, spec=docs/superpowers/specs/Q0012-d2v-example-zu-eigenstaendigem-projekt-design.md; security_review.required=true (Trigger: secrets, script, wasm)
 - 2026-05-29T22:50:09Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0012-d2v-example-zu-eigenstaendigem-projekt.md; Standalone-Standort = eigenes Git-Repo (d2v-dblicious-projekt)
+- 2026-05-29T23:17:59Z — ccm-execute: status planned → executing (pre-approved via 'execute beide')
