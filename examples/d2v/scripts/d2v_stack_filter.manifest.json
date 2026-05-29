@@ -1,0 +1,8 @@
+{
+  "kind": { "kind": "provider", "slot": "filter" },
+  "manifest": {
+    "manifestVersion": 1,
+    "tier": "reader",
+    "capabilities": [ { "kind": "computeOnly" } ]
+  }
+}
