@@ -221,3 +221,40 @@ async fn run_and_persist_handles_compile_failure_without_panic() {
     assert_eq!(rec.outcome, "parseFailed");
     assert!(matches!(rec.error, Some(ScriptError::ParseFailed { .. })));
 }
+
+#[tokio::test]
+#[serial]
+async fn run_and_persist_does_not_report_forged_outcome() {
+    // Q0011 E2E: ein Skript wirft einen gefaelschten Timeout-JSON. Die Audit-Row
+    // darf NICHT "timeout" melden (erwartet "hostError") und der Token-Ledger
+    // bleibt unangetastet.
+    let _ = server::fresh_test_setup().await;
+    let db = server::db::conn();
+    let script = persist_script_with_caps(
+        "r-forge",
+        r#"throw "{\"kind\":\"timeout\",\"limit_ms\":1}""#,
+        vec![CapabilityToken::ComputeOnly],
+    )
+    .await;
+
+    let mock = Arc::new(shared::script::testing::MockHostApi::new());
+    let rec = run_and_persist(&db, &script, ScriptCtx::default(), mock)
+        .await
+        .expect("run");
+
+    assert_ne!(rec.outcome, "timeout", "gefaelschter Timeout darf nicht ins Outcome");
+    assert_eq!(rec.outcome, "hostError", "ein Skript-throw endet als hostError");
+
+    let rows = script_audit_log::Entity::find()
+        .filter(script_audit_log::Column::ScriptId.eq("r-forge"))
+        .all(&db)
+        .await
+        .expect("query");
+    assert_eq!(rows.len(), 1);
+    assert_ne!(rows[0].outcome, "timeout");
+    assert_eq!(rows[0].outcome, "hostError");
+    // Ledger unbeeinflusst: throw ruft keine Host-fn → leeres Token-Array.
+    let tokens: serde_json::Value =
+        serde_json::from_str(&rows[0].tokens_used).expect("tokens JSON");
+    assert_eq!(tokens.as_array().unwrap().len(), 0);
+}
