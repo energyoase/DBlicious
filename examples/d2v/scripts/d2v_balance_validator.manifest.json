@@ -1,0 +1,8 @@
+{
+  "kind": { "kind": "provider", "slot": "validator" },
+  "manifest": {
+    "manifestVersion": 1,
+    "tier": "reader",
+    "capabilities": [ { "kind": "computeOnly" }, { "kind": "readI18n" } ]
+  }
+}
