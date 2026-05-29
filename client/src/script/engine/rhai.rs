@@ -219,22 +219,25 @@ fn register_host_fns(engine: &mut Engine, state: Arc<Mutex<RunState>>) {
     );
 }
 
+/// Sentinel-Transport fuer host-originierte `ScriptError`s (Q0011, symmetrisch
+/// zum Server). Host-Fehler reisen als geboxter Custom-Typ im
+/// `EvalAltResult`-Payload, nicht als JSON-String — ein Skript-`throw` kann
+/// diesen Typ nicht erzeugen, der gemeldete `kind` ist damit nicht spoofbar.
+#[derive(Clone)]
+struct HostErrorPayload(ScriptError);
+
 /// Wandelt einen `ScriptError` in den passenden Rhai-Fehler: unmaskable
 /// (Spec §10) wird `ErrorTerminated` (per `try`/`catch` NICHT fangbar),
-/// alles andere `ErrorRuntime` (fangbar). Der serialisierte `ScriptError`
-/// reist im `Dynamic`-Payload mit, damit `map_rhai_err` ihn rekonstruiert.
+/// alles andere `ErrorRuntime` (fangbar). Der `ScriptError` reist als
+/// authentifizierter `HostErrorPayload`-Custom-Typ im `Dynamic`-Payload mit,
+/// damit `map_rhai_err` ihn per `try_cast` rekonstruiert (Q0011).
 fn script_err_to_rhai(e: ScriptError) -> Box<EvalAltResult> {
-    let payload = serde_json::to_string(&e).unwrap_or_default();
-    if e.unmaskable() {
-        Box::new(EvalAltResult::ErrorTerminated(
-            Dynamic::from(payload),
-            Position::NONE,
-        ))
+    let unmaskable = e.unmaskable();
+    let payload = Dynamic::from(HostErrorPayload(e));
+    if unmaskable {
+        Box::new(EvalAltResult::ErrorTerminated(payload, Position::NONE))
     } else {
-        Box::new(EvalAltResult::ErrorRuntime(
-            Dynamic::from(payload),
-            Position::NONE,
-        ))
+        Box::new(EvalAltResult::ErrorRuntime(payload, Position::NONE))
     }
 }
 
@@ -292,19 +295,18 @@ fn rhai_to_script_value(v: rhai::Dynamic) -> ScriptValue {
 }
 
 fn map_rhai_err(e: EvalAltResult, timeout_ms: u32, memory_kb: u32) -> ScriptError {
+    let descr = e.to_string();
     match e {
-        // Host-fn-Fehler reisen als JSON-Payload im Terminated/Runtime-Wert
-        // (siehe `script_err_to_rhai`). Erst versuchen, den echten
-        // ScriptError zu rekonstruieren.
+        // Host-fn-Fehler reisen als authentifizierter Sentinel-Payload
+        // (`HostErrorPayload`, siehe `script_err_to_rhai`). NUR dieser Typ
+        // rekonstruiert den echten ScriptError. Alles andere (insbesondere ein
+        // Skript-`throw "<json>"`, das nur primitive/Map-Dynamics erzeugt) wird
+        // generisch als HostError gemeldet — der gemeldete `kind` ist damit
+        // NICHT mehr vom Skript waehlbar (Q0011, Akzeptanzkriterium 1).
         EvalAltResult::ErrorTerminated(payload, _) | EvalAltResult::ErrorRuntime(payload, _) => {
-            if let Ok(s) = payload.into_string() {
-                if let Ok(err) = serde_json::from_str::<ScriptError>(&s) {
-                    return err;
-                }
-                return ScriptError::HostError { source: s };
-            }
-            ScriptError::HostError {
-                source: "runtime error".into(),
+            match payload.try_cast::<HostErrorPayload>() {
+                Some(HostErrorPayload(err)) => err,
+                None => ScriptError::HostError { source: descr },
             }
         }
         EvalAltResult::ErrorTooManyOperations(_) => ScriptError::Timeout {
