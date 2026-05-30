@@ -65,6 +65,7 @@ const COLUMNS_QUERY: &str = r#"
             filterId
             editorId
             formatterId
+            validatorId
             actionIds
         }
     }
@@ -86,6 +87,8 @@ struct RawColumnMeta {
     editor_id: Option<String>,
     #[serde(default)]
     formatter_id: Option<String>,
+    #[serde(default)]
+    validator_id: Option<String>,
     #[serde(default)]
     action_ids: Option<Vec<String>>,
 }
@@ -120,6 +123,7 @@ pub async fn fetch_columns(entity_type: &str) -> Result<Vec<ColumnMeta>, GqlErro
                 filter_id: c.filter_id,
                 editor_id: c.editor_id,
                 formatter_id: c.formatter_id,
+                validator_id: c.validator_id,
                 action_ids: c.action_ids.unwrap_or_default(),
             }
         })

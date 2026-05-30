@@ -81,6 +81,7 @@ fn column_from(bound: &BoundField) -> ColumnMeta {
         // Client UI fuer die Implementation-Wahl liefert (1.5.4/1.5.5).
         editor_id: None,
         formatter_id: None,
+        validator_id: None,
         action_ids: Vec::new(),
     }
 }

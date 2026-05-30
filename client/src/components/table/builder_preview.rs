@@ -164,6 +164,7 @@ mod tests {
             filter_id: None,
             editor_id: None,
             formatter_id: None,
+            validator_id: None,
             action_ids: Vec::new(),
         }
     }
