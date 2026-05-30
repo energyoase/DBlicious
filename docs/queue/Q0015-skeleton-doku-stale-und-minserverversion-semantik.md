@@ -1,10 +1,10 @@
 ---
 id: Q0015
 created: 2026-05-30T20:01:01Z
-status: new
+status: brainstormed
 priority: low
 title: "Skeleton-Doku auf 3 Scripts aktualisieren + minServerVersion-Semantik (>= statt ==)"
-spec: null
+spec: docs/superpowers/specs/Q0015-skeleton-doku-stale-und-minserverversion-semantik-design.md
 plan: null
 pending_question_id: null
 resume_step: null
@@ -20,7 +20,7 @@ review:
   reviewer: null
   notes_path: null
 security_review:
-  required: false
+  required: true
   status: null
   notes_path: null
 diagnosis_path: null
@@ -73,3 +73,4 @@ ist `dataDirFormat` (Q0012, `shared::DATA_DIR_FORMAT`). Risiko gering.
 
 ## Log
 - 2026-05-30T20:01:01Z — manual: created (Q0012-Review-Follow-ups F1+F2 gebündelt; verifiziert: loader.rs:103 `min_ver != our_ver` Exakt-Match)
+- 2026-05-30T20:08:11Z — ccm-brainstorm: status new → brainstormed, spec=docs/superpowers/specs/Q0015-skeleton-doku-stale-und-minserverversion-semantik-design.md; security_review.required=true (Trigger: script). Spec-Kern: semver-`>=` via gelockte `semver`-Crate hinter pure `server_version_warning`-Helper (warn-and-skip bei malformed), Skeleton-Doku scripts/-Block 1→3 (17-Entity-Baum bleibt korrekt)
