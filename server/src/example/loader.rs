@@ -403,11 +403,13 @@ mod tests {
     fn binary_older_than_min_warns() {
         // Binary 0.1.0 zu alt fuer minServerVersion 0.2.0 → Warnung,
         // die beide Versionen und "zu alt" nennt.
-        let msg = server_version_warning("0.2.0", "0.1.0")
-            .expect("aelteres Binary muss warnen");
+        let msg = server_version_warning("0.2.0", "0.1.0").expect("aelteres Binary muss warnen");
         assert!(msg.contains("0.2.0"), "Message muss min_ver nennen: {msg}");
         assert!(msg.contains("0.1.0"), "Message muss our_ver nennen: {msg}");
-        assert!(msg.contains("zu alt"), "Message muss 'zu alt' enthalten: {msg}");
+        assert!(
+            msg.contains("zu alt"),
+            "Message muss 'zu alt' enthalten: {msg}"
+        );
     }
 
     #[test]

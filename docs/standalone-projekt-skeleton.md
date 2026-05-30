@@ -51,13 +51,19 @@ mein-d2v-projekt/                     # eigenes Git-Repo, eigener Ordner
 │   ├── star_money_entry/{columns,editor,settings,binding}.json
 │   └── susa_entry/{columns,editor,settings,binding}.json
 └── scripts/
-    ├── d2v_value_type_label.rhai
-    └── d2v_value_type_label.manifest.json
+    ├── d2v_balance_validator.{rhai,manifest.json}
+    ├── d2v_stack_filter.{rhai,manifest.json}
+    └── d2v_value_type_label.{rhai,manifest.json}
 ```
 
 Quelle: 1:1 Kopie der Schicht-3+4-Dateien aus `dblicious/examples/d2v/`
-(verifiziert: 17 Entity-Typen, 1 Script). Die einzige strukturelle Neuerung
-ist `[meta]` in `config.toml` und die `dblicious-version`-Plaintext-Pin.
+(verifiziert: 17 Entity-Typen, 3 Scripts (Stand 2026-05-30)). Die einzige
+strukturelle Neuerung ist `[meta]` in `config.toml` und die
+`dblicious-version`-Plaintext-Pin.
+
+> `scripts/` ist der lebende Bestand von `examples/d2v/scripts/` und waechst mit
+> jedem Script-Pilot mit — Liste hier synchron halten, Bestand via Glob auf
+> `examples/d2v/scripts/` verifizieren.
 
 ## 2. Pflicht-Inhalt von `config.toml`
 
