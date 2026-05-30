@@ -37,6 +37,8 @@ pub struct ColumnMeta {
     /// (Resolution-Stufe 1).
     pub editor_id: Option<String>,
     pub formatter_id: Option<String>,
+    /// Q0014: Provider-Skript-Validator-ID (`script:<id>`) o.ae.
+    pub validator_id: Option<String>,
     pub action_ids: Vec<String>,
 }
 

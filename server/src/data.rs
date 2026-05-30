@@ -82,6 +82,7 @@ fn convert_column(c: shared::ColumnMeta) -> ColumnMeta {
         filter_id: c.filter_id,
         editor_id: c.editor_id,
         formatter_id: c.formatter_id,
+        validator_id: c.validator_id,
         action_ids: c.action_ids,
     }
 }

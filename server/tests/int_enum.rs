@@ -34,6 +34,7 @@ fn install_int_enum_column() {
         filter_id: None,
         editor_id: None,
         formatter_id: None,
+        validator_id: None,
         action_ids: vec![],
     };
     example::mutate(|set| {
