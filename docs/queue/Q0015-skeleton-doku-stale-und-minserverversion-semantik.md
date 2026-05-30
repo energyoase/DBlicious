@@ -1,7 +1,7 @@
 ---
 id: Q0015
 created: 2026-05-30T20:01:01Z
-status: done
+status: reviewed
 priority: low
 title: "Skeleton-Doku auf 3 Scripts aktualisieren + minServerVersion-Semantik (>= statt ==)"
 spec: docs/superpowers/specs/Q0015-skeleton-doku-stale-und-minserverversion-semantik-design.md
@@ -16,10 +16,11 @@ requirements: null
 assigned_worker: null
 type: feature
 review:
-  status: requested
+  status: approved
   reviewer: claude
-  notes_path: null
+  notes_path: docs/reviews/Q0015-review.md
   requested_at: 2026-05-30T20:31:12Z
+  decided_at: 2026-05-30T20:33:37Z
 security_review:
   required: true
   status: null
@@ -78,3 +79,4 @@ ist `dataDirFormat` (Q0012, `shared::DATA_DIR_FORMAT`). Risiko gering.
 - 2026-05-30T20:11:35Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0015-skeleton-doku-stale-und-minserverversion-semantik.md (5-Task-TDD: semver=\"1\" zu server/Cargo.toml ohne Lockfile-Bump, test-first `server_version_warning`-Helper mit 6 Fällen, Loader-Rewire, Skeleton scripts/ 1→3; Verify via target-test/)
 - 2026-05-30T20:12:30Z — ccm-execute: status planned → executing (pre-approved via 'alle drei der Reihe nach')
 - 2026-05-30T20:30:28Z — ccm-execute: status executing → done, final_sha=9afeff1 (semver `>=`-Threshold via pure `server_version_warning`-Helper + 6 TDD-Unit-Tests, Skeleton scripts/ 1→3; Cargo.lock nur semver-Kante, kein neuer Knoten; Verify grün: fmt/clippy/87 lib-Tests/4 Q0012-Integration) — awaiting review
+- 2026-05-30T20:33:37Z — ccm-review: status done → reviewed (approved by claude), notes=docs/reviews/Q0015-review.md (0 blocking; 1 non-blocking: malformed-our_ver-Pfad in Prod effektiv dead, by-spec defensiv & test-pinned)
