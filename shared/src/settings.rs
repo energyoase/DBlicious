@@ -31,6 +31,9 @@ pub struct FieldTypeDefaults {
     pub editor_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub formatter_id: Option<String>,
+    /// Q0014: Vorgewaehlter Validator (analog `formatter_id`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validator_id: Option<String>,
     /// Empfohlene Row-Action-IDs.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub action_ids: Vec<String>,
@@ -43,6 +46,10 @@ pub struct FieldTypeDefaults {
     pub allowed_editor_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_formatter_ids: Vec<String>,
+    /// Q0014: weitere zulaessige Validator-Alternativen (analog
+    /// `allowed_formatter_ids`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_validator_ids: Vec<String>,
 }
 
 /// Zugriffsstufe einer Entitaet oder Property.

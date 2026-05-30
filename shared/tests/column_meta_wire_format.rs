@@ -56,3 +56,26 @@ fn missing_validator_id_deserializes_to_none() {
     let c: ColumnMeta = serde_json::from_str(json).unwrap();
     assert_eq!(c.validator_id, None);
 }
+
+#[test]
+fn field_type_defaults_validator_id_roundtrips() {
+    use shared::FieldTypeDefaults;
+    let d = FieldTypeDefaults {
+        validator_id: Some("script:d2v_balance_validator".into()),
+        allowed_validator_ids: vec!["script:d2v_balance_validator".into()],
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&d).unwrap();
+    assert!(json.contains("\"validatorId\""), "got: {json}");
+    assert!(json.contains("\"allowedValidatorIds\""), "got: {json}");
+    let back: FieldTypeDefaults = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, d);
+}
+
+#[test]
+fn field_type_defaults_without_validator_fields_default_empty() {
+    use shared::FieldTypeDefaults;
+    let d: FieldTypeDefaults = serde_json::from_str("{}").unwrap();
+    assert_eq!(d.validator_id, None);
+    assert!(d.allowed_validator_ids.is_empty());
+}
