@@ -16,9 +16,10 @@ requirements: null
 assigned_worker: null
 type: feature
 review:
-  status: pending
-  reviewer: null
+  status: requested
+  reviewer: claude
   notes_path: null
+  requested_at: 2026-05-30T22:12:53Z
 security_review:
   required: true
   status: null
