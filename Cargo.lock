@@ -6573,6 +6573,7 @@ dependencies = [
  "rust_xlsxwriter",
  "sea-orm",
  "sea-query",
+ "semver",
  "serde",
  "serde_json",
  "serial_test",

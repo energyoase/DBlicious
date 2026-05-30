@@ -93,6 +93,10 @@ typst-as-lib = { version = "0.15.4", default-features = false, features = [
     "typst-kit-fonts",
     "typst-kit-embed-fonts",
 ] }
+# Q0015 §1.3: SemVer-Vergleich fuer die minServerVersion-Warn-Schwelle.
+# `semver` 1.0.28 ist bereits transitiv im Lockfile (cargo-/sea-orm-/typst-
+# Tooling) — `semver = "1"` loest auf denselben Knoten, kein Lockfile-Bump.
+semver = "1"
 
 [dev-dependencies]
 serial_test = "3"
