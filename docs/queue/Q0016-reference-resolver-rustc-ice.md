@@ -1,7 +1,7 @@
 ---
 id: Q0016
 created: 2026-05-30T20:01:01Z
-status: new
+status: rejected
 priority: medium
 title: "rustc-ICE in server/tests/reference_resolver.rs (pre-existing, out-of-scope aus Q0011)"
 spec: null
@@ -23,7 +23,7 @@ security_review:
   required: false
   status: null
   notes_path: null
-diagnosis_path: null
+diagnosis_path: docs/superpowers/diagnoses/Q0016-reference-resolver-rustc-ice-diagnosis.md
 design_path: null
 linked_issue: null
 linked_pr: null
@@ -75,3 +75,4 @@ weil er die Test-Baseline (vgl. Q0010 fmt/clippy-Baseline) gefährdet.
 
 ## Log
 - 2026-05-30T20:01:01Z — manual: created (type=bug; pre-existing rustc-ICE, out-of-scope aus Q0011-Review; bestätigt: reference_resolver.rs vorhanden mit 5 Tests)
+- 2026-05-30T20:50:19Z — ccm-debug: status new → rejected (NOT A BUG), diagnosis=docs/superpowers/diagnoses/Q0016-reference-resolver-rustc-ice-diagnosis.md. ICE reproduziert NICHT: reference_resolver.rs kompiliert clean, alle 5 Tests grün (inkrementell + fresh target-dir). Ursache war target-test/-Cache-Korruption (E0786/STATUS_STACK_BUFFER_OVERRUN/rlib) an ANDEREN Test-Targets, kein Source-/Toolchain-Bug (stable 1.95.0). Provenance unbelegt: Q0011-review.md erwähnt keinen ICE. Empfehlung: korrupten target-test/-Cache verwerfen; optional CLAUDE.md-Notiz gegen Re-Triage.
