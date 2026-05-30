@@ -347,3 +347,55 @@ fn load_entity_type(dir: &Path) -> Result<EntityTypeSet> {
         seeds,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::server_version_warning;
+
+    #[test]
+    fn binary_newer_than_min_no_warning() {
+        // Binary 0.2.0 erfuellt minServerVersion 0.1.0 → keine Warnung.
+        assert_eq!(server_version_warning("0.1.0", "0.2.0"), None);
+    }
+
+    #[test]
+    fn binary_equal_to_min_no_warning() {
+        // Genau am Minimum → keine Warnung.
+        assert_eq!(server_version_warning("0.1.0", "0.1.0"), None);
+    }
+
+    #[test]
+    fn binary_older_than_min_warns() {
+        // Binary 0.1.0 zu alt fuer minServerVersion 0.2.0 → Warnung,
+        // die beide Versionen und "zu alt" nennt.
+        let msg = server_version_warning("0.2.0", "0.1.0")
+            .expect("aelteres Binary muss warnen");
+        assert!(msg.contains("0.2.0"), "Message muss min_ver nennen: {msg}");
+        assert!(msg.contains("0.1.0"), "Message muss our_ver nennen: {msg}");
+        assert!(msg.contains("zu alt"), "Message muss 'zu alt' enthalten: {msg}");
+    }
+
+    #[test]
+    fn binary_older_minor_warns() {
+        // Patch-/Minor-Unterschied innerhalb derselben Major → Warnung.
+        assert!(server_version_warning("0.1.5", "0.1.0").is_some());
+    }
+
+    #[test]
+    fn malformed_min_ver_warns_and_skips() {
+        // Nicht-SemVer min_ver → warn-and-skip, Message nennt den Grund.
+        let msg = server_version_warning("latest", "0.1.0")
+            .expect("unparsbares min_ver muss warnen (skip)");
+        assert!(
+            msg.contains("kein gueltiges SemVer"),
+            "Message muss den Parse-Grund nennen: {msg}"
+        );
+    }
+
+    #[test]
+    fn malformed_our_ver_warns_and_skips() {
+        // Nicht-SemVer our_ver (interner Build-Defekt) → warn-and-skip,
+        // kein panic, kein Boot-Abbruch.
+        assert!(server_version_warning("0.1.0", "nonsense").is_some());
+    }
+}
