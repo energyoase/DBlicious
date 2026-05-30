@@ -1,7 +1,7 @@
 ---
 id: Q0014
 created: 2026-05-30T20:01:01Z
-status: done
+status: reviewed
 priority: medium
 title: "Stage-2: validator_id-Slot in ColumnMeta/EntitySettings + script:-Prefix im Filter-Pfad konsumieren"
 spec: docs/superpowers/specs/Q0014-validator-id-slot-und-script-prefix-filterpfad-design.md
@@ -16,10 +16,11 @@ requirements: null
 assigned_worker: null
 type: feature
 review:
-  status: requested
+  status: approved
   reviewer: claude
-  notes_path: null
+  notes_path: docs/reviews/Q0014-review.md
   requested_at: 2026-05-30T22:12:53Z
+  decided_at: 2026-05-30T22:17:52Z
 security_review:
   required: true
   status: null
@@ -89,3 +90,4 @@ mit `script:`-Prefix abdeckt.
 - 2026-05-30T21:30:53Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0014-validator-id-slot-und-script-prefix-filterpfad.md (9-Task-TDD). Anker bestätigt; 2 Implementierungs-Divergenzen eingebaut: (1) ScriptRegistry nicht Clone → Arc<ScriptRegistry> in LocalSource; (2) MockHostApi testing-gated → Arc<dyn HostApi>-Konstruktor-Injection (Prod: RenderHost). Client-Test-Harness = native #[test] in client/tests/ (wie script_provider_lookup.rs), +futures dev-dep für block_on; neuer Message-Key SCRIPT_VALIDATION_KEY.
 - 2026-05-30T21:31:32Z — ccm-execute: status planned → executing (pre-approved via 'alle drei der Reihe nach')
 - 2026-05-30T22:12:15Z — ccm-execute: status executing → done, final_sha=0774e1b (9 Tasks TDD, 9 Commits e8bd9f7..0774e1b). Lücke A live via echtem ValidationSystem::run, Lücke B live via LocalSource::passes script:-Prädikat — beide durch Integration-Tests mit echtem Rhai-Engine bewiesen. Neuer ColumnMeta-Wire-Pin (column_meta_wire_format.rs, 5 Tests), DATA_DIR_FORMAT bleibt 1. Verify grün: fmt/clippy(3 Crates)/shared+client+server-Tests. — awaiting review
+- 2026-05-30T22:17:52Z — ccm-review: status done → reviewed (approved by claude), notes=docs/reviews/Q0014-review.md (0 blocking; 2 non-blocking out-of-scope: (1) selectedStackId via from_f64 erreicht Rhai als FLOAT, INT-Row coerced — heute korrekt, künftig härten; (2) global_search-Loop führt script:-Filter-Spalte noch durch ops_for_named, benign). Reviewer re-ran LocalSource-Test (2 passed).
