@@ -1,7 +1,7 @@
 ---
 id: Q0015
 created: 2026-05-30T20:01:01Z
-status: planned
+status: executing
 priority: low
 title: "Skeleton-Doku auf 3 Scripts aktualisieren + minServerVersion-Semantik (>= statt ==)"
 spec: docs/superpowers/specs/Q0015-skeleton-doku-stale-und-minserverversion-semantik-design.md
@@ -75,3 +75,4 @@ ist `dataDirFormat` (Q0012, `shared::DATA_DIR_FORMAT`). Risiko gering.
 - 2026-05-30T20:01:01Z — manual: created (Q0012-Review-Follow-ups F1+F2 gebündelt; verifiziert: loader.rs:103 `min_ver != our_ver` Exakt-Match)
 - 2026-05-30T20:08:11Z — ccm-brainstorm: status new → brainstormed, spec=docs/superpowers/specs/Q0015-skeleton-doku-stale-und-minserverversion-semantik-design.md; security_review.required=true (Trigger: script). Spec-Kern: semver-`>=` via gelockte `semver`-Crate hinter pure `server_version_warning`-Helper (warn-and-skip bei malformed), Skeleton-Doku scripts/-Block 1→3 (17-Entity-Baum bleibt korrekt)
 - 2026-05-30T20:11:35Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0015-skeleton-doku-stale-und-minserverversion-semantik.md (5-Task-TDD: semver=\"1\" zu server/Cargo.toml ohne Lockfile-Bump, test-first `server_version_warning`-Helper mit 6 Fällen, Loader-Rewire, Skeleton scripts/ 1→3; Verify via target-test/)
+- 2026-05-30T20:12:30Z — ccm-execute: status planned → executing (pre-approved via 'alle drei der Reihe nach')
