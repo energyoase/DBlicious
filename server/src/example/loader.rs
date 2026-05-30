@@ -41,11 +41,51 @@ struct ConfigMeta {
     /// geschrieben wurde. Wird gegen `shared::DATA_DIR_FORMAT` verglichen.
     #[serde(default)]
     data_dir_format: Option<u32>,
-    /// Optionale Mindest-Server-Version — reine Warn-Schwelle, kein Stopp.
-    /// Format: `major.minor.patch` (lex-vergleichbar reicht uns hier nicht;
-    /// wir tracen nur, wir parsen es nicht weiter — entkoppelt von SemVer).
+    /// Optionale Mindest-Server-Version (SemVer). Reine Warn-Schwelle, kein
+    /// Stopp: das Binary warnt nur, wenn seine eigene Version *kleiner* als
+    /// dieser Wert ist (oder der String kein gueltiges SemVer ist). Vergleich
+    /// via `semver`-Crate (Q0015 §1).
     #[serde(default)]
     min_server_version: Option<String>,
+}
+
+/// Prueft die optionale `minServerVersion`-Untergrenze gegen die laufende
+/// Binary-Version. Reine Warn-Schwelle (kein Stopp): liefert `Some(msg)`, wenn
+/// eine Warnung geloggt werden soll, sonst `None`.
+///
+/// Warn-Faelle:
+/// - Binary aelter als das deklarierte Minimum (`our < min`),
+/// - `min_ver` ist kein gueltiges SemVer (Check uebersprungen),
+/// - `our_ver` ist kein gueltiges SemVer (interner Build-Defekt; Check uebersprungen).
+///
+/// Kein Warn-Fall: `our >= min`.
+fn server_version_warning(min_ver: &str, our_ver: &str) -> Option<String> {
+    let min = match semver::Version::parse(min_ver) {
+        Ok(v) => v,
+        Err(_) => {
+            return Some(format!(
+                "minServerVersion = '{min_ver}' ist kein gueltiges SemVer — \
+                 Versions-Check uebersprungen."
+            ));
+        }
+    };
+    let our = match semver::Version::parse(our_ver) {
+        Ok(v) => v,
+        Err(_) => {
+            return Some(format!(
+                "interne Binary-Version '{our_ver}' ist kein gueltiges SemVer — \
+                 minServerVersion-Check uebersprungen."
+            ));
+        }
+    };
+    if our < min {
+        return Some(format!(
+            "data-dir verlangt minServerVersion = '{min_ver}', dieses Binary ist \
+             {our_ver} (zu alt). Reine Warnung, kein Stopp — bitte ein neueres \
+             dblicious-Binary installieren."
+        ));
+    }
+    None
 }
 
 /// Laed das Beispiel im angegebenen Verzeichnis. Schlaegt fehl, wenn das
@@ -99,13 +139,8 @@ pub fn load(dir: &Path) -> Result<ExampleSet> {
         );
     }
     if let Some(min_ver) = meta.min_server_version.as_deref() {
-        let our_ver = env!("CARGO_PKG_VERSION");
-        if min_ver != our_ver {
-            tracing::warn!(
-                "data-dir '{}' deklariert minServerVersion = '{min_ver}', dieses Binary ist {our_ver}. \
-                 Es findet keine harte Pruefung statt — bitte selbst verifizieren.",
-                dir.display()
-            );
+        if let Some(msg) = server_version_warning(min_ver, env!("CARGO_PKG_VERSION")) {
+            tracing::warn!("data-dir '{}': {msg}", dir.display());
         }
     }
 
