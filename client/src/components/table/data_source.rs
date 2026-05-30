@@ -19,14 +19,18 @@ use std::rc::Rc;
 
 use serde_json::Value;
 use shared::{
-    ops_for_named, ColumnMeta, Entity, EntityChangeResult, FieldType, FilterCriteria, Sort,
-    SortDirection,
+    ops_for_named, ColumnMeta, Entity, EntityChangeResult, FieldType, FilterCriteria,
+    FilterPredicate, Sort, SortDirection,
 };
+use shared::script::engine::{HostApi, ScriptCtx, ScriptInputs, ScriptValue};
+use shared::script::model::ProviderSlot;
 
 use crate::graphql::queries::{
     create_entity, delete_entity, fetch_entities, update_entity, EntityPageResult,
 };
 use crate::graphql::GqlError;
+use crate::script::provider_lookup::{lookup_provider, LookupResult, SCRIPT_PREFIX};
+use crate::script::registry::ScriptRegistry;
 
 #[derive(Debug, Clone, Default)]
 pub struct DataRequest {
@@ -191,10 +195,35 @@ struct ColumnLookup {
 pub struct LocalSource {
     items: Rc<Vec<Entity>>,
     columns: Rc<HashMap<String, ColumnLookup>>,
+    /// Q0014: optionale Skript-Registry + Host fuer `script:`-Filter-
+    /// Praedikate. `None` => reiner Built-in-Ops-Pfad (Bestandsverhalten).
+    scripts: Option<std::sync::Arc<ScriptRegistry>>,
+    host: Option<std::sync::Arc<dyn HostApi>>,
 }
 
 impl LocalSource {
     pub fn new(items: Vec<Entity>, columns: &[ColumnMeta]) -> Self {
+        Self::build(items, columns, None, None)
+    }
+
+    /// Q0014: wie `new`, aber mit Skript-Registry + Host fuer `script:`-Filter.
+    /// `host` wird injiziert (Produktion: `RenderHost`; Test: `MockHostApi`),
+    /// damit diese Datei frei von `testing`-gegateten Typen bleibt.
+    pub fn with_script_registry(
+        items: Vec<Entity>,
+        columns: &[ColumnMeta],
+        scripts: std::sync::Arc<ScriptRegistry>,
+        host: std::sync::Arc<dyn HostApi>,
+    ) -> Self {
+        Self::build(items, columns, Some(scripts), Some(host))
+    }
+
+    fn build(
+        items: Vec<Entity>,
+        columns: &[ColumnMeta],
+        scripts: Option<std::sync::Arc<ScriptRegistry>>,
+        host: Option<std::sync::Arc<dyn HostApi>>,
+    ) -> Self {
         let columns = columns
             .iter()
             .map(|c| {
@@ -211,6 +240,8 @@ impl LocalSource {
         Self {
             items: Rc::new(items),
             columns: Rc::new(columns),
+            scripts,
+            host,
         }
     }
 
@@ -218,11 +249,26 @@ impl LocalSource {
         entity: &Entity,
         filter: &FilterCriteria,
         columns: &HashMap<String, ColumnLookup>,
+        scripts: Option<&std::sync::Arc<ScriptRegistry>>,
+        host: Option<&std::sync::Arc<dyn HostApi>>,
     ) -> bool {
         for cf in &filter.predicates {
             let Some(col) = columns.get(&cf.key) else {
                 return false;
             };
+            // Q0014: `script:`-Filter => Per-Row-Boolean-Praedikat statt Ops.
+            if let Some(fid) = col.filter_id.as_deref() {
+                if fid.starts_with(SCRIPT_PREFIX) {
+                    if let (Some(reg), Some(h)) = (scripts, host) {
+                        if !script_predicate(entity, &cf.predicate, fid, reg, h.clone()) {
+                            return false;
+                        }
+                        continue; // Skript hat entschieden; Ops ueberspringen.
+                    }
+                    // Keine Registry/Host => Skript inaktiv => Zeile durchlassen.
+                    continue;
+                }
+            }
             let value = entity.fields.get(&cf.key).cloned().unwrap_or(Value::Null);
             let ops = ops_for_named(
                 &col.field_type,
@@ -281,11 +327,15 @@ impl DataSource for LocalSource {
     fn fetch(&self, req: DataRequest) -> BoxFuture<Result<DataResponse, GqlError>> {
         let items = self.items.clone();
         let columns = self.columns.clone();
+        let scripts = self.scripts.clone();
+        let host = self.host.clone();
         Box::pin(async move {
             // 1) Filter
             let mut filtered: Vec<Entity> = items
                 .iter()
-                .filter(|e| Self::passes(e, &req.filter, &columns))
+                .filter(|e| {
+                    Self::passes(e, &req.filter, &columns, scripts.as_ref(), host.as_ref())
+                })
                 .cloned()
                 .collect();
 
@@ -312,5 +362,49 @@ impl DataSource for LocalSource {
                 reference_labels: BTreeMap::new(),
             })
         })
+    }
+}
+
+/// Q0014: wertet ein `script:`-Filter-Praedikat fuer **eine** Zeile aus.
+/// `selected` ist der Vergleichswert aus dem Filter-State (fuer eine
+/// integer-Spalte ein `NumberEquals`-Value); er wird als `selectedStackId`
+/// in eine angereicherte `fields`-Kopie injiziert. `true` = Zeile behalten.
+/// `host` wird von aussen injiziert (kein `testing`-gegateter Typ hier).
+/// Fallback/NotAScriptId/Nicht-Bool => `true` (nicht ausschliessen).
+fn script_predicate(
+    entity: &Entity,
+    predicate: &FilterPredicate,
+    filter_id: &str,
+    registry: &ScriptRegistry,
+    host: std::sync::Arc<dyn HostApi>,
+) -> bool {
+    let selected = match predicate {
+        FilterPredicate::NumberEquals { value } => Some(*value),
+        _ => None,
+    };
+    let mut fields = entity.fields.clone();
+    let sel_value = selected
+        .and_then(serde_json::Number::from_f64)
+        .map(Value::Number)
+        .unwrap_or(Value::Null);
+    fields.insert("selectedStackId".into(), sel_value);
+
+    let inputs = ScriptInputs {
+        value: Value::Null,
+        fields,
+    };
+    match lookup_provider(
+        filter_id,
+        ProviderSlot::Filter,
+        registry,
+        host,
+        ScriptCtx::default(),
+        inputs,
+    ) {
+        LookupResult::Ok {
+            value: ScriptValue::Bool(b),
+        } => b,
+        // Fallback / NotAScriptId / Nicht-Bool => Zeile nicht ausschliessen.
+        _ => true,
     }
 }

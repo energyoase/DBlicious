@@ -60,6 +60,7 @@ rhai = { version = "1", default-features = false, features = ["std", "sync", "in
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 shared = { path = "../shared", features = ["testing"] }
+futures = "0.3"
 
 [package.metadata.leptos]
 output-name = "client"
