@@ -33,6 +33,13 @@ use shared::{ColumnMeta, FieldType};
 /// Liefert die Filter-ID, die fuer eine Spalte gerendert werden soll.
 /// `None` bedeutet "kein Filter-UI fuer diese Spalte".
 pub fn resolve_filter_id(column: &ColumnMeta, registry: &FilterRegistry) -> Option<&'static str> {
+    // Q0014: ein `script:`-Filter ist ein Per-Row-Praedikat (siehe
+    // LocalSource::passes), kein Eingabe-Widget. Kein Built-in rendern.
+    if let Some(id) = column.filter_id.as_deref() {
+        if id.starts_with(crate::script::provider_lookup::SCRIPT_PREFIX) {
+            return None;
+        }
+    }
     // 1) Server-Vorgabe gewinnt, wenn registriert.
     if let Some(id) = column.filter_id.as_deref() {
         if registry.get(id).is_some() {
@@ -98,4 +105,40 @@ fn register_factory(
     factory: impl Fn(FilterContext) -> AnyView + Send + Sync + 'static,
 ) {
     registry.register(id, Arc::new(factory));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::ColumnMeta;
+
+    fn col(filter_id: Option<&str>) -> ColumnMeta {
+        ColumnMeta {
+            key: "stackId".into(),
+            label_key: "k".into(),
+            field_type: FieldType::Integer,
+            sortable: true,
+            filterable: true,
+            comparator_id: None,
+            filter_id: filter_id.map(|s| s.to_string()),
+            editor_id: None,
+            formatter_id: None,
+            validator_id: None,
+            action_ids: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn script_filter_renders_no_builtin_widget() {
+        let reg = default_registry();
+        let c = col(Some("script:d2v_stack_filter"));
+        assert_eq!(resolve_filter_id(&c, &reg), None);
+    }
+
+    #[test]
+    fn plain_integer_still_gets_number_range() {
+        let reg = default_registry();
+        let c = col(None);
+        assert_eq!(resolve_filter_id(&c, &reg), Some(number_range::ID));
+    }
 }
