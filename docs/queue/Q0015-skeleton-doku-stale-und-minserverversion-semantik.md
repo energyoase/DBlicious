@@ -1,7 +1,7 @@
 ---
 id: Q0015
 created: 2026-05-30T20:01:01Z
-status: reviewed
+status: security-cleared
 priority: low
 title: "Skeleton-Doku auf 3 Scripts aktualisieren + minServerVersion-Semantik (>= statt ==)"
 spec: docs/superpowers/specs/Q0015-skeleton-doku-stale-und-minserverversion-semantik-design.md
@@ -23,8 +23,8 @@ review:
   decided_at: 2026-05-30T20:33:37Z
 security_review:
   required: true
-  status: requested
-  notes_path: null
+  status: cleared
+  notes_path: docs/reviews/Q0015-security-review.md
 diagnosis_path: null
 design_path: null
 linked_issue: null
@@ -80,3 +80,4 @@ ist `dataDirFormat` (Q0012, `shared::DATA_DIR_FORMAT`). Risiko gering.
 - 2026-05-30T20:12:30Z — ccm-execute: status planned → executing (pre-approved via 'alle drei der Reihe nach')
 - 2026-05-30T20:30:28Z — ccm-execute: status executing → done, final_sha=9afeff1 (semver `>=`-Threshold via pure `server_version_warning`-Helper + 6 TDD-Unit-Tests, Skeleton scripts/ 1→3; Cargo.lock nur semver-Kante, kein neuer Knoten; Verify grün: fmt/clippy/87 lib-Tests/4 Q0012-Integration) — awaiting review
 - 2026-05-30T20:33:37Z — ccm-review: status done → reviewed (approved by claude), notes=docs/reviews/Q0015-review.md (0 blocking; 1 non-blocking: malformed-our_ver-Pfad in Prod effektiv dead, by-spec defensiv & test-pinned)
+- 2026-05-30T20:35:57Z — ccm-security-review: status reviewed → security-cleared, notes=docs/reviews/Q0015-security-review.md (0 blocking; 2 advisory: minServerVersion operator-controlled local config nicht attacker-reachable, semver-Lockfile-Delta nur Edge ohne neue Knoten)
