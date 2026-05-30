@@ -35,7 +35,10 @@ fn stack_filter_script() -> Script {
 fn row(id: &str, stack: i64) -> Entity {
     let mut m = serde_json::Map::new();
     m.insert("stackId".into(), serde_json::json!(stack));
-    Entity { id: id.into(), fields: m }
+    Entity {
+        id: id.into(),
+        fields: m,
+    }
 }
 
 fn columns() -> Vec<ColumnMeta> {

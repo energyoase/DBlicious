@@ -177,7 +177,9 @@ mod tests {
             validator_id: Some("script:d2v_balance_validator".into()),
             ..Default::default()
         };
-        settings.field_type_defaults.insert("money".into(), defaults);
+        settings
+            .field_type_defaults
+            .insert("money".into(), defaults);
         assert_eq!(
             resolve_implementation_id(&c, Some(&settings), "validator"),
             Some("script:d2v_balance_validator".to_string())

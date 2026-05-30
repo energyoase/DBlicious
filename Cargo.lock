@@ -1412,6 +1412,7 @@ dependencies = [
  "console_log",
  "fluent",
  "fluent-langneg",
+ "futures",
  "gloo-net",
  "js-sys",
  "leptos",

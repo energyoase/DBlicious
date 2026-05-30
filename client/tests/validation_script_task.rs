@@ -58,7 +58,13 @@ fn build_system() -> ValidationSystem {
     )
     .expect("script validator task should be constructible");
     let mut sys = ValidationSystem::new();
-    sys.register("datev_entry", ValidationTask { target: "value".into(), task });
+    sys.register(
+        "datev_entry",
+        ValidationTask {
+            target: "value".into(),
+            task,
+        },
+    );
     sys
 }
 

@@ -18,12 +18,12 @@ use std::pin::Pin;
 use std::rc::Rc;
 
 use serde_json::Value;
+use shared::script::engine::{HostApi, ScriptCtx, ScriptInputs, ScriptValue};
+use shared::script::model::ProviderSlot;
 use shared::{
     ops_for_named, ColumnMeta, Entity, EntityChangeResult, FieldType, FilterCriteria,
     FilterPredicate, Sort, SortDirection,
 };
-use shared::script::engine::{HostApi, ScriptCtx, ScriptInputs, ScriptValue};
-use shared::script::model::ProviderSlot;
 
 use crate::graphql::queries::{
     create_entity, delete_entity, fetch_entities, update_entity, EntityPageResult,
@@ -333,9 +333,7 @@ impl DataSource for LocalSource {
             // 1) Filter
             let mut filtered: Vec<Entity> = items
                 .iter()
-                .filter(|e| {
-                    Self::passes(e, &req.filter, &columns, scripts.as_ref(), host.as_ref())
-                })
+                .filter(|e| Self::passes(e, &req.filter, &columns, scripts.as_ref(), host.as_ref()))
                 .cloned()
                 .collect();
 
