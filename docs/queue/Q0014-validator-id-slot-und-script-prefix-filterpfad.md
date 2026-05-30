@@ -1,11 +1,11 @@
 ---
 id: Q0014
 created: 2026-05-30T20:01:01Z
-status: brainstormed
+status: planned
 priority: medium
 title: "Stage-2: validator_id-Slot in ColumnMeta/EntitySettings + script:-Prefix im Filter-Pfad konsumieren"
 spec: docs/superpowers/specs/Q0014-validator-id-slot-und-script-prefix-filterpfad-design.md
-plan: null
+plan: docs/superpowers/plans/Q0014-validator-id-slot-und-script-prefix-filterpfad.md
 pending_question_id: null
 resume_step: null
 parent: null
@@ -85,3 +85,4 @@ mit `script:`-Prefix abdeckt.
 ## Log
 - 2026-05-30T20:01:01Z — manual: created (Stage-2-Folgeitem aus Q0013; verifizierte Lücken A validator_id-Slot fehlt in shared/src/lib.rs, B script:-Prefix in resolve.rs:27 unbehandelt)
 - 2026-05-30T21:22:24Z — ccm-brainstorm: status new → brainstormed, spec=docs/superpowers/specs/Q0014-validator-id-slot-und-script-prefix-filterpfad-design.md; security_review.required=true (Trigger: script). Locked Scope (User 2026-05-30): A=cut-line-C (validator_id additiv + GraphQL/Client-Plumbing + neuer ColumnMeta-Wire-Pin + Script-Validator live via echtem ValidationSystem::run, editor.rs-Hookup=Folgeitem), B=Resolver+minimaler LocalSource-Prädikat (script:-Branch in LocalSource::passes + filters/mod.rs script:-Guard, E2E-Test mit d2v_stack_filter). DATA_DIR_FORMAT bleibt 1. Refinement: LocalSource existiert bereits (data_source.rs:190-316), Lücke B ist nur ein script:-Branch.
+- 2026-05-30T21:30:53Z — ccm-plan: status brainstormed → planned, plan=docs/superpowers/plans/Q0014-validator-id-slot-und-script-prefix-filterpfad.md (9-Task-TDD). Anker bestätigt; 2 Implementierungs-Divergenzen eingebaut: (1) ScriptRegistry nicht Clone → Arc<ScriptRegistry> in LocalSource; (2) MockHostApi testing-gated → Arc<dyn HostApi>-Konstruktor-Injection (Prod: RenderHost). Client-Test-Harness = native #[test] in client/tests/ (wie script_provider_lookup.rs), +futures dev-dep für block_on; neuer Message-Key SCRIPT_VALIDATION_KEY.
