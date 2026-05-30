@@ -27,6 +27,7 @@ pub fn resolve_implementation_id(
         "filter" => column.filter_id.clone(),
         "editor" => column.editor_id.clone(),
         "formatter" => column.formatter_id.clone(),
+        "validator" => column.validator_id.clone(),
         _ => None,
     };
     if column_override.is_some() {
@@ -41,6 +42,7 @@ pub fn resolve_implementation_id(
                 "filter" => defaults.filter_id.clone(),
                 "editor" => defaults.editor_id.clone(),
                 "formatter" => defaults.formatter_id.clone(),
+                "validator" => defaults.validator_id.clone(),
                 _ => None,
             };
             if from_settings.is_some() {
@@ -102,6 +104,7 @@ mod tests {
             filter_id: None,
             editor_id: None,
             formatter_id: None,
+            validator_id: None,
             action_ids: Vec::new(),
         }
     }
@@ -150,6 +153,41 @@ mod tests {
             resolve_implementation_id(&c, None, "filter"),
             Some("text-contains".to_string())
         );
+    }
+
+    #[test]
+    fn validator_column_override_wins() {
+        let mut c = col(FieldType::Money {
+            currency_code_field: None,
+        });
+        c.validator_id = Some("script:d2v_balance_validator".into());
+        assert_eq!(
+            resolve_implementation_id(&c, None, "validator"),
+            Some("script:d2v_balance_validator".to_string())
+        );
+    }
+
+    #[test]
+    fn validator_field_type_default_used() {
+        let c = col(FieldType::Money {
+            currency_code_field: None,
+        });
+        let mut settings = EntitySettings::default();
+        let defaults = shared::FieldTypeDefaults {
+            validator_id: Some("script:d2v_balance_validator".into()),
+            ..Default::default()
+        };
+        settings.field_type_defaults.insert("money".into(), defaults);
+        assert_eq!(
+            resolve_implementation_id(&c, Some(&settings), "validator"),
+            Some("script:d2v_balance_validator".to_string())
+        );
+    }
+
+    #[test]
+    fn validator_has_no_client_fallback() {
+        let c = col(FieldType::Text);
+        assert!(resolve_implementation_id(&c, None, "validator").is_none());
     }
 
     #[test]
