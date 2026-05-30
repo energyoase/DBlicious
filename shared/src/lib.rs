@@ -300,6 +300,11 @@ pub struct ColumnMeta {
     /// Phase 1.5: erzwungene Formatter-ID fuer diese Spalte.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub formatter_id: Option<String>,
+    /// Q0014: erzwungene Validator-ID fuer diese Spalte. Mit `script:`-Prefix
+    /// referenziert sie einen Provider-Skript-Validator (siehe
+    /// `client::validation::script_task`). Spiegelt `formatter_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validator_id: Option<String>,
     /// Phase 1.5: Liste der Row-Action-IDs, die fuer Zeilen dieser Spalte
     /// angeboten werden. Leer = keine Per-Row-Aktionen aus dieser Spalte.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
