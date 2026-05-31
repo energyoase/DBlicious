@@ -1,10 +1,10 @@
 ---
 id: Q0018
 created: 2026-05-31T08:54:12Z
-status: new
+status: brainstormed
 priority: low
 title: "Q0014-Härtungen: script-Filter INT-Coercion + global_search-Guard + Per-Row-Aggregate-Op-Budget"
-spec: null
+spec: docs/superpowers/specs/Q0018-q0014-haertungen-scriptfilter-numerik-globalsearch-budget-design.md
 plan: null
 pending_question_id: null
 resume_step: null
@@ -20,7 +20,7 @@ review:
   reviewer: null
   notes_path: null
 security_review:
-  required: false
+  required: true
   status: null
   notes_path: null
 diagnosis_path: null
@@ -83,3 +83,4 @@ Resource-Hygiene.
 
 ## Log
 - 2026-05-31T08:54:12Z — manual: created (3 gebündelte Q0014-Review-Härtungen, alle in data_source.rs; H1 INT-Coercion, H2 global_search-Guard, H3 Per-Row-Aggregate-Budget)
+- 2026-05-31T09:18:58Z — ccm-brainstorm (via ccm-loop, parallel): status new → brainstormed, spec=docs/superpowers/specs/Q0018-q0014-haertungen-scriptfilter-numerik-globalsearch-budget-design.md; security_review.required=true (Trigger: script, sandbox, wasm). Alle 3 Cuts gegen Code verifiziert: H1 from_f64→FLOAT (json_to_dynamic rhai.rs 255-278), H2 global_search-Loop ohne script:-Guard (data_source.rs 282-295), H3 set_max_operations(50_000) per-run (rhai.rs 77-82) → deterministisches Run-Count-Budget MAX_SCRIPT_FILTER_RUNS. Test-Harness local_source_script_filter.rs. Keine blockierende Decision.
