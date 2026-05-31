@@ -17,11 +17,16 @@ created_at     = "2026-05-20T00:00:00Z"
 
 [ccm.questions]
 fallback_mode = "block"
+# Dev-Rolle -> PWA-Push via laufendem ccmd-Daemon (Tailnet). 2026-05-31.
+channel_dev   = "webpush"
 
 # Aus dem legacy `triage-config.toml::[executor]` uebernommen
 # (ccm-upgrade-project, 2026-05-23). Solo-Mode laeuft heute sequentiell.
 [ccm.orchestrator]
-parallelism  = "sequential"
+# 2026-05-31: sequential -> auto (parallel wo gefahrlos), damit ccm-loop
+# unabhaengige Items (z.B. Q0017 editor.rs vs Q0018 data_source.rs) parallel
+# in isolierten Worktrees abarbeiten kann.
+parallelism  = "auto"
 max_parallel = 3
 
 # Test-/Lint-Gates (ccm-config-project, 2026-05-25). lint_cmd spiegelt die
@@ -60,5 +65,13 @@ default_base_for_merge = "main"
 merge_method           = "squash"
 # auto_push_promote=false, copilot_review_enabled=false = Defaults.
 
-# Keine [ccm.channels.*]-Sektionen — Solo-Mode, Daemon nicht in Verwendung.
+# PWA-Push an das gepairte Handy ueber den laufenden ccmd-Daemon (Tailnet).
+# public_https_url kommt aus Env CCM_PUBLIC_HTTPS_URL (https://jezit.tailf3a069.ts.net);
+# VAPID-Key ist daemon-verwaltet (Keyring account=ccm-webpush-vapid). 2026-05-31.
+[ccm.channels.webpush]
+kind            = "webpush"
+keyring_service = "ccm"
+keyring_account = "ccm-webpush-vapid"
+ttl_secs        = 3600
+
 # Keine [ccm.models]-Overrides — Defaults aus ccm-model-mapping.md greifen.
