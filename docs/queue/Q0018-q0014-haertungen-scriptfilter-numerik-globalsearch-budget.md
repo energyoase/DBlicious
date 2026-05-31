@@ -1,7 +1,7 @@
 ---
 id: Q0018
 created: 2026-05-31T08:54:12Z
-status: reviewed
+status: security-cleared
 priority: low
 title: "Q0014-Härtungen: script-Filter INT-Coercion + global_search-Guard + Per-Row-Aggregate-Op-Budget"
 spec: docs/superpowers/specs/Q0018-q0014-haertungen-scriptfilter-numerik-globalsearch-budget-design.md
@@ -23,8 +23,8 @@ review:
   decided_at: 2026-05-31T10:03:49Z
 security_review:
   required: true
-  status: requested
-  notes_path: null
+  status: cleared
+  notes_path: docs/reviews/Q0018-security-review.md
 diagnosis_path: null
 design_path: null
 linked_issue: null
@@ -89,3 +89,4 @@ Resource-Hygiene.
 - 2026-05-31T09:25:06Z — ccm-plan (via ccm-loop, parallel): status brainstormed → planned, plan=docs/superpowers/plans/Q0018-q0014-haertungen-scriptfilter-numerik-globalsearch-budget.md (7-Task-TDD: H1 int-typed selectedStackId, H2 script:-skip in global_search, H3 ScriptBudget run-count). Anker alle bestätigt (passes 248-297, script-branch 260-271, global_search 282-295, script_predicate 372-408, apply_limits rhai.rs:78). Mechanik-Note: cfg(debug_assertions) statt cfg(test) fürs Budget-Override (Integration-Tests kompilieren client als Dep ohne crate-cfg(test)). Keine blockierende Decision.
 - 2026-05-31T09:59:15Z — ccm-execute (via ccm-loop, PARALLEL in isoliertem Worktree): status planned → executing → done, final_sha=7d8d8f9 (Merge-Commit; 1 Implement-Commit 88a6e97). H1 int-typed selectedStackId (Rhai INT statt FLOAT), H2 global_search überspringt script:-Spalten, H3 ScriptBudget(MAX_SCRIPT_FILTER_RUNS=5000, debug_assertions=200) fail-open per fetch. 8 Filter-Tests (je H rot-vor-fix). Nur data_source.rs + local_source_script_filter.rs. Worktree --no-ff gemerged; kombinierte client-Verification grün. — awaiting review
 - 2026-05-31T10:03:49Z — ccm-review (via ccm-loop, parallel): status done → reviewed (approved by claude), notes=docs/reviews/Q0018-review.md (0 blocking; 2 non-blocking: (1) debug_assertions koppelt Budget → 'trunk serve'-Dev-Build nutzt 200-Run-Threshold statt 5000, dev-only/fail-open/informational; (2) guarded i64-Cast korrekt). H1/H2/H3 alle korrekt verifiziert, scope exakt data_source.rs+Test, kein Sandbox/Server-Change.
+- 2026-05-31T10:08:00Z — ccm-security-review (via ccm-loop, parallel): status reviewed → security-cleared, notes=docs/reviews/Q0018-security-review.md (0 blocking; 3 advisory: (1) H3 fail-open = stille unvollständige Filterung jenseits Budget, nur per einmaligem log::warn signalisiert — künftig UI-Indikator falls Filter-Vollständigkeit vertrauenswürdig sein muss; (2) debug_assertions koppelt Budget → trunk-serve-Dev nutzt 200; (3) client-side-display-filter-Invariante halten — kein Server-Pfad darf Client-Filter für Autorisierung/Integrität vertrauen). H3 bound = MAX_SCRIPT_FILTER_RUNS×50_000 ops unabhängig von page_size; release ships 5_000. Self-inflicted, nicht attacker-reachable.
