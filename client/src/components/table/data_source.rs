@@ -8,6 +8,19 @@
 //!   - `LocalSource`   – Vorgemerkt fuer Faelle, in denen die komplette
 //!     Datenmenge clientseitig vorliegt und lokal verarbeitet wird.
 //!
+//! ## Script-Filter Resource-Schranken (Q0014 + Q0018-H3)
+//! `script:`-Filter-Praedikate laufen pro Zeile durch die Rhai-Engine. Drei
+//! Schranken begrenzen den Ressourcenverbrauch:
+//!   (a) `set_max_operations(50_000)` **pro Run** (rhai.rs::apply_limits) —
+//!       deckelt CPU-Ops eines einzelnen Skript-Laufs.
+//!   (b) optionaler `manifest.timeout_ms` **pro Run** (sandbox.rs) als
+//!       Wall-Clock-Deadline.
+//!   (c) `MAX_SCRIPT_FILTER_RUNS` **aggregiert pro `fetch`** (Q0018-H3) —
+//!       begrenzt die *Anzahl* der Filter-Runs ueber die Datenmenge; bei
+//!       Erschoepfung fail-open (verbleibende Zeilen durchgelassen) + ein
+//!       einmaliges `console::warn`. Reine Resource-Hygiene, kein
+//!       Trust-Boundary.
+//!
 //! Die Tabelle selbst arbeitet nur gegen den Trait und merkt nicht, ob die
 //! Sortierung gerade serverseitig oder clientseitig erfolgt.
 
@@ -31,6 +44,46 @@ use crate::graphql::queries::{
 use crate::graphql::GqlError;
 use crate::script::provider_lookup::{lookup_provider, LookupResult, SCRIPT_PREFIX};
 use crate::script::registry::ScriptRegistry;
+
+/// H3 (Q0018): Aggregat-Budget fuer `script:`-Filter-Runs pro `fetch`.
+/// Jeder einzelne Run ist bereits durch `set_max_operations(50_000)`
+/// (rhai.rs::apply_limits) gedeckelt; dieses Budget begrenzt die *Anzahl*
+/// der Runs ueber die Datenmenge, damit `n_rows x teures Skript` den eigenen
+/// Browser-Tab nicht unbeobachtet blockiert. Reine Resource-Hygiene, **kein
+/// Trust-Boundary** (self-inflicted, client-side). Bei Erschoepfung: fail-open
+/// + einmaliges Warning.
+#[allow(dead_code)] // unter debug_assertions ungenutzt; aktiv im Release-Budget
+const MAX_SCRIPT_FILTER_RUNS_PROD: usize = 5_000;
+
+/// Kleiner Test-Override, damit der H3-Integrationstest in < 1 s laeuft.
+/// `pub`, damit der Integrationstest die Schwelle als Konstante lesen kann.
+/// Wird nur als aktives Budget verwendet, wenn `debug_assertions` aktiv ist
+/// (also unter `cargo test`/dev-builds); Release-WASM nutzt den Prod-Wert.
+pub const TEST_MAX_SCRIPT_FILTER_RUNS: usize = 200;
+
+/// Das in diesem Build aktive Aggregat-Budget.
+#[cfg(debug_assertions)]
+const MAX_SCRIPT_FILTER_RUNS: usize = TEST_MAX_SCRIPT_FILTER_RUNS;
+#[cfg(not(debug_assertions))]
+const MAX_SCRIPT_FILTER_RUNS: usize = MAX_SCRIPT_FILTER_RUNS_PROD;
+
+/// H3 (Q0018): pro `fetch` gefuehrtes Run-Budget fuer `script:`-Filter.
+struct ScriptBudget {
+    /// Verbleibende erlaubte `script:`-Filter-Runs in diesem `fetch`.
+    runs_left: usize,
+    /// Wurde das Budget in diesem `fetch` bereits ueberschritten? Dient dem
+    /// einmaligen Warning (kein Per-Zeile-Spam).
+    warned: bool,
+}
+
+impl ScriptBudget {
+    fn new() -> Self {
+        Self {
+            runs_left: MAX_SCRIPT_FILTER_RUNS,
+            warned: false,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct DataRequest {
@@ -251,6 +304,7 @@ impl LocalSource {
         columns: &HashMap<String, ColumnLookup>,
         scripts: Option<&std::sync::Arc<ScriptRegistry>>,
         host: Option<&std::sync::Arc<dyn HostApi>>,
+        budget: &mut ScriptBudget,
     ) -> bool {
         for cf in &filter.predicates {
             let Some(col) = columns.get(&cf.key) else {
@@ -260,6 +314,23 @@ impl LocalSource {
             if let Some(fid) = col.filter_id.as_deref() {
                 if fid.starts_with(SCRIPT_PREFIX) {
                     if let (Some(reg), Some(h)) = (scripts, host) {
+                        // H3 (Q0018): Aggregat-Run-Budget pro `fetch`. Ist es
+                        // erschoepft, laeuft kein weiteres Filter-Skript mehr;
+                        // die Zeile wird durchgelassen (fail-open, konsistent
+                        // mit der "kein Skript => Zeile durchlassen"-Semantik
+                        // unten). Einmaliges Warning beim ersten Ueberschreiten.
+                        if budget.runs_left == 0 {
+                            if !budget.warned {
+                                budget.warned = true;
+                                log::warn!(
+                                    "dblicious: script-Filter Run-Budget pro fetch \
+                                     erschoepft (MAX_SCRIPT_FILTER_RUNS); restliche \
+                                     Zeilen werden ungefiltert durchgelassen."
+                                );
+                            }
+                            continue; // fail-open
+                        }
+                        budget.runs_left -= 1;
                         if !script_predicate(entity, &cf.predicate, fid, reg, h.clone()) {
                             return false;
                         }
@@ -281,6 +352,17 @@ impl LocalSource {
         }
         if let Some(needle) = filter.global_search.as_deref().filter(|s| !s.is_empty()) {
             let hit = columns.iter().any(|(key, col)| {
+                // H2 (Q0018): `script:`-Filter-Spalten sind boolesche Per-Row-
+                // Praedikate ohne sinnvollen durchsuchbaren Textwert. Aus der
+                // global_search explizit ausklammern (statt implizit ueber den
+                // Roh-`field_type` zu suchen). Kein Skript-Run hier.
+                if col
+                    .filter_id
+                    .as_deref()
+                    .is_some_and(|fid| fid.starts_with(SCRIPT_PREFIX))
+                {
+                    return false;
+                }
                 let value = entity.fields.get(key).cloned().unwrap_or(Value::Null);
                 let ops = ops_for_named(
                     &col.field_type,
@@ -331,9 +413,20 @@ impl DataSource for LocalSource {
         let host = self.host.clone();
         Box::pin(async move {
             // 1) Filter
+            // H3 (Q0018): ein Run-Budget pro `fetch` ueber alle Zeilen.
+            let mut budget = ScriptBudget::new();
             let mut filtered: Vec<Entity> = items
                 .iter()
-                .filter(|e| Self::passes(e, &req.filter, &columns, scripts.as_ref(), host.as_ref()))
+                .filter(|e| {
+                    Self::passes(
+                        e,
+                        &req.filter,
+                        &columns,
+                        scripts.as_ref(),
+                        host.as_ref(),
+                        &mut budget,
+                    )
+                })
                 .cloned()
                 .collect();
 
@@ -381,10 +474,25 @@ fn script_predicate(
         _ => None,
     };
     let mut fields = entity.fields.clone();
-    let sel_value = selected
-        .and_then(serde_json::Number::from_f64)
-        .map(Value::Number)
-        .unwrap_or(Value::Null);
+    // H1 (Q0018): Ganzzahlige Filterwerte int-typisiert injizieren, damit
+    // `selectedStackId` in `json_to_dynamic` als Rhai-INT marshalt — symmetrisch
+    // zur Row-`stackId` (kommt aus `serde_json::json!(<i64>)` ebenfalls als INT).
+    // So haengt der Vergleich `row == sel` nicht an Rhais INT/FLOAT-Coercion.
+    // Echte Nachkommastellen / out-of-range / NaN/inf bleiben FLOAT bzw. Null.
+    let sel_value = match selected {
+        Some(v)
+            if v.is_finite()
+                && v.fract() == 0.0
+                && v >= i64::MIN as f64
+                && v <= i64::MAX as f64 =>
+        {
+            Value::Number((v as i64).into())
+        }
+        Some(v) => serde_json::Number::from_f64(v)
+            .map(Value::Number)
+            .unwrap_or(Value::Null),
+        None => Value::Null,
+    };
     fields.insert("selectedStackId".into(), sel_value);
 
     let inputs = ScriptInputs {
