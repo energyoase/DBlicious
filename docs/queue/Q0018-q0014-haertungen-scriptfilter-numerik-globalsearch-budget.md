@@ -23,7 +23,7 @@ review:
   decided_at: 2026-05-31T10:03:49Z
 security_review:
   required: true
-  status: null
+  status: requested
   notes_path: null
 diagnosis_path: null
 design_path: null
