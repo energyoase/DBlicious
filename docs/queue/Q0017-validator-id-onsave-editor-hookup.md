@@ -1,10 +1,10 @@
 ---
 id: Q0017
 created: 2026-05-31T08:54:12Z
-status: new
+status: brainstormed
 priority: medium
 title: "validator_id on-save Editor-Hookup (Stage-3 von Q0014 Lücke A)"
-spec: null
+spec: docs/superpowers/specs/Q0017-validator-id-onsave-editor-hookup-design.md
 plan: null
 pending_question_id: null
 resume_step: null
@@ -20,7 +20,7 @@ review:
   reviewer: null
   notes_path: null
 security_review:
-  required: false
+  required: true
   status: null
   notes_path: null
 diagnosis_path: null
@@ -78,3 +78,4 @@ Editor blockiert + eine `ValidationMessage` zeigt.
 
 ## Log
 - 2026-05-31T08:54:12Z — manual: created (Stage-3-Folgeitem aus Q0014 Lücke A; Editor-UI on-save-Hookup, in Q0014 cut-line-C bewusst deferred)
+- 2026-05-31T09:18:58Z — ccm-brainstorm (via ccm-loop, parallel): status new → brainstormed, spec=docs/superpowers/specs/Q0017-validator-id-onsave-editor-hookup-design.md; security_review.required=true (Trigger: script, sandbox, wasm). Ansatz A: Editor holt zusätzlich fetch_columns + register_script_validators (Q0014 script_validator_task), 0 shared/server-Changes; ValidationSystem non-reaktiv+synchron ⇒ Deferral-Hindernis auflösbar. Impl-Gaps: d2v value-Spalte braucht validatorId=script:d2v_balance_validator + FTL-Key validation-script fehlt. Keine blockierende Decision.
