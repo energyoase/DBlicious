@@ -1,7 +1,7 @@
 ---
 id: Q0018
 created: 2026-05-31T08:54:12Z
-status: done
+status: reviewed
 priority: low
 title: "Q0014-Härtungen: script-Filter INT-Coercion + global_search-Guard + Per-Row-Aggregate-Op-Budget"
 spec: docs/superpowers/specs/Q0018-q0014-haertungen-scriptfilter-numerik-globalsearch-budget-design.md
@@ -16,10 +16,11 @@ requirements: null
 assigned_worker: null
 type: feature
 review:
-  status: requested
+  status: approved
   reviewer: claude
-  notes_path: null
+  notes_path: docs/reviews/Q0018-review.md
   requested_at: 2026-05-31T09:59:40Z
+  decided_at: 2026-05-31T10:03:49Z
 security_review:
   required: true
   status: null
@@ -87,3 +88,4 @@ Resource-Hygiene.
 - 2026-05-31T09:18:58Z — ccm-brainstorm (via ccm-loop, parallel): status new → brainstormed, spec=docs/superpowers/specs/Q0018-q0014-haertungen-scriptfilter-numerik-globalsearch-budget-design.md; security_review.required=true (Trigger: script, sandbox, wasm). Alle 3 Cuts gegen Code verifiziert: H1 from_f64→FLOAT (json_to_dynamic rhai.rs 255-278), H2 global_search-Loop ohne script:-Guard (data_source.rs 282-295), H3 set_max_operations(50_000) per-run (rhai.rs 77-82) → deterministisches Run-Count-Budget MAX_SCRIPT_FILTER_RUNS. Test-Harness local_source_script_filter.rs. Keine blockierende Decision.
 - 2026-05-31T09:25:06Z — ccm-plan (via ccm-loop, parallel): status brainstormed → planned, plan=docs/superpowers/plans/Q0018-q0014-haertungen-scriptfilter-numerik-globalsearch-budget.md (7-Task-TDD: H1 int-typed selectedStackId, H2 script:-skip in global_search, H3 ScriptBudget run-count). Anker alle bestätigt (passes 248-297, script-branch 260-271, global_search 282-295, script_predicate 372-408, apply_limits rhai.rs:78). Mechanik-Note: cfg(debug_assertions) statt cfg(test) fürs Budget-Override (Integration-Tests kompilieren client als Dep ohne crate-cfg(test)). Keine blockierende Decision.
 - 2026-05-31T09:59:15Z — ccm-execute (via ccm-loop, PARALLEL in isoliertem Worktree): status planned → executing → done, final_sha=7d8d8f9 (Merge-Commit; 1 Implement-Commit 88a6e97). H1 int-typed selectedStackId (Rhai INT statt FLOAT), H2 global_search überspringt script:-Spalten, H3 ScriptBudget(MAX_SCRIPT_FILTER_RUNS=5000, debug_assertions=200) fail-open per fetch. 8 Filter-Tests (je H rot-vor-fix). Nur data_source.rs + local_source_script_filter.rs. Worktree --no-ff gemerged; kombinierte client-Verification grün. — awaiting review
+- 2026-05-31T10:03:49Z — ccm-review (via ccm-loop, parallel): status done → reviewed (approved by claude), notes=docs/reviews/Q0018-review.md (0 blocking; 2 non-blocking: (1) debug_assertions koppelt Budget → 'trunk serve'-Dev-Build nutzt 200-Run-Threshold statt 5000, dev-only/fail-open/informational; (2) guarded i64-Cast korrekt). H1/H2/H3 alle korrekt verifiziert, scope exakt data_source.rs+Test, kein Sandbox/Server-Change.
