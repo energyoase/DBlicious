@@ -1,7 +1,7 @@
 ---
 id: Q0017
 created: 2026-05-31T08:54:12Z
-status: done
+status: reviewed
 priority: medium
 title: "validator_id on-save Editor-Hookup (Stage-3 von Q0014 Lücke A)"
 spec: docs/superpowers/specs/Q0017-validator-id-onsave-editor-hookup-design.md
@@ -16,10 +16,11 @@ requirements: null
 assigned_worker: null
 type: feature
 review:
-  status: requested
+  status: approved
   reviewer: claude
-  notes_path: null
+  notes_path: docs/reviews/Q0017-review.md
   requested_at: 2026-05-31T09:59:40Z
+  decided_at: 2026-05-31T10:03:49Z
 security_review:
   required: true
   status: null
@@ -82,3 +83,4 @@ Editor blockiert + eine `ValidationMessage` zeigt.
 - 2026-05-31T09:18:58Z — ccm-brainstorm (via ccm-loop, parallel): status new → brainstormed, spec=docs/superpowers/specs/Q0017-validator-id-onsave-editor-hookup-design.md; security_review.required=true (Trigger: script, sandbox, wasm). Ansatz A: Editor holt zusätzlich fetch_columns + register_script_validators (Q0014 script_validator_task), 0 shared/server-Changes; ValidationSystem non-reaktiv+synchron ⇒ Deferral-Hindernis auflösbar. Impl-Gaps: d2v value-Spalte braucht validatorId=script:d2v_balance_validator + FTL-Key validation-script fehlt. Keine blockierende Decision.
 - 2026-05-31T09:25:06Z — ccm-plan (via ccm-loop, parallel): status brainstormed → planned, plan=docs/superpowers/plans/Q0017-validator-id-onsave-editor-hookup.md (7-Task-TDD: ValidationSystem::clear, register_script_validators-Helper, Editor-Load-Closure, d2v value validatorId, FTL validation-script de/en/fr, native client/tests/-Test). Divergenzen verifiziert: use_context::<ScriptRenderEnv>() statt nicht-existentem use_script_render_env; env.make_ctx() statt script_ctx; ValidationMessage.message_key. Keine blockierende Decision.
 - 2026-05-31T09:59:15Z — ccm-execute (via ccm-loop, PARALLEL in isoliertem Worktree): status planned → executing → done, final_sha=82e52f5 (Merge-Commit; 6 Implement-Commits 327babc..2d5cb8b). ValidationSystem::clear + register_script_validators + Editor-Load-Wiring (fail-open via Option<ScriptRenderEnv>), d2v value validatorId=script:d2v_balance_validator, FTL validation-script de/en/fr, 3 neue Editor-Tests (block/pass/non-script). Worktree --no-ff gemerged; kombinierte client-Verification grün (fmt/clippy/110 lib+3+8+… Tests). — awaiting review
+- 2026-05-31T10:03:49Z — ccm-review (via ccm-loop, parallel): status done → reviewed (approved by claude), notes=docs/reviews/Q0017-review.md (0 blocking; 2 non-blocking: Log auf fetch_columns-Err-Arm im Load-Closure; Fixture-Dup test vs inline). Bestätigt: 0 shared/server-Changes, client-Validierung non-authoritative, ScriptCtx::default() ok (balance-validator nutzt nur fields.*).
