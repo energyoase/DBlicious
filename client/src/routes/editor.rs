@@ -19,13 +19,17 @@ use serde_json::Value;
 use shared::auth::Op;
 use shared::{compute_hash, EditorMeta, Entity};
 
+use shared::script::engine::ScriptCtx;
+
 use crate::auth::AuthContext;
 use crate::components::field::FieldEditor;
+use crate::components::script_renderer::ScriptRenderEnv;
 use crate::components::table::{DataSource, RemoteSource};
-use crate::graphql::queries::{fetch_editor, fetch_entity_by_id};
+use crate::graphql::queries::{fetch_columns, fetch_editor, fetch_entity_by_id};
 use crate::header::use_header_registry;
 use crate::i18n::t;
 use crate::styling::{use_design, ButtonVariant, SurfaceLevel, TextVariant};
+use crate::validation::script_task::register_script_validators;
 use crate::validation::use_validation_system;
 
 #[component]
@@ -101,16 +105,40 @@ fn EditorBody(
     let id_for_load = id.clone();
     let validation_for_load = validation.clone();
     let header_for_load = header_registry.clone();
+    // Q0017: ScriptRenderEnv fail-open greifen (None => keine Script-Validatoren,
+    // Save bleibt erlaubt). Wird in die async-Load-Closure gemoved, kein
+    // Context-Zugriff im async-Body.
+    let script_env_for_load: Option<ScriptRenderEnv> = use_context::<ScriptRenderEnv>();
     let _load = LocalResource::new(move || {
         let entity_type = entity_type_for_load.clone();
         let id_inner = id_for_load.clone();
         let validation = validation_for_load.clone();
         let header = header_for_load.clone();
+        let script_env = script_env_for_load.clone();
         async move {
             let meta = fetch_editor(&entity_type).await.ok().flatten();
+            // Q0017: vor jeder (Re-)Registrierung die Tasks dieses Typs leeren,
+            // damit erneutes Oeffnen desselben Editors nicht doppelt anhaengt.
+            validation.update(|sys| sys.clear(&entity_type));
             if let Some(m) = meta.clone() {
                 editor_meta.set(Some(m.clone()));
                 validation.update(|sys| sys.import_required_from(&m));
+            }
+            // Q0017: Script-Validatoren aus den Columns registrieren (additiv
+            // nach import_required_from). Fail-open: kein Env => kein Register.
+            if let Some(env) = script_env.clone() {
+                if let Ok(columns) = fetch_columns(&entity_type).await {
+                    validation.update(|sys| {
+                        register_script_validators(
+                            sys,
+                            &entity_type,
+                            &columns,
+                            env.registry.clone(),
+                            env.host.clone(),
+                            ScriptCtx::default(),
+                        );
+                    });
+                }
             }
             if let Some(id) = id_inner {
                 if let Ok(Some(entity)) = fetch_entity_by_id(&entity_type, &id).await {

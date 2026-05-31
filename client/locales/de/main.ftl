@@ -68,6 +68,7 @@ validation-max_length = Höchstens { $max } Zeichen erlaubt.
 validation-number_range = Wert muss zwischen { $min } und { $max } liegen.
 validation-pattern = Wert entspricht nicht dem erwarteten Muster.
 validation-enum_value = Wert ist in dieser Auswahl nicht zulässig.
+validation-script = Validierung fehlgeschlagen.
 
 ## Editor
 editor-title-new = Neuer Datensatz

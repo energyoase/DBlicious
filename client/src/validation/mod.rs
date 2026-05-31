@@ -50,6 +50,14 @@ impl ValidationSystem {
         self.tasks.entry(entity_type.into()).or_default().push(task);
     }
 
+    /// Entfernt alle Tasks fuer `entity_type`. Wird beim Editor-Re-Load
+    /// aufgerufen, damit erneutes Oeffnen desselben Editors (die
+    /// `ValidationSystem`-Instanz lebt App-weit via Context) nicht denselben
+    /// Task ein zweites Mal anhaengt. Andere Entity-Typen bleiben unberuehrt.
+    pub fn clear(&mut self, entity_type: &str) {
+        self.tasks.remove(entity_type);
+    }
+
     /// Bequeme Variante zur Registrierung mehrerer Tasks.
     pub fn extend(&mut self, entity_type: &str, tasks: impl IntoIterator<Item = ValidationTask>) {
         self.tasks
@@ -236,4 +244,34 @@ pub fn provide_validation_system() {
 pub fn use_validation_system() -> ValidationSystemHandle {
     use_context::<ValidationSystemHandle>()
         .expect("Kein ValidationSystem im Context (provide_validation_system fehlt?)")
+}
+
+#[cfg(test)]
+mod clear_tests {
+    use super::*;
+
+    fn noop_task(target: &str) -> ValidationTask {
+        let t = target.to_string();
+        ValidationTask {
+            target: target.into(),
+            task: Arc::new(move |_t, _v, _f| {
+                Some(ValidationMessage::error(t.clone(), "validation.test"))
+            }),
+        }
+    }
+
+    #[test]
+    fn clear_removes_only_the_given_entity_types_tasks() {
+        let mut sys = ValidationSystem::new();
+        sys.register("datev_entry", noop_task("value"));
+        sys.register("other", noop_task("x"));
+
+        sys.clear("datev_entry");
+
+        // datev_entry hat keine Tasks mehr -> leeres Ergebnis.
+        let empty = serde_json::Map::new();
+        assert!(sys.run("datev_entry", &empty).is_empty());
+        // Anderer Entity-Typ unberuehrt.
+        assert!(!sys.run("other", &empty).is_empty());
+    }
 }

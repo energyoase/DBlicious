@@ -68,6 +68,7 @@ validation-max_length = Au plus { $max } caractères autorisés.
 validation-number_range = La valeur doit être comprise entre { $min } et { $max }.
 validation-pattern = La valeur ne correspond pas au format attendu.
 validation-enum_value = Cette valeur n’est pas une option autorisée.
+validation-script = Échec de la validation.
 
 ## Editor
 editor-title-new = Nouvel enregistrement

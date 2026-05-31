@@ -68,6 +68,7 @@ validation-max_length = At most { $max } characters allowed.
 validation-number_range = Value must be between { $min } and { $max }.
 validation-pattern = Value does not match the expected pattern.
 validation-enum_value = Value is not one of the allowed options.
+validation-script = Validation failed.
 
 ## Editor
 editor-title-new = New record
