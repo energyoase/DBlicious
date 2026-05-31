@@ -1,11 +1,11 @@
 ---
 id: Q0017
 created: 2026-05-31T08:54:12Z
-status: brainstormed
+status: planned
 priority: medium
 title: "validator_id on-save Editor-Hookup (Stage-3 von Q0014 Lücke A)"
 spec: docs/superpowers/specs/Q0017-validator-id-onsave-editor-hookup-design.md
-plan: null
+plan: docs/superpowers/plans/Q0017-validator-id-onsave-editor-hookup.md
 pending_question_id: null
 resume_step: null
 parent: null
@@ -79,3 +79,4 @@ Editor blockiert + eine `ValidationMessage` zeigt.
 ## Log
 - 2026-05-31T08:54:12Z — manual: created (Stage-3-Folgeitem aus Q0014 Lücke A; Editor-UI on-save-Hookup, in Q0014 cut-line-C bewusst deferred)
 - 2026-05-31T09:18:58Z — ccm-brainstorm (via ccm-loop, parallel): status new → brainstormed, spec=docs/superpowers/specs/Q0017-validator-id-onsave-editor-hookup-design.md; security_review.required=true (Trigger: script, sandbox, wasm). Ansatz A: Editor holt zusätzlich fetch_columns + register_script_validators (Q0014 script_validator_task), 0 shared/server-Changes; ValidationSystem non-reaktiv+synchron ⇒ Deferral-Hindernis auflösbar. Impl-Gaps: d2v value-Spalte braucht validatorId=script:d2v_balance_validator + FTL-Key validation-script fehlt. Keine blockierende Decision.
+- 2026-05-31T09:25:06Z — ccm-plan (via ccm-loop, parallel): status brainstormed → planned, plan=docs/superpowers/plans/Q0017-validator-id-onsave-editor-hookup.md (7-Task-TDD: ValidationSystem::clear, register_script_validators-Helper, Editor-Load-Closure, d2v value validatorId, FTL validation-script de/en/fr, native client/tests/-Test). Divergenzen verifiziert: use_context::<ScriptRenderEnv>() statt nicht-existentem use_script_render_env; env.make_ctx() statt script_ctx; ValidationMessage.message_key. Keine blockierende Decision.
